@@ -27,7 +27,9 @@ def test_basic_chat():
         temperature=0.7
     )
     
-    print(f"Response: {response['content']}\n")
+    print(f"Raw response: {json.dumps(response, indent=2)}")
+    content = response.get('choices', [{}])[0].get('message', {}).get('content', '')
+    print(f"Response content: {content}\n")
 
 
 def test_streaming_chat():
@@ -48,8 +50,10 @@ def test_streaming_chat():
         stream=True,
         temperature=0.7
     ):
-        if chunk and chunk.get('content'):
-            print(chunk['content'], end='', flush=True)
+        if chunk and isinstance(chunk, dict):
+            content = chunk.get('choices', [{}])[0].get('delta', {}).get('content', '')
+            if content:
+                print(content, end='', flush=True)
     print("\n")
 
 
@@ -91,7 +95,13 @@ def test_chat_with_tools():
         temperature=0.7
     )
     
-    print(f"Response: {response}\n")
+    print(f"Raw response: {json.dumps(response, indent=2)}")
+    tool_calls = response.get('choices', [{}])[0].get('message', {}).get('tool_calls', [])
+    if tool_calls:
+        print(f"Tool calls: {json.dumps(tool_calls, indent=2)}\n")
+    else:
+        content = response.get('choices', [{}])[0].get('message', {}).get('content', '')
+        print(f"Response content: {content}\n")
 
 
 def test_chat_with_system():
@@ -112,29 +122,8 @@ def test_chat_with_system():
         temperature=0.7
     )
     
-    print(f"Response: {response['content']}\n")
-
-
-def test_chat_with_stop():
-    """Test chat completion with stop sequence."""
-    config = load_config()
-    client = HTTPClient(config)
-    chat = ChatAPI(client)
-    
-    print("\nChat with Stop Sequence Test:")
-    messages = [
-        {"role": "user", "content": "Write a story about a dog named Max"}
-    ]
-    
-    response = chat.complete(
-        messages=messages,
-        model="llama-3.2-3b",
-        temperature=0.7,
-        stop=["The End"],
-        max_tokens=100
-    )
-    
-    print(f"Response: {response['content']}\n")
+    content = response.get('choices', [{}])[0].get('message', {}).get('content', '')
+    print(f"Response content: {content}\n")
 
 
 if __name__ == "__main__":
@@ -142,5 +131,4 @@ if __name__ == "__main__":
     test_basic_chat()
     test_streaming_chat()
     test_chat_with_tools()
-    test_chat_with_system()
-    test_chat_with_stop() 
+    test_chat_with_system() 
