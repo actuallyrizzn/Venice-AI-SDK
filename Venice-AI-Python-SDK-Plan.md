@@ -1,11 +1,11 @@
-Absolutely—what you’ve already got is a strong *usage-focused reference*, so this project plan will be a **companion blueprint** for building a lightweight but extensible **Python SDK for VeniceAPI**, geared toward Letta framework compatibility and dev ergonomics.
+Absolutely—what you've already got is a strong *usage-focused reference*, so this project plan will be a **companion blueprint** for building a lightweight but extensible **Python SDK for VeniceAPI**, geared toward Letta framework compatibility and dev ergonomics.
 
 Below is a **comprehensive SDK development project plan**, structured by phases and deliverables, omitting material already covered in the API reference guide.
 
 ---
 
 # 🛠 VeniceAPI Python SDK – Project Plan  
-**Goal:** Build a developer-friendly, well-documented Python SDK that wraps VeniceAPI’s LLM endpoints (esp. Chat Completions), aligns with Letta’s use case needs, and optionally supports extensibility for future endpoints.
+**Goal:** Build a developer-friendly, well-documented Python SDK that wraps VeniceAPI's LLM endpoints (esp. Chat Completions), aligns with Letta's use case needs, and optionally supports extensibility for future endpoints.
 
 ---
 
@@ -38,6 +38,14 @@ Below is a **comprehensive SDK development project plan**, structured by phases 
   - Tests: `pytest`
   - CI: GitHub Actions (optional)
 
+## ✅ Todo List
+
+### Phase 1 – Project Initialization
+- [x] Initialize Git repo
+- [x] Set up package scaffold
+- [x] Create `pyproject.toml`
+- [x] Set up tooling (ruff, black, mypy, pytest)
+
 ---
 
 ## 🔹 Phase 2 – Core SDK Architecture
@@ -59,6 +67,12 @@ Below is a **comprehensive SDK development project plan**, structured by phases 
     - Error capture and parsing
     - Timeout + retry support (retry 429/5xx with exponential backoff)
   - Response decoding with `.json()` or `.iter_lines()` (for streaming)
+
+### Phase 2 – Core SDK Architecture
+- [x] Create `Config` class
+- [x] Implement `load_config()`
+- [x] Build `VeniceClient` class
+- [x] Add retry logic and error handling
 
 ---
 
@@ -96,6 +110,12 @@ Below is a **comprehensive SDK development project plan**, structured by phases 
 - Detect `tool_calls` in response, expose as structured return
 - Optional: include helper `ToolCall` class or dataclass wrapper
 
+### Phase 3 – Chat API Module
+- [x] Create `ChatAPI` class
+- [x] Implement `complete()` method
+- [x] Add streaming support
+- [x] Add tool calling support
+
 ---
 
 ## 🔹 Phase 4 – Error Handling Layer
@@ -113,6 +133,11 @@ class InvalidRequestError(VeniceAPIError): ...
 - Auto-retry on 429/5xx using exponential backoff
 - Optional: allow retry strategy override in client config
 
+### Phase 4 – Error Handling Layer
+- [x] Define SDK exceptions
+- [x] Implement error handling
+- [x] Add retry strategy
+
 ---
 
 ## 🔹 Phase 5 – Utilities & Dev UX
@@ -128,6 +153,12 @@ class InvalidRequestError(VeniceAPIError): ...
 ### 5.2. Env Integration
 - `.env` support via `python-dotenv`
 - Allow CLI-based credential injection (`venice auth set <key>`)
+
+### Phase 5 – Utilities & Dev UX
+- [x] Add `.env` support
+- [ ] Implement `get_models()` helper
+- [ ] Add CLI-based credential injection
+- [ ] Add model listing functionality
 
 ---
 
@@ -148,6 +179,12 @@ class InvalidRequestError(VeniceAPIError): ...
   - Tool call detection
   - Custom system prompt
   - Using `.env`
+
+### Phase 6 – Testing & Examples
+- [x] Set up test framework
+- [x] Create basic unit tests
+- [x] Add example code
+- [ ] Add more comprehensive test coverage
 
 ---
 
@@ -172,6 +209,13 @@ class InvalidRequestError(VeniceAPIError): ...
   - `requests` as a dependency
 - Upload with `twine`
 
+### Phase 7 – Docs & Distribution
+- [x] Create basic README
+- [ ] Add comprehensive docstrings
+- [ ] Generate API documentation
+- [ ] Prepare PyPI publishing
+- [ ] Add distribution metadata
+
 ---
 
 ## 🔹 Bonus – Letta Compatibility Layer
@@ -183,6 +227,11 @@ class InvalidRequestError(VeniceAPIError): ...
       def ChatCompletion.create(...)
   ```
 - Purpose: drop-in compatibility for Letta agent orchestration if expecting OpenAI schema.
+
+### Bonus – Letta Compatibility Layer
+- [ ] Create `openai_proxy` module
+- [ ] Implement OpenAI-style interface
+- [ ] Add Letta integration examples
 
 ---
 
