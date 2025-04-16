@@ -3,7 +3,7 @@ Tests for the HTTP client module.
 """
 
 import json
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, Mock
 import pytest
 import requests
 from venice_sdk.client import HTTPClient
@@ -87,15 +87,36 @@ def test_make_request_retry(client):
         assert mock_request.call_count == 2
 
 
-def test_make_request_max_retries(client):
-    """Test request fails after max retries."""
-    with patch.object(client.session, "request") as mock_request:
-        mock_request.side_effect = requests.exceptions.RequestException("Connection error")
-        
-        with pytest.raises(VeniceAPIError) as exc_info:
-            client._make_request("GET", "test/endpoint")
-        assert "Connection error" in str(exc_info.value)
-        assert mock_request.call_count == client.config.max_retries
+@pytest.fixture
+def mock_response():
+    response = Mock()
+    response.status_code = 200
+    response.json.return_value = {"success": True}
+    return response
+
+
+@pytest.fixture
+def mock_error_response():
+    response = Mock()
+    response.status_code = 400
+    response.json.return_value = {"error": {"message": "Bad request"}}
+    return response
+
+
+def test_make_request_max_retries(client, mocker):
+    """Test that request fails after max retries"""
+    mock_session = mocker.patch.object(client, "_session")
+    mock_session.request.side_effect = [
+        requests.exceptions.ConnectionError("Connection failed"),
+        requests.exceptions.ConnectionError("Connection failed"),
+        requests.exceptions.ConnectionError("Connection failed")
+    ]
+
+    with pytest.raises(VeniceConnectionError) as exc_info:
+        client._make_request("GET", "test")
+    
+    assert "Failed to connect after 3 attempts" in str(exc_info.value)
+    assert mock_session.request.call_count == 3
 
 
 def test_streaming_response(client):
@@ -161,51 +182,46 @@ def test_stream_request(client):
         assert chunks == ["Hello", " World"]
 
 
-@patch("requests.Session.get")
-def test_get_success(mock_get, client):
-    """Test successful GET request."""
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {"data": "test"}
-    mock_get.return_value = mock_response
+def test_get_success(client, mock_response, mocker):
+    """Test successful GET request"""
+    mock_session = mocker.patch.object(client, "_session")
+    mock_session.request.return_value = mock_response
 
-    response = client.get("/test")
-    assert response == {"data": "test"}
-    mock_get.assert_called_once_with(
-        "https://api.venice.ai/api/v1/test",
-        params=None,
-        timeout=30
+    response = client.get("models")
+    assert response.json() == {"success": True}
+    mock_session.request.assert_called_once_with(
+        "GET",
+        f"{client.config.base_url}/models",
+        headers=client._headers,
+        timeout=client.config.timeout
     )
 
 
-@patch("requests.Session.post")
-def test_post_success(mock_post, client):
-    """Test successful POST request."""
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {"data": "test"}
-    mock_post.return_value = mock_response
+def test_post_success(client, mock_response, mocker):
+    """Test successful POST request"""
+    mock_session = mocker.patch.object(client, "_session")
+    mock_session.request.return_value = mock_response
+    data = {"test": "data"}
 
-    data = {"key": "value"}
-    response = client.post("/test", data)
-    assert response == {"data": "test"}
-    mock_post.assert_called_once_with(
-        "https://api.venice.ai/api/v1/test",
-        data=json.dumps(data),
-        timeout=30
+    response = client.post("chat/completions", data=data)
+    assert response.json() == {"success": True}
+    mock_session.request.assert_called_once_with(
+        "POST",
+        f"{client.config.base_url}/chat/completions",
+        headers=client._headers,
+        json=data,
+        timeout=client.config.timeout
     )
 
 
-@patch("requests.Session.get")
-def test_get_api_error(mock_get, client):
-    """Test GET request with API error."""
-    mock_response = MagicMock()
-    mock_response.status_code = 400
-    mock_response.json.return_value = {"error": "Bad request"}
-    mock_get.return_value = mock_response
+def test_get_api_error(client, mock_error_response, mocker):
+    """Test GET request with API error"""
+    mock_session = mocker.patch.object(client, "_session")
+    mock_session.request.return_value = mock_error_response
 
     with pytest.raises(VeniceAPIError) as exc_info:
-        client.get("/test")
+        client.get("models")
+    
     assert "Bad request" in str(exc_info.value)
 
 

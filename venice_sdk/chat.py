@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Generator, List, Optional, Union
 
 from .client import HTTPClient
+from .errors import VeniceAPIError
 
 
 @dataclass
@@ -62,58 +63,51 @@ class ChatAPI:
     def complete(
         self,
         messages: List[Dict[str, str]],
-        model: str,
-        *,
-        temperature: float = 0.15,
+        model: str = "llama-3.3-70b",
+        temperature: float = 0.7,
         stream: bool = False,
-        max_completion_tokens: Optional[int] = None,
-        tools: Optional[List[Dict]] = None,
-        venice_parameters: Optional[Dict] = None,
-        stop: Optional[Union[str, List[str]]] = None,
-        **kwargs
-    ) -> Union[ChatCompletion, Generator[ChatCompletion, None, None]]:
+        tools: Optional[List[Dict[str, Any]]] = None,
+    ) -> Union[Dict, Generator[str, None, None]]:
         """
         Create a chat completion.
-        
+
         Args:
-            messages: List of message objects
-            model: ID of the model to use
-            temperature: Sampling temperature (0-2)
+            messages: List of messages in the conversation
+            model: Model to use for completion
+            temperature: Sampling temperature (0-1)
             stream: Whether to stream the response
-            max_completion_tokens: Maximum number of tokens to generate
-            tools: List of tools available to the model
-            venice_parameters: Venice-specific parameters
-            stop: Stop sequences
-            **kwargs: Additional parameters
-            
+            tools: Optional list of tools for function calling
+
         Returns:
-            ChatCompletion object or generator for streaming responses
+            If stream=False, returns the complete response as a dictionary
+            If stream=True, returns a generator yielding response chunks as strings
+
+        Raises:
+            ValueError: If messages is empty or temperature is invalid
+            VeniceAPIError: If the API request fails
         """
-        data: Dict[str, Any] = {
-            "model": model,
+        if not messages:
+            raise ValueError("Messages cannot be empty")
+        if not 0 <= temperature <= 1:
+            raise ValueError("Temperature must be between 0 and 1")
+
+        data = {
             "messages": messages,
+            "model": model,
             "temperature": temperature,
-            "stream": stream,
+            "stream": stream
         }
-        
-        if max_completion_tokens is not None:
-            data["max_completion_tokens"] = max_completion_tokens
-        
-        if tools is not None:
+        if tools:
             data["tools"] = tools
-        
-        if venice_parameters is not None:
-            data["venice_parameters"] = venice_parameters
-        
-        if stop is not None:
-            data["stop"] = stop
-        
-        data.update(kwargs)
-        
+
         if stream:
-            return self._stream_completion(data)
+            response = self.client.stream("chat/completions", data=data)
+            return (chunk["choices"][0]["delta"]["content"] 
+                   for chunk in response 
+                   if "content" in chunk.get("choices", [{}])[0].get("delta", {}))
         else:
-            return self._create_completion(data)
+            response = self.client.post("chat/completions", data=data)
+            return response.json()
     
     def _create_completion(self, data: Dict[str, Any]) -> ChatCompletion:
         """Create a non-streaming completion."""
@@ -169,3 +163,43 @@ class ChatAPI:
                         total_tokens=0
                     )
                 ) 
+
+
+def chat_complete(
+    messages: List[Dict[str, str]],
+    model: str = "llama-3.3-70b",
+    temperature: float = 0.7,
+    stream: bool = False,
+    tools: Optional[List[Dict]] = None,
+    client: Optional[HTTPClient] = None,
+    **kwargs
+) -> Union[Dict, Generator[str, None, None]]:
+    """
+    Create a chat completion.
+
+    Args:
+        messages: List of messages in the conversation
+        model: Model to use for completion
+        temperature: Sampling temperature (0-1)
+        stream: Whether to stream the response
+        tools: Optional list of tools to use
+        client: Optional HTTPClient instance. If not provided, a new one will be created.
+        **kwargs: Additional parameters to pass to the API
+
+    Returns:
+        Response data or generator for streaming responses
+
+    Raises:
+        ValueError: If messages is empty or temperature is invalid
+        VeniceAPIError: If the request fails
+    """
+    client = client or HTTPClient()
+    chat_api = ChatAPI(client)
+    return chat_api.complete(
+        messages=messages,
+        model=model,
+        temperature=temperature,
+        stream=stream,
+        tools=tools,
+        **kwargs
+    ) 

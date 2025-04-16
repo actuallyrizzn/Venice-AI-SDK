@@ -9,8 +9,8 @@ from typing import Any, Dict, Generator, Optional, Union
 import requests
 from requests import Response
 
-from .config import Config
-from .errors import handle_api_error
+from .config import Config, load_config
+from .errors import VeniceAPIError, VeniceConnectionError
 
 
 class HTTPClient:
@@ -28,10 +28,12 @@ class HTTPClient:
         Args:
             config: Optional configuration. If not provided, will be loaded from environment.
         """
-        from .config import load_config
         self.config = config or load_config()
         self.session = requests.Session()
-        self.session.headers.update(self.config.headers)
+        self.session.headers.update({
+            "Authorization": f"Bearer {self.config.api_key}",
+            "Content-Type": "application/json"
+        })
     
     def _make_request(
         self,
@@ -56,6 +58,7 @@ class HTTPClient:
             
         Raises:
             VeniceAPIError: If the request fails
+            VeniceConnectionError: If there is a connection error
         """
         url = f"{self.config.base_url}/{endpoint.lstrip('/')}"
         
@@ -80,12 +83,17 @@ class HTTPClient:
                 
                 # Handle non-streaming responses
                 if response.status_code >= 400:
-                    handle_api_error(response.status_code, response.json())
+                    error_data = response.json()
+                    if isinstance(error_data.get("error"), str):
+                        error_message = error_data["error"]
+                    else:
+                        error_message = error_data.get("error", {}).get("message", "Unknown error")
+                    raise VeniceAPIError(error_message, status_code=response.status_code)
                 return response
                 
             except requests.exceptions.RequestException as e:
                 if attempt == self.config.max_retries - 1:
-                    raise VeniceAPIError(f"Request failed after {self.config.max_retries} attempts: {str(e)}")
+                    raise VeniceConnectionError(f"Request failed after {self.config.max_retries} attempts: {str(e)}")
                 time.sleep(2 ** attempt)  # Exponential backoff
     
     def _handle_streaming_response(self, response: Response) -> Generator[str, None, None]:
@@ -102,20 +110,23 @@ class HTTPClient:
             VeniceAPIError: If the request fails
         """
         if response.status_code >= 400:
-            handle_api_error(response.status_code, response.json())
+            error_data = response.json()
+            if isinstance(error_data.get("error"), str):
+                error_message = error_data["error"]
+            else:
+                error_message = error_data.get("error", {}).get("message", "Unknown error")
+            raise VeniceAPIError(error_message, status_code=response.status_code)
         
         for line in response.iter_lines():
-            if line:
-                line = line.decode('utf-8')
-                if line.startswith("data: "):
-                    data = line[len("data: "):]
-                    if data == "[DONE]":
-                        return
-                    try:
-                        chunk = json.loads(data)
-                        yield chunk
-                    except json.JSONDecodeError:
-                        continue
+            if not line:
+                continue
+
+            try:
+                data = json.loads(line.decode("utf-8"))
+                if "chunk" in data:
+                    yield data["chunk"]
+            except json.JSONDecodeError:
+                continue
     
     def get(self, endpoint: str, **kwargs) -> Response:
         """Make a GET request."""

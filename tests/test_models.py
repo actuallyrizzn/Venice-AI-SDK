@@ -29,6 +29,40 @@ def models_api(mock_client):
     return ModelsAPI(mock_client)
 
 
+@pytest.fixture
+def mock_models_response():
+    return {
+        "data": [
+            {
+                "id": "test-model",
+                "name": "Test Model",
+                "description": "A test model",
+                "capabilities": {
+                    "completion": True,
+                    "chat": True,
+                    "stream": True
+                }
+            }
+        ]
+    }
+
+
+@pytest.fixture
+def mock_model_response():
+    return {
+        "data": {
+            "id": "test-model",
+            "name": "Test Model",
+            "description": "A test model",
+            "capabilities": {
+                "completion": True,
+                "chat": True,
+                "stream": True
+            }
+        }
+    }
+
+
 def test_model_capabilities_initialization():
     """Test ModelCapabilities initialization."""
     capabilities = ModelCapabilities(
@@ -258,4 +292,87 @@ def test_get_text_models_utility(mock_client):
         assert len(models) == 1
         assert isinstance(models[0], Model)
         assert models[0].id == "llama-3.3-70b"
-        assert models[0].type == "text" 
+        assert models[0].type == "text"
+
+
+def test_model_capabilities_init():
+    """Test ModelCapabilities initialization"""
+    caps = ModelCapabilities(completion=True, chat=True, stream=True)
+    assert caps.completion is True
+    assert caps.chat is True
+    assert caps.stream is True
+
+
+def test_model_init():
+    """Test Model initialization"""
+    model = Model(
+        id="test-model",
+        name="Test Model",
+        description="A test model",
+        capabilities=ModelCapabilities(completion=True, chat=True, stream=True)
+    )
+    assert model.id == "test-model"
+    assert model.name == "Test Model"
+    assert model.description == "A test model"
+    assert model.capabilities.completion is True
+
+
+def test_models_api_list_success(client, mock_models_response, mocker):
+    """Test successful models list retrieval"""
+    mock_get = mocker.patch.object(client, "get")
+    mock_get.return_value.json.return_value = mock_models_response
+    
+    models_api = ModelsAPI(client)
+    models = models_api.list()
+    
+    assert len(models) == 1
+    assert models[0].id == "test-model"
+    mock_get.assert_called_once_with("models")
+
+
+def test_models_api_get_success(client, mock_model_response, mocker):
+    """Test successful single model retrieval"""
+    mock_get = mocker.patch.object(client, "get")
+    mock_get.return_value.json.return_value = mock_model_response
+    
+    models_api = ModelsAPI(client)
+    model = models_api.get("test-model")
+    
+    assert model.id == "test-model"
+    assert model.name == "Test Model"
+    mock_get.assert_called_once_with("models/test-model")
+
+
+def test_models_api_list_error(client, mocker):
+    """Test error handling in models list"""
+    mock_get = mocker.patch.object(client, "get")
+    mock_get.side_effect = VeniceAPIError("API Error")
+    
+    models_api = ModelsAPI(client)
+    with pytest.raises(VeniceAPIError) as exc_info:
+        models_api.list()
+    assert "API Error" in str(exc_info.value)
+
+
+def test_models_api_get_error(client, mocker):
+    """Test error handling in model retrieval"""
+    mock_get = mocker.patch.object(client, "get")
+    mock_get.side_effect = VeniceAPIError("Model not found")
+    
+    models_api = ModelsAPI(client)
+    with pytest.raises(VeniceAPIError) as exc_info:
+        models_api.get("nonexistent-model")
+    assert "Model not found" in str(exc_info.value)
+
+
+def test_get_text_models(client, mock_models_response, mocker):
+    """Test getting text models"""
+    mock_get = mocker.patch.object(client, "get")
+    mock_get.return_value.json.return_value = mock_models_response
+    
+    models_api = ModelsAPI(client)
+    text_models = models_api.get_text_models()
+    
+    assert len(text_models) == 1
+    assert text_models[0].id == "test-model"
+    assert text_models[0].capabilities.completion is True 

@@ -44,4 +44,11 @@ check_untyped_defs = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "-v --cov=venice_sdk --cov-report=term-missing" 
+addopts = "-v --cov=venice_sdk --cov-report=term-missing"
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.12.0",
+] 

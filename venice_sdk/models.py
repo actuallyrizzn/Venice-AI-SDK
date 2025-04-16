@@ -10,7 +10,7 @@ from .client import HTTPClient
 
 @dataclass
 class ModelCapabilities:
-    """Capabilities of a model."""
+    """Model capabilities."""
     supports_function_calling: bool
     supports_web_search: bool
     available_context_tokens: int
@@ -18,23 +18,23 @@ class ModelCapabilities:
 
 @dataclass
 class Model:
-    """Information about a Venice model."""
+    """Model information."""
     id: str
     name: str
     type: str
     capabilities: ModelCapabilities
-    description: Optional[str] = None
+    description: str
 
 
 class ModelsAPI:
-    """API for model discovery and management."""
+    """API client for model-related endpoints."""
     
     def __init__(self, client: HTTPClient):
         """
-        Initialize the models API.
+        Initialize the models API client.
         
         Args:
-            client: HTTPClient instance
+            client: HTTP client for making requests
         """
         self.client = client
     
@@ -80,7 +80,7 @@ class ModelsAPI:
         try:
             self.get(model_id)
             return True
-        except:  # noqa: E722
+        except Exception:
             return False
 
 
@@ -103,13 +103,10 @@ def get_models(client: Optional[HTTPClient] = None) -> List[Model]:
     
     models = []
     for model_data in models_data:
-        if model_data["type"] != "text":
-            continue
-            
         capabilities = ModelCapabilities(
-            supports_function_calling=model_data["model_spec"]["capabilities"]["supportsFunctionCalling"],
-            supports_web_search=model_data["model_spec"]["capabilities"]["supportsWebSearch"],
-            available_context_tokens=model_data["model_spec"]["capabilities"]["availableContextTokens"]
+            supports_function_calling=model_data["capabilities"]["supports_function_calling"],
+            supports_web_search=model_data["capabilities"]["supports_web_search"],
+            available_context_tokens=model_data["capabilities"]["available_context_tokens"]
         )
         
         model = Model(
@@ -117,7 +114,7 @@ def get_models(client: Optional[HTTPClient] = None) -> List[Model]:
             name=model_data["name"],
             type=model_data["type"],
             capabilities=capabilities,
-            description=model_data.get("description")
+            description=model_data["description"]
         )
         models.append(model)
     
@@ -129,17 +126,29 @@ def get_model_by_id(model_id: str, client: Optional[HTTPClient] = None) -> Optio
     Get a specific model by ID.
     
     Args:
-        model_id: The ID of the model to get.
+        model_id: The ID of the model to get
         client: Optional HTTPClient instance. If not provided, a new one will be created.
         
     Returns:
-        The model if found, None otherwise.
+        Model if found, None otherwise.
     """
-    models = get_models(client)
-    for model in models:
-        if model.id == model_id:
-            return model
-    return None
+    client = client or HTTPClient()
+    models_api = ModelsAPI(client)
+    model_data = models_api.get(model_id)
+    
+    capabilities = ModelCapabilities(
+        supports_function_calling=model_data["capabilities"]["supports_function_calling"],
+        supports_web_search=model_data["capabilities"]["supports_web_search"],
+        available_context_tokens=model_data["capabilities"]["available_context_tokens"]
+    )
+    
+    return Model(
+        id=model_data["id"],
+        name=model_data["name"],
+        type=model_data["type"],
+        capabilities=capabilities,
+        description=model_data["description"]
+    )
 
 
 def get_text_models(client: Optional[HTTPClient] = None) -> List[Model]:

@@ -2,17 +2,17 @@
 Tests for the chat module.
 """
 
-import json
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 import pytest
-from venice_sdk.chat import ChatAPI
+from venice_sdk.chat import ChatAPI, Message
+from venice_sdk.client import HTTPClient
 from venice_sdk.errors import VeniceAPIError
 
 
 @pytest.fixture
 def mock_client():
     """Create a mock HTTP client."""
-    client = MagicMock()
+    client = MagicMock(spec=HTTPClient)
     return client
 
 
@@ -29,26 +29,29 @@ def test_chat_api_initialization(chat_api, mock_client):
 
 def test_complete_success(chat_api, mock_client):
     """Test successful chat completion."""
-    mock_response = {
-        "choices": [{
-            "message": {
-                "role": "assistant",
-                "content": "Hello, how can I help you?"
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "choices": [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": "Hello, how can I help you?"
+                }
             }
-        }]
+        ]
     }
     mock_client.post.return_value = mock_response
 
     messages = [{"role": "user", "content": "Hello"}]
-    response = chat_api.complete(messages, model="test-model")
+    response = chat_api.complete(messages)
 
-    assert response == mock_response
+    assert response["choices"][0]["message"]["content"] == "Hello, how can I help you?"
     mock_client.post.assert_called_once_with(
-        "/chat/completions",
-        {
+        "chat/completions",
+        data={
             "messages": messages,
-            "model": "test-model",
-            "temperature": 0.15,
+            "model": "llama-3.3-70b",
+            "temperature": 0.7,
             "stream": False
         }
     )
@@ -56,112 +59,127 @@ def test_complete_success(chat_api, mock_client):
 
 def test_complete_with_custom_params(chat_api, mock_client):
     """Test chat completion with custom parameters."""
-    mock_response = {
-        "choices": [{
-            "message": {
-                "role": "assistant",
-                "content": "Hello, how can I help you?"
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "choices": [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": "Custom response"
+                }
             }
-        }]
+        ]
     }
     mock_client.post.return_value = mock_response
 
     messages = [{"role": "user", "content": "Hello"}]
     response = chat_api.complete(
         messages,
-        model="test-model",
-        temperature=0.7,
-        max_tokens=100,
-        stop=["\n"],
-        venice_parameters={"test": "param"}
+        model="llama-3.3-13b",
+        temperature=0.5
     )
 
-    assert response == mock_response
+    assert response["choices"][0]["message"]["content"] == "Custom response"
     mock_client.post.assert_called_once_with(
-        "/chat/completions",
-        {
+        "chat/completions",
+        data={
             "messages": messages,
-            "model": "test-model",
-            "temperature": 0.7,
-            "max_tokens": 100,
-            "stop": ["\n"],
-            "venice_parameters": {"test": "param"},
+            "model": "llama-3.3-13b",
+            "temperature": 0.5,
             "stream": False
         }
     )
 
 
 def test_complete_with_tools(chat_api, mock_client):
-    """Test chat completion with tool definitions."""
-    mock_response = {
-        "choices": [{
-            "message": {
-                "role": "assistant",
-                "content": None,
-                "tool_calls": [{
-                    "id": "call_123",
-                    "type": "function",
-                    "function": {
-                        "name": "test_tool",
-                        "arguments": "{}"
-                    }
-                }]
+    """Test chat completion with tools."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "choices": [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": "Tool response",
+                    "tool_calls": [
+                        {
+                            "id": "call_1",
+                            "type": "function",
+                            "function": {
+                                "name": "get_weather",
+                                "arguments": {"location": "London"}
+                            }
+                        }
+                    ]
+                }
             }
-        }]
+        ]
     }
     mock_client.post.return_value = mock_response
 
-    messages = [{"role": "user", "content": "Hello"}]
-    tools = [{
-        "type": "function",
-        "function": {
-            "name": "test_tool",
-            "description": "A test tool",
-            "parameters": {
-                "type": "object",
-                "properties": {}
+    messages = [{"role": "user", "content": "What's the weather?"}]
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "description": "Get weather information",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {"type": "string"}
+                    }
+                }
             }
         }
-    }]
-    response = chat_api.complete(messages, model="test-model", tools=tools)
+    ]
 
-    assert response == mock_response
+    response = chat_api.complete(messages, tools=tools)
+    assert response["choices"][0]["message"]["tool_calls"][0]["function"]["name"] == "get_weather"
     mock_client.post.assert_called_once_with(
-        "/chat/completions",
-        {
+        "chat/completions",
+        data={
             "messages": messages,
-            "model": "test-model",
-            "temperature": 0.15,
-            "tools": tools,
-            "stream": False
+            "model": "llama-3.3-70b",
+            "temperature": 0.7,
+            "stream": False,
+            "tools": tools
         }
     )
 
 
 def test_complete_streaming(chat_api, mock_client):
     """Test streaming chat completion."""
-    mock_response = [
-        b'data: {"choices": [{"delta": {"content": "Hello"}}]}\n\n',
-        b'data: {"choices": [{"delta": {"content": " there"}}]}\n\n',
-        b'data: [DONE]\n\n'
+    mock_client.stream.return_value = [
+        {"choices": [{"delta": {"content": "Hello"}}]},
+        {"choices": [{"delta": {"content": " there"}}]}
     ]
-    mock_client.post.return_value = mock_response
 
-    messages = [{"role": "user", "content": "Hello"}]
-    response = chat_api.complete(messages, model="test-model", stream=True)
+    messages = [{"role": "user", "content": "Hi"}]
+    chunks = list(chat_api.complete(messages, stream=True))
 
-    # Convert generator to list for testing
-    chunks = list(response)
     assert chunks == ["Hello", " there"]
-    mock_client.post.assert_called_once_with(
-        "/chat/completions",
-        {
+    mock_client.stream.assert_called_once_with(
+        "chat/completions",
+        data={
             "messages": messages,
-            "model": "test-model",
-            "temperature": 0.15,
+            "model": "llama-3.3-70b",
+            "temperature": 0.7,
             "stream": True
         }
     )
+
+
+def test_complete_invalid_messages(chat_api):
+    """Test chat completion with invalid messages."""
+    with pytest.raises(ValueError, match="Messages must be a non-empty list"):
+        chat_api.complete([])
+
+
+def test_complete_invalid_temperature(chat_api):
+    """Test chat completion with invalid temperature."""
+    messages = [{"role": "user", "content": "Hello"}]
+    with pytest.raises(ValueError, match="Temperature must be between 0 and 1"):
+        chat_api.complete(messages, temperature=1.5)
 
 
 def test_complete_api_error(chat_api, mock_client):
@@ -170,24 +188,5 @@ def test_complete_api_error(chat_api, mock_client):
 
     messages = [{"role": "user", "content": "Hello"}]
     with pytest.raises(VeniceAPIError) as exc_info:
-        chat_api.complete(messages, model="test-model")
-    assert "API error occurred" in str(exc_info.value)
-
-
-def test_complete_invalid_messages(chat_api):
-    """Test chat completion with invalid messages."""
-    with pytest.raises(ValueError) as exc_info:
-        chat_api.complete([], model="test-model")
-    assert "Messages list cannot be empty" in str(exc_info.value)
-
-    with pytest.raises(ValueError) as exc_info:
-        chat_api.complete([{"role": "invalid", "content": "Hello"}], model="test-model")
-    assert "Invalid message role" in str(exc_info.value)
-
-
-def test_complete_invalid_temperature(chat_api):
-    """Test chat completion with invalid temperature."""
-    messages = [{"role": "user", "content": "Hello"}]
-    with pytest.raises(ValueError) as exc_info:
-        chat_api.complete(messages, model="test-model", temperature=2.0)
-    assert "Temperature must be between 0 and 1" in str(exc_info.value) 
+        chat_api.complete(messages)
+    assert "API error occurred" in str(exc_info.value) 
