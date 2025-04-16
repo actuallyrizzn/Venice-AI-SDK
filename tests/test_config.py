@@ -41,19 +41,16 @@ def test_config_headers():
     assert config.headers == expected_headers
 
 
-def test_load_config_from_env(monkeypatch):
+@patch.dict(os.environ, {
+    "VENICE_API_KEY": "env-test-key",
+    "VENICE_BASE_URL": "https://env.api.venice.ai",
+    "VENICE_DEFAULT_MODEL": "test-model",
+    "VENICE_TIMEOUT": "60",
+    "VENICE_MAX_RETRIES": "5",
+    "VENICE_RETRY_DELAY": "2"
+}, clear=True)
+def test_load_config_from_env():
     """Test loading configuration from environment variables."""
-    env_vars = {
-        "VENICE_API_KEY": "env-test-key",
-        "VENICE_BASE_URL": "https://env.api.venice.ai",
-        "VENICE_DEFAULT_MODEL": "test-model",
-        "VENICE_TIMEOUT": "60",
-        "VENICE_MAX_RETRIES": "5",
-        "VENICE_RETRY_DELAY": "2"
-    }
-    for key, value in env_vars.items():
-        monkeypatch.setenv(key, value)
-    
     config = load_config()
     assert config.api_key == "env-test-key"
     assert config.base_url == "https://env.api.venice.ai"
@@ -63,44 +60,30 @@ def test_load_config_from_env(monkeypatch):
     assert config.retry_delay == 2
 
 
-def test_load_config_no_env(monkeypatch):
+@patch("venice_sdk.config.load_dotenv")
+@patch.dict(os.environ, {}, clear=True)
+def test_load_config_no_env(mock_load_dotenv):
     """Test loading configuration with no environment variables."""
-    monkeypatch.delenv("VENICE_API_KEY", raising=False)
     with pytest.raises(ValueError, match="API key must be provided"):
         load_config()
 
 
-def test_load_config_with_provided_api_key(monkeypatch):
+def test_load_config_with_provided_api_key():
     """Test loading configuration with provided API key."""
-    monkeypatch.delenv("VENICE_API_KEY", raising=False)
-    config = load_config(api_key="provided-key")
-    assert config.api_key == "provided-key"
+    with patch.dict(os.environ, {}, clear=True):
+        config = load_config(api_key="provided-key")
+        assert config.api_key == "provided-key"
 
 
-def test_load_config_defaults(monkeypatch):
+@patch.dict(os.environ, {"VENICE_API_KEY": "test-key"}, clear=True)
+def test_load_config_defaults():
     """Test loading configuration with only API key uses correct defaults."""
-    monkeypatch.setenv("VENICE_API_KEY", "test-key")
     config = load_config()
     assert config.base_url == "https://api.venice.ai/api/v1"
     assert config.timeout == 30
     assert config.max_retries == 3
     assert config.retry_delay == 1
     assert config.default_model is None
-
-
-@patch.dict(os.environ, {"VENICE_API_KEY": "env_key"}, clear=True)
-def test_load_config_from_env():
-    """Test loading config from environment variables."""
-    config = load_config()
-    assert config.api_key == "env_key"
-    assert config.base_url == "https://api.venice.ai/api/v1"
-
-
-@patch.dict(os.environ, {}, clear=True)
-def test_load_config_no_env():
-    """Test load_config when no environment variables are set."""
-    with pytest.raises(ValueError, match="API key must be provided"):
-        load_config()
 
 
 @patch.dict(os.environ, {

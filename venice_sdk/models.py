@@ -64,8 +64,11 @@ class ModelsAPI:
         Raises:
             VeniceAPIError: If the model is not found or request fails
         """
-        response = self.client.get(f"models/{model_id}")
-        return response.json()
+        models = self.list()
+        for model in models:
+            if model["id"] == model_id:
+                return model
+        raise VeniceAPIError(f"Model {model_id} not found", status_code=404)
     
     def validate(self, model_id: str) -> bool:
         """
@@ -104,17 +107,17 @@ def get_models(client: Optional[HTTPClient] = None) -> List[Model]:
     models = []
     for model_data in models_data:
         capabilities = ModelCapabilities(
-            supports_function_calling=model_data["capabilities"]["supports_function_calling"],
-            supports_web_search=model_data["capabilities"]["supports_web_search"],
-            available_context_tokens=model_data["capabilities"]["available_context_tokens"]
+            supports_function_calling=model_data["model_spec"]["capabilities"]["supportsFunctionCalling"],
+            supports_web_search=model_data["model_spec"]["capabilities"]["supportsWebSearch"],
+            available_context_tokens=model_data["model_spec"]["availableContextTokens"]
         )
         
         model = Model(
             id=model_data["id"],
-            name=model_data["name"],
+            name=model_data["id"],  # Using ID as name since there's no separate name field
             type=model_data["type"],
             capabilities=capabilities,
-            description=model_data["description"]
+            description=model_data.get("description", model_data["model_spec"].get("modelSource", "No description available"))
         )
         models.append(model)
     
@@ -137,17 +140,17 @@ def get_model_by_id(model_id: str, client: Optional[HTTPClient] = None) -> Optio
     model_data = models_api.get(model_id)
     
     capabilities = ModelCapabilities(
-        supports_function_calling=model_data["capabilities"]["supports_function_calling"],
-        supports_web_search=model_data["capabilities"]["supports_web_search"],
-        available_context_tokens=model_data["capabilities"]["available_context_tokens"]
+        supports_function_calling=model_data["model_spec"]["capabilities"]["supportsFunctionCalling"],
+        supports_web_search=model_data["model_spec"]["capabilities"]["supportsWebSearch"],
+        available_context_tokens=model_data["model_spec"]["availableContextTokens"]
     )
     
     return Model(
         id=model_data["id"],
-        name=model_data["name"],
+        name=model_data["id"],  # Using ID as name since there's no separate name field
         type=model_data["type"],
         capabilities=capabilities,
-        description=model_data["description"]
+        description=model_data.get("description", model_data["model_spec"].get("modelSource", "No description available"))
     )
 
 

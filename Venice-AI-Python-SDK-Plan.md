@@ -156,9 +156,9 @@ class InvalidRequestError(VeniceAPIError): ...
 
 ### Phase 5 – Utilities & Dev UX
 - [x] Add `.env` support
-- [ ] Implement `get_models()` helper
+- [x] Implement `get_models()` helper
 - [ ] Add CLI-based credential injection
-- [ ] Add model listing functionality
+- [x] Add model listing functionality
 
 ---
 
@@ -184,7 +184,7 @@ class InvalidRequestError(VeniceAPIError): ...
 - [x] Set up test framework
 - [x] Create basic unit tests
 - [x] Add example code
-- [ ] Add more comprehensive test coverage
+- [x] Add more comprehensive test coverage
 
 ---
 
@@ -211,7 +211,7 @@ class InvalidRequestError(VeniceAPIError): ...
 
 ### Phase 7 – Docs & Distribution
 - [x] Create basic README
-- [ ] Add comprehensive docstrings
+- [x] Add comprehensive docstrings
 - [ ] Generate API documentation
 - [ ] Prepare PyPI publishing
 - [ ] Add distribution metadata
