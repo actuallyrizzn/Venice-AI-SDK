@@ -35,16 +35,26 @@ from .chat import (
 __version__ = "0.1.0"
 
 __all__ = [
-    "VeniceClient",
-    "ChatAPI",
+    "HTTPClient",
+    "Config",
     "load_config",
+    "VeniceError",
     "VeniceAPIError",
+    "VeniceConnectionError",
     "RateLimitError",
     "UnauthorizedError",
     "InvalidRequestError",
+    "ModelNotFoundError",
+    "CharacterNotFoundError",
     "Model",
     "ModelCapabilities",
+    "ModelsAPI",
     "get_models",
     "get_model_by_id",
     "get_text_models",
+    "Message",
+    "Choice",
+    "Usage",
+    "ChatCompletion",
+    "ChatAPI",
 ] 

@@ -5,7 +5,7 @@ Chat API implementation for the Venice SDK.
 from dataclasses import dataclass
 from typing import Any, Dict, Generator, List, Optional, Union
 
-from .client import VeniceClient
+from .client import HTTPClient
 
 
 @dataclass
@@ -50,12 +50,12 @@ class ChatAPI:
     including support for streaming responses and function calling.
     """
     
-    def __init__(self, client: VeniceClient):
+    def __init__(self, client: HTTPClient):
         """
         Initialize the chat API.
         
         Args:
-            client: VeniceClient instance
+            client: HTTPClient instance
         """
         self.client = client
     

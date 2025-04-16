@@ -6,27 +6,30 @@ import os
 from unittest.mock import MagicMock
 import pytest
 from venice_sdk.config import Config
-from venice_sdk.client import VeniceClient
+from venice_sdk.client import HTTPClient
 
 
 @pytest.fixture
 def mock_config():
-    """Create a mock configuration."""
-    config = MagicMock(spec=Config)
-    config.api_key = "test_key"
-    config.base_url = "https://api.venice.ai/api/v1"
+    """Create a mock configuration object."""
+    config = MagicMock()
+    config.base_url = "https://api.venice.is"
+    config.api_key = "test-api-key"
     config.headers = {
-        "Authorization": "Bearer test_key",
+        "Authorization": f"Bearer {config.api_key}",
         "Content-Type": "application/json"
     }
+    config.timeout = 30
+    config.max_retries = 3
+    config.retry_delay = 1
     return config
 
 
 @pytest.fixture
 def mock_client(mock_config):
     """Create a mock HTTP client."""
-    client = MagicMock(spec=VeniceClient)
-    client.config = mock_config
+    client = HTTPClient(config=mock_config)
+    client.session = MagicMock()
     return client
 
 
