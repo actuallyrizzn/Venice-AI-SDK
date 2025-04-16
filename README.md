@@ -11,7 +11,7 @@ pip install venice-sdk
 ## Quick Start
 
 ```python
-from venice_sdk import VeniceClient, ChatAPI
+from venice_sdk import VeniceClient, ChatAPI, get_models
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -19,6 +19,14 @@ load_dotenv()
 
 # Initialize the client
 client = VeniceClient()
+
+# List available models
+models = get_models(client)
+for model in models:
+    print(f"{model.name} ({model.id})")
+    print(f"  Supports function calling: {model.capabilities.supports_function_calling}")
+    print(f"  Supports web search: {model.capabilities.supports_web_search}")
+    print(f"  Context tokens: {model.capabilities.available_context_tokens}")
 
 # Create a chat API instance
 chat = ChatAPI(client)

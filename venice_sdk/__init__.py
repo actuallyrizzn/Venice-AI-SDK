@@ -1,18 +1,38 @@
 """
-Venice Python SDK for interacting with the Venice API.
+Venice SDK for Python.
+
+This module provides a Python interface to the Venice API.
 """
 
-__version__ = "0.1.0"
-
-from .client import VeniceClient
-from .chat import ChatAPI
-from .config import load_config
+from .client import HTTPClient
+from .config import Config, load_config
 from .errors import (
+    VeniceError,
     VeniceAPIError,
+    VeniceConnectionError,
     RateLimitError,
     UnauthorizedError,
     InvalidRequestError,
+    ModelNotFoundError,
+    CharacterNotFoundError,
 )
+from .models import (
+    Model,
+    ModelCapabilities,
+    ModelsAPI,
+    get_models,
+    get_model_by_id,
+    get_text_models,
+)
+from .chat import (
+    Message,
+    Choice,
+    Usage,
+    ChatCompletion,
+    ChatAPI,
+)
+
+__version__ = "0.1.0"
 
 __all__ = [
     "VeniceClient",
@@ -22,4 +42,9 @@ __all__ = [
     "RateLimitError",
     "UnauthorizedError",
     "InvalidRequestError",
+    "Model",
+    "ModelCapabilities",
+    "get_models",
+    "get_model_by_id",
+    "get_text_models",
 ] 

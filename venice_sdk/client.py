@@ -13,7 +13,7 @@ from .config import Config
 from .errors import handle_api_error
 
 
-class VeniceClient:
+class HTTPClient:
     """
     HTTP client for interacting with the Venice API.
     

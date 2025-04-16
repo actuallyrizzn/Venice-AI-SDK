@@ -2,14 +2,29 @@
 Custom exceptions for the Venice SDK.
 """
 
-class VeniceAPIError(Exception):
+
+class VeniceError(Exception):
+    """Base exception for all Venice SDK errors."""
+    pass
+
+
+class VeniceAPIError(VeniceError):
     """Base exception for all Venice API errors."""
+    def __init__(self, message: str, status_code: int = None):
+        super().__init__(message)
+        self.status_code = status_code
+
+
+class VeniceConnectionError(VeniceError):
+    """Raised when there is a connection error."""
     pass
 
 
 class RateLimitError(VeniceAPIError):
     """Raised when the rate limit is exceeded."""
-    pass
+    def __init__(self, message: str, retry_after: int = None):
+        super().__init__(message)
+        self.retry_after = retry_after
 
 
 class UnauthorizedError(VeniceAPIError):
@@ -47,15 +62,16 @@ def handle_api_error(status_code: int, response_data: dict) -> None:
     error_message = response_data.get("error", {}).get("message", "Unknown error")
     
     if status_code == 401:
-        raise UnauthorizedError(error_message)
+        raise UnauthorizedError(error_message, status_code=status_code)
     elif status_code == 429:
-        raise RateLimitError(error_message)
+        retry_after = response_data.get("error", {}).get("retry_after")
+        raise RateLimitError(error_message, retry_after=retry_after)
     elif status_code == 404:
         if error_code == "CHARACTER_NOT_FOUND":
-            raise CharacterNotFoundError(error_message)
+            raise CharacterNotFoundError(error_message, status_code=status_code)
         elif error_code == "MODEL_NOT_FOUND":
-            raise ModelNotFoundError(error_message)
+            raise ModelNotFoundError(error_message, status_code=status_code)
         else:
-            raise InvalidRequestError(error_message)
+            raise InvalidRequestError(error_message, status_code=status_code)
     elif status_code >= 400:
-        raise InvalidRequestError(error_message) 
+        raise InvalidRequestError(error_message, status_code=status_code) 
