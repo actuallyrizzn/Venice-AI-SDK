@@ -1,4 +1,5 @@
 # Venice Python SDK
+http://venice.ai
 
 A Python SDK for interacting with the Venice API, providing a simple and intuitive interface for LLM chat completions and other features.
 
@@ -172,7 +173,7 @@ mkdocs serve
 
 ## License
 
-MIT
+CC-BY-SA
 
 ## Contributing
 
