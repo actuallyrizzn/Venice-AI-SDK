@@ -67,6 +67,8 @@ class ChatAPI:
         temperature: float = 0.7,
         stream: bool = False,
         tools: Optional[List[Dict[str, Any]]] = None,
+        venice_parameters: Optional[Dict[str, Any]] = None,
+        **kwargs: Any
     ) -> Union[Dict, Generator[str, None, None]]:
         """
         Create a chat completion.
@@ -77,6 +79,8 @@ class ChatAPI:
             temperature: Sampling temperature (0-1)
             stream: Whether to stream the response
             tools: Optional list of tools for function calling
+            venice_parameters: Optional Venice-specific parameters (e.g., include_venice_system_prompt)
+            **kwargs: Additional optional parameters to pass through (e.g., stop, max_tokens, n)
 
         Returns:
             If stream=False, returns the complete response as a dictionary
@@ -87,7 +91,7 @@ class ChatAPI:
             VeniceAPIError: If the API request fails
         """
         if not messages:
-            raise ValueError("Messages cannot be empty")
+            raise ValueError("Messages must be a non-empty list")
         if not 0 <= temperature <= 1:
             raise ValueError("Temperature must be between 0 and 1")
 
@@ -99,6 +103,11 @@ class ChatAPI:
         }
         if tools:
             data["tools"] = tools
+        if venice_parameters:
+            data["venice_parameters"] = venice_parameters
+        # Allow additional optional parameters (e.g., stop, max_tokens, n, etc.)
+        if kwargs:
+            data.update(kwargs)
 
         if stream:
             response = self.client.stream("chat/completions", data=data)
