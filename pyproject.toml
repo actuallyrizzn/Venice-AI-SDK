@@ -11,7 +11,7 @@ authors = [
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: CC-BY-SA-4.0",
+    # Removed invalid Trove classifier to satisfy hatchling metadata validation
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
