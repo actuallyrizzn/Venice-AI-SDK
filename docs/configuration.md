@@ -29,22 +29,27 @@ This will create or update a `.env` file in your current directory.
 Pass your API key directly when initializing the client:
 
 ```python
-from venice_sdk import VeniceClient
+from venice_sdk import Config, HTTPClient
 
-client = VeniceClient(api_key="your-api-key")
+config = Config(api_key="your-api-key")
+client = HTTPClient(config)
 ```
 
 ## Client Configuration
 
-The `VeniceClient` can be configured with several options:
+The `Config` can be constructed with several options:
 
 ```python
-client = VeniceClient(
-    api_key="your-api-key",              # Optional if set via env or .env
-    base_url="https://api.venice.ai/v1", # Optional, defaults to production API
-    timeout=30,                          # Request timeout in seconds
-    max_retries=3,                       # Maximum number of retries
-    retry_delay=1                        # Initial delay between retries
+from venice_sdk import Config, HTTPClient
+
+client = HTTPClient(
+    Config(
+        api_key="your-api-key",               # Optional if set via env or .env
+        base_url="https://api.venice.ai/api/v1", # Defaults internally if omitted
+        timeout=30,
+        max_retries=3,
+        retry_delay=1,
+    )
 )
 ```
 
@@ -53,7 +58,7 @@ client = VeniceClient(
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `api_key` | str | None | Your Venice API key |
-| `base_url` | str | "https://api.venice.ai/v1" | Base URL for API requests |
+| `base_url` | str | "https://api.venice.ai/api/v1" | Base URL for API requests |
 | `timeout` | int | 30 | Request timeout in seconds |
 | `max_retries` | int | 3 | Maximum number of retry attempts |
 | `retry_delay` | int | 1 | Initial delay between retries (seconds) |
@@ -86,10 +91,10 @@ Then load it in your code:
 
 ```python
 from dotenv import load_dotenv
-from venice_sdk import VeniceClient
+from venice_sdk import HTTPClient
 
 load_dotenv()  # Load environment variables from .env
-client = VeniceClient()  # Will use values from .env
+client = HTTPClient()  # Will use values from env/.env
 ```
 
 ## Configuration Precedence

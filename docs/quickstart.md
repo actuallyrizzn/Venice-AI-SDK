@@ -25,10 +25,10 @@ venice auth your-api-key
 Here's a simple example of using the SDK for chat completion:
 
 ```python
-from venice_sdk import VeniceClient, ChatAPI
+from venice_sdk import HTTPClient, ChatAPI
 
 # Initialize the client
-client = VeniceClient()
+client = HTTPClient()
 
 # Create a chat API instance
 chat = ChatAPI(client)
@@ -42,7 +42,7 @@ response = chat.complete(
     model="llama-3.3-70b"
 )
 
-print(response.choices[0].message.content)
+print(response["choices"][0]["message"]["content"]) 
 ```
 
 ## Streaming Responses

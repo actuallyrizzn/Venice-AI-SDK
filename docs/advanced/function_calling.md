@@ -5,9 +5,9 @@ The Venice SDK supports function calling, allowing models to request the executi
 ## Basic Function Calling
 
 ```python
-from venice_sdk import VeniceClient, ChatAPI
+from venice_sdk import HTTPClient, ChatAPI
 
-client = VeniceClient()
+client = HTTPClient()
 chat = ChatAPI(client)
 
 # Define tools

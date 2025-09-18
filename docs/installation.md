@@ -66,8 +66,8 @@ After installation, you'll need to configure your API key. You can do this in se
 
 3. Direct initialization:
    ```python
-   from venice_sdk import VeniceClient
-   client = VeniceClient(api_key="your-api-key")
+   from venice_sdk import HTTPClient
+   client = HTTPClient()  # Reads config from environment or .env
    ```
 
 ## Next Steps

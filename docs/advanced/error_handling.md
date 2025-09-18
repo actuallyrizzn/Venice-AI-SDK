@@ -19,10 +19,10 @@ from venice_sdk.errors import (
 ## Basic Error Handling
 
 ```python
-from venice_sdk import VeniceClient
+from venice_sdk import HTTPClient
 from venice_sdk.errors import VeniceAPIError, RateLimitError
 
-client = VeniceClient()
+client = HTTPClient()
 
 try:
     response = client.request(...)
@@ -54,12 +54,11 @@ except VeniceAPIError as e:
 The SDK includes built-in retry logic for certain types of errors:
 
 ```python
-from venice_sdk import VeniceClient
+from venice_sdk import HTTPClient
 
 # Configure retry behavior
-client = VeniceClient(
-    max_retries=3,      # Maximum number of retries
-    retry_delay=1       # Initial delay between retries in seconds
+client = HTTPClient(
+    # Configure via environment or pass a Config if needed
 )
 
 try:

@@ -25,10 +25,10 @@ A lightweight and extensible Python SDK for interacting with Venice's LLM endpoi
 ## Getting Started
 
 ```python
-from venice_sdk import VeniceClient, ChatAPI
+from venice_sdk import HTTPClient, ChatAPI
 
 # Initialize the client
-client = VeniceClient()
+client = HTTPClient()
 
 # Create a chat API instance
 chat = ChatAPI(client)
@@ -42,7 +42,7 @@ response = chat.complete(
     model="llama-3.3-70b"
 )
 
-print(response.choices[0].message.content)
+print(response["choices"][0]["message"]["content"]) 
 ```
 
 ## Why Venice SDK?

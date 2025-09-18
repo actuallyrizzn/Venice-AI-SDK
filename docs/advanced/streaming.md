@@ -5,9 +5,9 @@ The Venice SDK supports streaming responses for chat completions, allowing you t
 ## Basic Streaming
 
 ```python
-from venice_sdk import VeniceClient, ChatAPI
+from venice_sdk import HTTPClient, ChatAPI
 
-client = VeniceClient()
+client = HTTPClient()
 chat = ChatAPI(client)
 
 # Get streaming response

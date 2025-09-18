@@ -5,11 +5,13 @@ The `errors` module defines the exception hierarchy for the Venice SDK.
 ## Exception Hierarchy
 
 ```python
-class VeniceAPIError(Exception)
-    ├── UnauthorizedError
-    ├── RateLimitError
-    ├── InvalidRequestError
-    └── APIError
+class VeniceError(Exception)
+    └── VeniceAPIError
+        ├── UnauthorizedError
+        ├── RateLimitError
+        ├── InvalidRequestError
+        ├── ModelNotFoundError
+        ├── CharacterNotFoundError
 ```
 
 ## Exceptions
@@ -19,8 +21,8 @@ class VeniceAPIError(Exception)
 Base exception for all Venice API errors.
 
 ```python
-class VeniceAPIError(Exception):
-    def __init__(self, message: str, code: Optional[str] = None)
+class VeniceAPIError(VeniceError):
+    def __init__(self, message: str, status_code: int = None)
 ```
 
 #### Parameters
@@ -34,7 +36,7 @@ Raised when authentication fails.
 
 ```python
 class UnauthorizedError(VeniceAPIError):
-    def __init__(self, message: str = "Authentication failed")
+    pass
 ```
 
 ### RateLimitError
@@ -43,7 +45,7 @@ Raised when rate limits are exceeded.
 
 ```python
 class RateLimitError(VeniceAPIError):
-    def __init__(self, message: str = "Rate limit exceeded")
+    def __init__(self, message: str, retry_after: int = None)
 ```
 
 ### InvalidRequestError
@@ -52,16 +54,19 @@ Raised when the request is invalid.
 
 ```python
 class InvalidRequestError(VeniceAPIError):
-    def __init__(self, message: str, code: Optional[str] = None)
+    pass
 ```
 
-### APIError
+### ModelNotFoundError and CharacterNotFoundError
 
-Raised for other API errors.
+Raised for specific 404 error codes.
 
 ```python
-class APIError(VeniceAPIError):
-    def __init__(self, message: str, code: Optional[str] = None)
+class ModelNotFoundError(VeniceAPIError):
+    pass
+
+class CharacterNotFoundError(VeniceAPIError):
+    pass
 ```
 
 ## Examples
@@ -69,10 +74,10 @@ class APIError(VeniceAPIError):
 ### Basic Error Handling
 
 ```python
-from venice_sdk import VeniceClient
+from venice_sdk import HTTPClient
 from venice_sdk.errors import VeniceAPIError, RateLimitError
 
-client = VeniceClient()
+client = HTTPClient()
 
 try:
     response = client.request(...)
@@ -103,11 +108,12 @@ The SDK maps common error codes to specific exceptions:
 
 | Error Code | Exception |
 |------------|------------|
-| `UNAUTHORIZED` | `UnauthorizedError` |
-| `RATE_LIMIT_EXCEEDED` | `RateLimitError` |
-| `INVALID_MODEL` | `InvalidRequestError` |
-| `INVALID_REQUEST` | `InvalidRequestError` |
-| Others | `APIError` |
+| `MODEL_NOT_FOUND` | `ModelNotFoundError` |
+| `CHARACTER_NOT_FOUND` | `CharacterNotFoundError` |
+| (401) | `UnauthorizedError` |
+| (429) | `RateLimitError` |
+| Other 4xx | `InvalidRequestError` |
+| Other >=400 | `VeniceAPIError` |
 
 ## Related
 

@@ -1,97 +1,83 @@
 # Client API Reference
 
-The `VeniceClient` class is the core of the SDK, handling authentication and HTTP requests to the Venice API.
+The `HTTPClient` class is the core of the SDK, handling authentication, retries, and HTTP requests to the Venice API.
 
-## VeniceClient
+## HTTPClient
 
 ```python
-class VeniceClient:
-    def __init__(
-        self,
-        api_key: Optional[str] = None,
-        base_url: str = "https://api.venice.ai/api/v1",
-        timeout: int = 30,
-        max_retries: int = 3,
-        retry_delay: int = 1
-    )
+class HTTPClient:
+    def __init__(self, config: Optional[Config] = None)
 ```
 
 ### Parameters
 
-- `api_key` (Optional[str]): Your Venice API key. If not provided, will be loaded from environment variables.
-- `base_url` (str): The base URL for the Venice API. Defaults to "https://api.venice.ai/api/v1".
-- `timeout` (int): Request timeout in seconds. Defaults to 30.
-- `max_retries` (int): Maximum number of retries for failed requests. Defaults to 3.
-- `retry_delay` (int): Initial delay between retries in seconds. Defaults to 1.
+- `config` (Optional[Config]): If not provided, configuration is loaded from environment via `load_config()`.
 
 ### Methods
 
-#### request
+#### get
 
 ```python
-def request(
-    self,
-    method: str,
-    endpoint: str,
-    params: Optional[Dict[str, Any]] = None,
-    json: Optional[Dict[str, Any]] = None,
-    stream: bool = False
-) -> Union[Dict[str, Any], Generator[Dict[str, Any], None, None]]
+def get(self, endpoint: str, **kwargs) -> requests.Response
 ```
 
-Make a request to the Venice API.
+Performs a GET request to the given `endpoint` (joined with the configured `base_url`).
 
-##### Parameters
+#### post
 
-- `method` (str): HTTP method (GET, POST, etc.)
-- `endpoint` (str): API endpoint path
-- `params` (Optional[Dict[str, Any]]): Query parameters
-- `json` (Optional[Dict[str, Any]]): JSON request body
-- `stream` (bool): Whether to stream the response. Defaults to False.
+```python
+def post(self, endpoint: str, data: Optional[Dict[str, Any]] = None, **kwargs) -> requests.Response
+```
 
-##### Returns
+Performs a POST request with JSON body `data`.
 
-- Union[Dict[str, Any], Generator[Dict[str, Any], None, None]]: Response data or generator for streaming responses
+#### stream
 
-##### Raises
+```python
+def stream(self, endpoint: str, data: Optional[Dict[str, Any]] = None, **kwargs) -> Generator[str, None, None]
+```
 
-- `VeniceAPIError`: Base exception for API errors
-- `UnauthorizedError`: Invalid or missing API key
-- `RateLimitError`: Rate limit exceeded
-- `InvalidRequestError`: Invalid request parameters
+Performs a streaming POST request and yields string chunks.
+
+### Error handling
+
+All methods raise SDK exceptions on errors:
+- `UnauthorizedError` for 401
+- `RateLimitError` for 429 (includes optional `retry_after`)
+- `InvalidRequestError` for other client errors (including certain 404s)
+- `VeniceAPIError` for other API errors
+- `VeniceConnectionError` for transport-level failures
 
 ## Examples
 
 ### Basic Usage
 
 ```python
-from venice_sdk import VeniceClient
+from venice_sdk import HTTPClient
 
-# Initialize client
-client = VeniceClient(api_key="your-api-key")
+client = HTTPClient()  # Reads config from environment/.env
 
-# Make a request
-response = client.request(
-    method="GET",
-    endpoint="/models"
-)
+# List models
+resp = client.get("models")
+print(resp.json())
 ```
 
 ### Streaming Response
 
 ```python
-# Get streaming response
-for chunk in client.request(
-    method="POST",
-    endpoint="/chat/completions",
-    json={
+from venice_sdk import HTTPClient
+
+client = HTTPClient()
+
+for chunk in client.stream(
+    "chat/completions",
+    data={
         "messages": [{"role": "user", "content": "Hello"}],
         "model": "llama-3.3-70b",
-        "stream": True
+        "stream": True,
     },
-    stream=True
 ):
-    print(chunk)
+    print(chunk, end="", flush=True)
 ```
 
 ### Error Handling
@@ -99,8 +85,10 @@ for chunk in client.request(
 ```python
 from venice_sdk.errors import VeniceAPIError, RateLimitError
 
+client = HTTPClient()
+
 try:
-    response = client.request(...)
+    client.get("models")
 except RateLimitError:
     print("Rate limit exceeded. Please try again later.")
 except VeniceAPIError as e:
@@ -111,4 +99,4 @@ except VeniceAPIError as e:
 
 - [Chat API](chat.md) - Chat completion functionality
 - [Models API](models.md) - Model discovery and management
-- [Errors](errors.md) - Error handling and exceptions 
+- [Errors](errors.md) - Error handling and exceptions

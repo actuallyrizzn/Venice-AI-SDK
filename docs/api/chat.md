@@ -1,17 +1,17 @@
 # Chat API Reference
 
-The `ChatAPI` class provides a high-level interface for interacting with Venice's chat completion endpoints.
+The `ChatAPI` class provides a high-level interface for interacting with Venice's chat completion endpoint.
 
 ## ChatAPI
 
 ```python
 class ChatAPI:
-    def __init__(self, client: VeniceClient)
+    def __init__(self, client: HTTPClient)
 ```
 
 ### Parameters
 
-- `client` (VeniceClient): An initialized VeniceClient instance
+- `client` (HTTPClient): An initialized HTTP client instance
 
 ### Methods
 
@@ -21,9 +21,8 @@ class ChatAPI:
 def complete(
     self,
     messages: List[Dict[str, str]],
-    model: str,
-    *,
-    temperature: float = 0.15,
+    model: str = "llama-3.3-70b",
+    temperature: float = 0.7,
     stream: bool = False,
     max_tokens: Optional[int] = None,
     tools: Optional[List[Dict]] = None,
@@ -33,13 +32,13 @@ def complete(
 ) -> Union[Dict, Generator[str, None, None]]
 ```
 
-Generate a chat completion.
+Generate a chat completion using the `chat/completions` endpoint.
 
 ##### Parameters
 
 - `messages` (List[Dict[str, str]]): List of message dictionaries with 'role' and 'content' keys
-- `model` (str): ID of the model to use
-- `temperature` (float): Sampling temperature. Defaults to 0.15
+- `model` (str): ID of the model to use. Defaults to "llama-3.3-70b"
+- `temperature` (float): Sampling temperature (0-1). Defaults to 0.7
 - `stream` (bool): Whether to stream the response. Defaults to False
 - `max_tokens` (Optional[int]): Maximum number of tokens to generate
 - `tools` (Optional[List[Dict]]): List of tools available to the model
@@ -49,10 +48,11 @@ Generate a chat completion.
 
 ##### Returns
 
-- Union[Dict, Generator[str, None, None]]: Completion response or generator for streaming responses
+- Union[Dict, Generator[str, None, None]]: Completion response (non-streaming) or a generator yielding content chunks (streaming)
 
 ##### Raises
 
+- `ValueError`: If inputs are invalid (e.g., empty messages or invalid temperature)
 - `VeniceAPIError`: Base exception for API errors
 - `UnauthorizedError`: Invalid or missing API key
 - `RateLimitError`: Rate limit exceeded
@@ -63,9 +63,9 @@ Generate a chat completion.
 ### Basic Chat Completion
 
 ```python
-from venice_sdk import VeniceClient, ChatAPI
+from venice_sdk import HTTPClient, ChatAPI
 
-client = VeniceClient()
+client = HTTPClient()
 chat = ChatAPI(client)
 
 response = chat.complete(
@@ -76,7 +76,7 @@ response = chat.complete(
     model="llama-3.3-70b"
 )
 
-print(response.choices[0].message.content)
+print(response["choices"][0]["message"]["content"]) 
 ```
 
 ### Streaming Response
