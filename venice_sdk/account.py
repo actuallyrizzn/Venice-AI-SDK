@@ -421,11 +421,11 @@ class AccountManager:
         """Check if current usage is within rate limits."""
         current = rate_limits.current_usage
         
-        # Check if any limits are exceeded
-        if (current.get("requests_per_minute", 0) >= rate_limits.requests_per_minute or
-            current.get("requests_per_day", 0) >= rate_limits.requests_per_day or
-            current.get("tokens_per_minute", 0) >= rate_limits.tokens_per_minute or
-            current.get("tokens_per_day", 0) >= rate_limits.tokens_per_day):
+        # Check if any limits are exceeded or near limit (>= 90%)
+        if (current.get("requests_per_minute", 0) >= rate_limits.requests_per_minute * 0.9 or
+            current.get("requests_per_day", 0) >= rate_limits.requests_per_day * 0.9 or
+            current.get("tokens_per_minute", 0) >= rate_limits.tokens_per_minute * 0.9 or
+            current.get("tokens_per_day", 0) >= rate_limits.tokens_per_day * 0.9):
             return False
         
         return True

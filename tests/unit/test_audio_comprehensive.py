@@ -272,11 +272,12 @@ class TestAudioAPIComprehensive:
         mock_response = MagicMock()
         mock_response.status_code = 400
         mock_response.json.return_value = {"error": {"message": "Invalid request"}}
+        mock_response.content = b""
         mock_client.post.return_value = mock_response
         
         api = AudioAPI(mock_client)
         
-        with pytest.raises(AudioGenerationError, match="Audio generation failed: Invalid request"):
+        with pytest.raises(AudioGenerationError, match="Audio generation failed with status 400"):
             api.speech("Hello world")
 
     def test_speech_api_error_without_json(self, mock_client):

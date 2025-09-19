@@ -45,7 +45,7 @@ class Character:
     def has_capability(self, capability: str) -> bool:
         """Check if character has a specific capability."""
         if isinstance(self.capabilities, dict):
-            return capability in self.capabilities
+            return self.capabilities.get(capability, False)
         return False
 
 

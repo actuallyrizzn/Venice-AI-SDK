@@ -123,9 +123,9 @@ class TestCharacterComprehensive:
             system_prompt="You are a helpful test character.",
             capabilities={"function_calling": True, "web_search": False}
         )
-        
+
         assert character.has_capability("function_calling") is True
-        assert character.has_capability("web_search") is True
+        assert character.has_capability("web_search") is False
 
     def test_has_capability_false(self):
         """Test has_capability method returning False."""
