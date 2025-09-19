@@ -9,7 +9,7 @@ import os
 import tempfile
 from pathlib import Path
 from venice_sdk.config import Config, load_config
-from venice_sdk.errors import ValueError
+# ValueError is a built-in Python exception, not from venice_sdk.errors
 
 
 @pytest.mark.live
