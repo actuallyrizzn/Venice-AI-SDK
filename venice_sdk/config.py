@@ -70,7 +70,8 @@ class Config:
     
     def __repr__(self) -> str:
         """Detailed string representation of the Config object."""
-        return f"Config(api_key='{self.api_key}', base_url='{self.base_url}', default_model='{self.default_model}', timeout={self.timeout}, max_retries={self.max_retries}, retry_delay={self.retry_delay})"
+        masked_key = f"{self.api_key[:4]}...{self.api_key[-4:]}" if len(self.api_key) > 8 else "***"
+        return f"Config(api_key='{masked_key}', base_url='{self.base_url}', default_model='{self.default_model}', timeout={self.timeout}, max_retries={self.max_retries}, retry_delay={self.retry_delay})"
 
 
 def load_config(api_key: Optional[str] = None) -> Config:

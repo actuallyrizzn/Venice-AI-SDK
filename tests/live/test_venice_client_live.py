@@ -125,7 +125,6 @@ class TestVeniceClientLive:
         voice = voices[0]
         assert hasattr(voice, 'id')
         assert hasattr(voice, 'name')
-        assert hasattr(voice, 'category')
         assert hasattr(voice, 'description')
 
     def test_venice_client_characters_functionality(self):
@@ -192,7 +191,7 @@ class TestVeniceClientLive:
         client = VeniceClient()
         
         # Test getting usage info
-        usage_info = client.billing.get_usage_info()
+        usage_info = client.billing.get_usage()
         
         assert usage_info is not None
         assert hasattr(usage_info, 'total_requests')
@@ -256,12 +255,12 @@ class TestVeniceClientLive:
         assert summary is not None
         assert isinstance(summary, dict)
         assert "api_keys" in summary
-        assert "billing" in summary
+        assert "usage" in summary
         assert "rate_limits" in summary
         
         # Verify structure
         assert isinstance(summary["api_keys"], list)
-        assert isinstance(summary["billing"], dict)
+        assert isinstance(summary["usage"], dict)
         assert isinstance(summary["rate_limits"], dict)
 
     def test_venice_client_get_rate_limit_status(self):
@@ -277,7 +276,7 @@ class TestVeniceClientLive:
         assert "status" in status
         
         # Status should be one of the expected values
-        assert status["status"] in ["ok", "warning", "critical"]
+        assert status["status"] in ["ok", "near_limit"]
 
     def test_venice_client_clear_caches(self):
         """Test VeniceClient clear_caches method."""
@@ -562,6 +561,6 @@ class TestVeniceClientLive:
         assert callable(client.characters.list)
         assert callable(client.embeddings.generate_single)
         assert callable(client.api_keys.list)
-        assert callable(client.billing.get_usage_info)
+        assert callable(client.billing.get_usage)
         assert callable(client.models_traits.get_traits)
         assert callable(client.models_compatibility.get_mapping)

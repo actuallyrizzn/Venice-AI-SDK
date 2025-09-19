@@ -38,9 +38,10 @@ class TestModelsAPILive:
         model = models[0]
         assert isinstance(model, dict)
         assert "id" in model
-        assert "name" in model
-        assert "capabilities" in model
         assert "model_spec" in model
+        # Name is nested inside model_spec
+        assert "name" in model.get("model_spec", {})
+        assert "capabilities" in model.get("model_spec", {})
 
     def test_get_specific_model(self):
         """Test getting a specific model by ID."""
@@ -54,13 +55,15 @@ class TestModelsAPILive:
         assert model is not None
         assert isinstance(model, dict)
         assert model["id"] == model_id
-        assert "name" in model
-        assert "capabilities" in model
+        assert "model_spec" in model
+        # Name and capabilities are nested inside model_spec
+        assert "name" in model.get("model_spec", {})
+        assert "capabilities" in model.get("model_spec", {})
 
     def test_get_nonexistent_model(self):
         """Test getting a model that doesn't exist."""
-        model = self.models_api.get("nonexistent-model-id")
-        assert model is None
+        with pytest.raises(VeniceAPIError):
+            self.models_api.get("nonexistent-model-id")
 
     def test_validate_model_success(self):
         """Test validating an existing model."""
@@ -89,9 +92,10 @@ class TestModelsAPILive:
         
         # Verify all returned models are text models
         for model in text_models:
-            assert isinstance(model, dict)
-            assert "id" in model
-            assert "name" in model
+            assert hasattr(model, 'id')
+            assert hasattr(model, 'name')
+            assert hasattr(model, 'type')
+            assert model.type == 'text'
 
     def test_get_model_by_id_utility(self):
         """Test get_model_by_id utility function."""
@@ -105,8 +109,8 @@ class TestModelsAPILive:
         model = get_model_by_id(model_id, self.client)
         
         assert model is not None
-        assert isinstance(model, dict)
-        assert model["id"] == model_id
+        assert hasattr(model, 'id')
+        assert model.id == model_id
 
     def test_get_models_utility(self):
         """Test get_models utility function."""
@@ -119,9 +123,8 @@ class TestModelsAPILive:
         
         # Verify model structure
         model = models[0]
-        assert isinstance(model, dict)
-        assert "id" in model
-        assert "name" in model
+        assert hasattr(model, 'id')
+        assert hasattr(model, 'name')
 
     def test_model_capabilities_structure(self):
         """Test model capabilities structure."""
@@ -375,6 +378,7 @@ class TestModelsAPILive:
 
     def test_models_api_caching(self):
         """Test models API caching behavior."""
+        import time
         # First call
         start_time = time.time()
         models1 = self.models_api.list()

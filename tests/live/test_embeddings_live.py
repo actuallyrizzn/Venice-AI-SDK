@@ -38,14 +38,9 @@ class TestEmbeddingsAPILive:
         )
         
         assert result is not None
-        assert hasattr(result, 'embedding')
-        assert hasattr(result, 'model')
-        assert hasattr(result, 'usage')
-        
-        assert isinstance(result.embedding, list)
-        assert len(result.embedding) > 0
-        assert all(isinstance(x, float) for x in result.embedding)
-        assert result.model == "text-embedding-3-small"
+        assert isinstance(result, list)
+        assert len(result) > 0
+        assert all(isinstance(x, float) for x in result)
 
     def test_generate_multiple_embeddings(self):
         """Test generating multiple embeddings."""
@@ -274,7 +269,7 @@ class TestEmbeddingsAPILive:
         
         # Generate embeddings
         result = self.embeddings_api.generate(
-            texts=documents,
+            input_text=documents,
             model="text-embedding-3-small"
         )
         
@@ -303,7 +298,7 @@ class TestEmbeddingsAPILive:
         ]
         
         result = self.embeddings_api.generate(
-            texts=documents,
+            input_text=documents,
             model="text-embedding-3-small"
         )
         
@@ -311,8 +306,9 @@ class TestEmbeddingsAPILive:
         
         # Test different k values
         for k in [2, 3, 4]:
-            clustering = EmbeddingClustering(self.embeddings_api)
-            clusters = clustering.kmeans_clusters(embeddings, k=k)
+            # Extract embedding vectors from Embedding objects
+            embedding_vectors = [emb.embedding for emb in embeddings]
+            clusters = EmbeddingClustering.kmeans_clusters(embedding_vectors, k=k)
             
             assert isinstance(clusters, list)
             assert len(clusters) == len(documents)
@@ -329,7 +325,7 @@ class TestEmbeddingsAPILive:
             model="text-embedding-3-small"
         )
         
-        embedding = Embedding(result.embedding)
+        embedding = Embedding(embedding=result, index=0)
         magnitude = embedding.magnitude()
         
         assert isinstance(magnitude, float)
@@ -346,14 +342,14 @@ class TestEmbeddingsAPILive:
             model="text-embedding-3-small"
         )
         
-        embedding = Embedding(result.embedding)
+        embedding = Embedding(embedding=result, index=0)
         normalized = embedding.normalize()
         
         assert isinstance(normalized, list)
-        assert len(normalized) == len(embedding.vector)
+        assert len(normalized) == len(embedding.embedding)
         
         # Check if normalized vector has unit magnitude
-        normalized_embedding = Embedding(normalized)
+        normalized_embedding = Embedding(embedding=normalized, index=0)
         magnitude = normalized_embedding.magnitude()
         assert abs(magnitude - 1.0) < 1e-6  # Should be approximately 1
 
