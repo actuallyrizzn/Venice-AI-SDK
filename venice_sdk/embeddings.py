@@ -106,7 +106,7 @@ class EmbeddingsAPI:
         if user:
             data["user"] = user
         
-        response = self.client.post("/embeddings/generate", data=data)
+        response = self.client.post("/embeddings", data=data)
         result = response.json()
         
         if "data" not in result:

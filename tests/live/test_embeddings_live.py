@@ -11,6 +11,7 @@ from venice_sdk.embeddings import EmbeddingsAPI
 from venice_sdk.client import HTTPClient
 from venice_sdk.config import Config
 from venice_sdk.errors import VeniceAPIError
+from .test_utils import LiveTestUtils
 
 
 @pytest.mark.live
@@ -27,6 +28,13 @@ class TestEmbeddingsAPILive:
         self.config = Config(api_key=self.api_key)
         self.client = HTTPClient(self.config)
         self.embeddings_api = EmbeddingsAPI(self.client)
+        
+        # Check if embedding models are available
+        self.embedding_models = LiveTestUtils.get_embedding_models()
+        if not self.embedding_models:
+            pytest.skip("No embedding models available")
+        
+        self.default_embedding_model = self.embedding_models[0]
 
     def test_generate_single_embedding(self):
         """Test generating a single embedding."""
@@ -34,7 +42,7 @@ class TestEmbeddingsAPILive:
         
         result = self.embeddings_api.generate_single(
             text=text,
-            model="text-embedding-3-small"
+            model=self.default_embedding_model
         )
         
         assert result is not None
@@ -52,7 +60,7 @@ class TestEmbeddingsAPILive:
         
         result = self.embeddings_api.generate(
             texts=texts,
-            model="text-embedding-3-small"
+            model=self.default_embedding_model
         )
         
         assert result is not None
@@ -80,7 +88,7 @@ class TestEmbeddingsAPILive:
         
         result = self.embeddings_api.generate_batch(
             texts=texts,
-            model="text-embedding-3-small",
+            model=self.default_embedding_model,
             batch_size=2
         )
         
@@ -107,12 +115,12 @@ class TestEmbeddingsAPILive:
         # Generate embeddings
         similar_result = self.embeddings_api.generate(
             texts=similar_texts,
-            model="text-embedding-3-small"
+            model=self.default_embedding_model
         )
         
         different_result = self.embeddings_api.generate_single(
             text=different_text,
-            model="text-embedding-3-small"
+            model=self.default_embedding_model
         )
         
         # Calculate similarities
@@ -142,7 +150,7 @@ class TestEmbeddingsAPILive:
         
         result = self.embeddings_api.generate(
             texts=texts,
-            model="text-embedding-3-small"
+            model=self.default_embedding_model
         )
         
         embeddings = result.embeddings
@@ -166,7 +174,7 @@ class TestEmbeddingsAPILive:
         
         result = self.embeddings_api.generate(
             texts=texts,
-            model="text-embedding-3-small"
+            model=self.default_embedding_model
         )
         
         embeddings = result.embeddings
@@ -190,7 +198,7 @@ class TestEmbeddingsAPILive:
         
         result = self.embeddings_api.generate(
             texts=texts,
-            model="text-embedding-3-small"
+            model=self.default_embedding_model
         )
         
         embeddings = result.embeddings
@@ -270,7 +278,7 @@ class TestEmbeddingsAPILive:
         # Generate embeddings
         result = self.embeddings_api.generate(
             input_text=documents,
-            model="text-embedding-3-small"
+            model=self.default_embedding_model
         )
         
         embeddings = result.embeddings
@@ -299,7 +307,7 @@ class TestEmbeddingsAPILive:
         
         result = self.embeddings_api.generate(
             input_text=documents,
-            model="text-embedding-3-small"
+            model=self.default_embedding_model
         )
         
         embeddings = result.embeddings
@@ -322,7 +330,7 @@ class TestEmbeddingsAPILive:
         
         result = self.embeddings_api.generate_single(
             text=text,
-            model="text-embedding-3-small"
+            model=self.default_embedding_model
         )
         
         embedding = Embedding(embedding=result, index=0)
@@ -339,7 +347,7 @@ class TestEmbeddingsAPILive:
         
         result = self.embeddings_api.generate_single(
             text=text,
-            model="text-embedding-3-small"
+            model=self.default_embedding_model
         )
         
         embedding = Embedding(embedding=result, index=0)
@@ -381,7 +389,7 @@ class TestEmbeddingsAPILive:
         
         result = self.embeddings_api.generate_single(
             text=text,
-            model="text-embedding-3-small",
+            model=self.default_embedding_model,
             encoding_format="float",
             dimensions=512
         )
@@ -403,7 +411,7 @@ class TestEmbeddingsAPILive:
         with pytest.raises(ValueError):
             self.embeddings_api.generate_single(
                 text="",
-                model="text-embedding-3-small"
+                model=self.default_embedding_model
             )
 
     def test_embedding_with_none_text(self):
@@ -411,7 +419,7 @@ class TestEmbeddingsAPILive:
         with pytest.raises(ValueError):
             self.embeddings_api.generate_single(
                 text=None,
-                model="text-embedding-3-small"
+                model=self.default_embedding_model
             )
 
     def test_embedding_with_special_characters(self):
@@ -420,7 +428,7 @@ class TestEmbeddingsAPILive:
         
         result = self.embeddings_api.generate_single(
             text=text,
-            model="text-embedding-3-small"
+            model=self.default_embedding_model
         )
         
         assert result is not None
@@ -432,7 +440,7 @@ class TestEmbeddingsAPILive:
         
         result = self.embeddings_api.generate_single(
             text=multilingual_text,
-            model="text-embedding-3-small"
+            model=self.default_embedding_model
         )
         
         assert result is not None
@@ -444,7 +452,7 @@ class TestEmbeddingsAPILive:
         
         result = self.embeddings_api.generate_single(
             text=long_text,
-            model="text-embedding-3-small"
+            model=self.default_embedding_model
         )
         
         assert result is not None
@@ -459,7 +467,7 @@ class TestEmbeddingsAPILive:
         start_time = time.time()
         result = self.embeddings_api.generate_single(
             text=text,
-            model="text-embedding-3-small"
+            model=self.default_embedding_model
         )
         end_time = time.time()
         
@@ -478,7 +486,7 @@ class TestEmbeddingsAPILive:
         start_time = time.time()
         result = self.embeddings_api.generate_batch(
             texts=texts,
-            model="text-embedding-3-small"
+            model=self.default_embedding_model
         )
         end_time = time.time()
         
@@ -501,7 +509,7 @@ class TestEmbeddingsAPILive:
                 text = f"Hello from thread {threading.current_thread().name}"
                 result = self.embeddings_api.generate_single(
                     text=text,
-                    model="text-embedding-3-small"
+                    model=self.default_embedding_model
                 )
                 results.append(result)
             except Exception as e:
@@ -529,7 +537,7 @@ class TestEmbeddingsAPILive:
         
         result = self.embeddings_api.generate_single(
             text=text,
-            model="text-embedding-3-small"
+            model=self.default_embedding_model
         )
         
         assert result.usage is not None
@@ -552,7 +560,7 @@ class TestEmbeddingsAPILive:
             text = f"Testing memory usage for embedding generation {i}."
             result = self.embeddings_api.generate_single(
                 text=text,
-                model="text-embedding-3-small"
+                model=self.default_embedding_model
             )
             assert result is not None
         
@@ -571,7 +579,7 @@ class TestEmbeddingsAPILive:
         for _ in range(3):
             result = self.embeddings_api.generate_single(
                 text=text,
-                model="text-embedding-3-small"
+                model=self.default_embedding_model
             )
             results.append(result.embedding)
         
@@ -585,7 +593,7 @@ class TestEmbeddingsAPILive:
         
         result = self.embeddings_api.generate_single(
             text=text,
-            model="text-embedding-3-small"
+            model=self.default_embedding_model
         )
         
         embedding = result.embedding

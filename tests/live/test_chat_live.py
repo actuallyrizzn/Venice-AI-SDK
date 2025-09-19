@@ -10,6 +10,7 @@ from venice_sdk.chat import ChatAPI
 from venice_sdk.client import HTTPClient
 from venice_sdk.config import Config
 from venice_sdk.errors import VeniceAPIError
+from .test_utils import LiveTestUtils
 
 
 @pytest.mark.live
@@ -26,16 +27,20 @@ class TestChatAPILive:
         self.config = Config(api_key=self.api_key)
         self.client = HTTPClient(self.config)
         self.chat_api = ChatAPI(self.client)
+        
+        # Get available models dynamically
+        self.text_models = LiveTestUtils.get_text_models()
+        self.default_model = LiveTestUtils.get_default_text_model()
 
     def test_complete_basic_chat(self):
         """Test basic chat completion."""
         messages = [
             {"role": "user", "content": "Hello, how are you today?"}
         ]
-        
+
         response = self.chat_api.complete(
             messages=messages,
-            model="llama-3.3-8b",
+            model=self.default_model,
             max_tokens=100
         )
         
@@ -55,7 +60,7 @@ class TestChatAPILive:
         
         response = self.chat_api.complete(
             messages=messages,
-            model="llama-3.3-8b",
+            model=self.default_model,
             max_tokens=100
         )
         
@@ -75,7 +80,7 @@ class TestChatAPILive:
         
         response = self.chat_api.complete(
             messages=messages,
-            model="llama-3.3-8b",
+            model=self.default_model,
             max_tokens=50
         )
         
@@ -113,7 +118,7 @@ class TestChatAPILive:
         
         response = self.chat_api.complete(
             messages=messages,
-            model="llama-3.3-8b",
+            model=self.default_model,
             tools=tools,
             max_tokens=100
         )
@@ -130,7 +135,7 @@ class TestChatAPILive:
         
         response = self.chat_api.complete(
             messages=messages,
-            model="llama-3.3-8b",
+            model=self.default_model,
             max_tokens=200,
             temperature=0.8,
             top_p=0.9,
@@ -151,7 +156,7 @@ class TestChatAPILive:
         
         chunks = list(self.chat_api.complete_stream(
             messages=messages,
-            model="llama-3.3-8b",
+            model=self.default_model,
             max_tokens=150
         ))
         
@@ -168,7 +173,8 @@ class TestChatAPILive:
 
     def test_complete_with_different_models(self):
         """Test chat completion with different models."""
-        models_to_test = ["llama-3.3-8b", "llama-3.3-70b"]
+        # Test with first 2 available models
+        models_to_test = self.text_models[:2]
         
         for model in models_to_test:
             try:
@@ -201,7 +207,7 @@ class TestChatAPILive:
         # Test with small max_tokens
         response_short = self.chat_api.complete(
             messages=messages,
-            model="llama-3.3-8b",
+            model=self.default_model,
             max_tokens=20
         )
         
@@ -211,7 +217,7 @@ class TestChatAPILive:
         # Test with larger max_tokens
         response_long = self.chat_api.complete(
             messages=messages,
-            model="llama-3.3-8b",
+            model=self.default_model,
             max_tokens=200
         )
         
@@ -227,7 +233,7 @@ class TestChatAPILive:
         # Test with low temperature (more deterministic)
         response_low = self.chat_api.complete(
             messages=messages,
-            model="llama-3.3-8b",
+            model=self.default_model,
             max_tokens=100,
             temperature=0.1
         )
@@ -235,7 +241,7 @@ class TestChatAPILive:
         # Test with high temperature (more creative)
         response_high = self.chat_api.complete(
             messages=messages,
-            model="llama-3.3-8b",
+            model=self.default_model,
             max_tokens=100,
             temperature=1.0
         )
@@ -256,7 +262,7 @@ class TestChatAPILive:
         
         response = self.chat_api.complete(
             messages=messages,
-            model="llama-3.3-8b",
+            model=self.default_model,
             max_tokens=100,
             stop=["5"]
         )
@@ -274,7 +280,7 @@ class TestChatAPILive:
         
         response = self.chat_api.complete(
             messages=messages,
-            model="llama-3.3-8b",
+            model=self.default_model,
             max_tokens=50,
             user="test-user-123"
         )
@@ -302,7 +308,7 @@ class TestChatAPILive:
         with pytest.raises(ValueError):
             self.chat_api.complete(
                 messages=[],
-                model="llama-3.3-8b",
+                model=self.default_model,
                 max_tokens=50
             )
 
@@ -315,7 +321,7 @@ class TestChatAPILive:
         with pytest.raises(ValueError):
             self.chat_api.complete(
                 messages=messages,
-                model="llama-3.3-8b",
+                model=self.default_model,
                 max_tokens=50
             )
 
@@ -329,7 +335,7 @@ class TestChatAPILive:
         
         response = self.chat_api.complete(
             messages=messages,
-            model="llama-3.3-8b",
+            model=self.default_model,
             max_tokens=50
         )
         
@@ -345,7 +351,7 @@ class TestChatAPILive:
         
         response = self.chat_api.complete(
             messages=messages,
-            model="llama-3.3-8b",
+            model=self.default_model,
             max_tokens=50
         )
         
@@ -361,7 +367,7 @@ class TestChatAPILive:
         
         response = self.chat_api.complete(
             messages=messages,
-            model="llama-3.3-8b",
+            model=self.default_model,
             max_tokens=50
         )
         
@@ -380,7 +386,7 @@ class TestChatAPILive:
         start_time = time.time()
         response = self.chat_api.complete(
             messages=messages,
-            model="llama-3.3-8b",
+            model=self.default_model,
             max_tokens=10
         )
         end_time = time.time()
@@ -402,7 +408,7 @@ class TestChatAPILive:
         start_time = time.time()
         chunks = list(self.chat_api.complete_stream(
             messages=messages,
-            model="llama-3.3-8b",
+            model=self.default_model,
             max_tokens=100
         ))
         end_time = time.time()
@@ -428,7 +434,7 @@ class TestChatAPILive:
                 ]
                 response = self.chat_api.complete(
                     messages=messages,
-                    model="llama-3.3-8b",
+                    model=self.default_model,
                     max_tokens=20
                 )
                 results.append(response)

@@ -37,7 +37,7 @@ class Config:
             raise ValueError("API key must be provided")
 
         self.api_key = api_key
-        self.base_url = base_url if base_url is not None else "https://api.venice.ai/api/v1"
+        self.base_url = base_url if base_url is not None and base_url.strip() else "https://api.venice.ai/api/v1"
         self.default_model = default_model
         self.timeout = timeout if timeout is not None else 30
         self.max_retries = max_retries if max_retries is not None else 3
@@ -66,7 +66,8 @@ class Config:
     
     def __str__(self) -> str:
         """String representation of the Config object."""
-        return f"Config(api_key='{self.api_key}', base_url='{self.base_url}', default_model='{self.default_model}', timeout={self.timeout}, max_retries={self.max_retries}, retry_delay={self.retry_delay})"
+        masked_key = f"{self.api_key[:4]}...{self.api_key[-4:]}" if len(self.api_key) > 8 else "***"
+        return f"Config(api_key='{masked_key}', base_url='{self.base_url}', default_model='{self.default_model}', timeout={self.timeout}, max_retries={self.max_retries}, retry_delay={self.retry_delay})"
     
     def __repr__(self) -> str:
         """Detailed string representation of the Config object."""
