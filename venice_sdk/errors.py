@@ -47,6 +47,31 @@ class CharacterNotFoundError(VeniceAPIError):
     pass
 
 
+class ImageGenerationError(VeniceAPIError):
+    """Raised when image generation fails."""
+    pass
+
+
+class AudioGenerationError(VeniceAPIError):
+    """Raised when audio generation fails."""
+    pass
+
+
+class BillingError(VeniceAPIError):
+    """Raised when billing-related operations fail."""
+    pass
+
+
+class APIKeyError(VeniceAPIError):
+    """Raised when API key operations fail."""
+    pass
+
+
+class EmbeddingError(VeniceAPIError):
+    """Raised when embedding operations fail."""
+    pass
+
+
 def handle_api_error(status_code: int, response_data: dict) -> None:
     """
     Handle API errors by raising appropriate exceptions.

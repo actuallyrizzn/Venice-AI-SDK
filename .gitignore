@@ -42,6 +42,7 @@ logs/
 
 # OS
 .DS_Store
-Thumbs.db 
-tmp/venice_api_check_results.json
-tmp/venice_api_checker.py
+Thumbs.db
+
+# Temporary files
+tmp/

@@ -1,0 +1,540 @@
+"""
+Venice AI SDK - Advanced Models Module
+
+This module provides advanced model capabilities including traits and compatibility mapping.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Union
+
+from .client import HTTPClient
+from .errors import VeniceAPIError, ModelNotFoundError
+
+
+@dataclass
+class ModelTraits:
+    """Represents detailed traits and capabilities of a model."""
+    model_id: str
+    capabilities: Dict[str, Any]
+    traits: Dict[str, Any]
+    performance_metrics: Optional[Dict[str, Any]] = None
+    supported_formats: Optional[List[str]] = None
+    context_length: Optional[int] = None
+    max_tokens: Optional[int] = None
+    temperature_range: Optional[tuple] = None
+    languages: Optional[List[str]] = None
+    
+    def has_capability(self, capability: str) -> bool:
+        """Check if model has a specific capability."""
+        return capability in self.capabilities
+    
+    def get_capability_value(self, capability: str, default: Any = None) -> Any:
+        """Get the value of a specific capability."""
+        return self.capabilities.get(capability, default)
+    
+    def has_trait(self, trait: str) -> bool:
+        """Check if model has a specific trait."""
+        return trait in self.traits
+    
+    def get_trait_value(self, trait: str, default: Any = None) -> Any:
+        """Get the value of a specific trait."""
+        return self.traits.get(trait, default)
+    
+    def supports_function_calling(self) -> bool:
+        """Check if model supports function calling."""
+        return self.has_capability("function_calling") or self.has_trait("function_calling")
+    
+    def supports_streaming(self) -> bool:
+        """Check if model supports streaming."""
+        return self.has_capability("streaming") or self.has_trait("streaming")
+    
+    def supports_web_search(self) -> bool:
+        """Check if model supports web search."""
+        return self.has_capability("web_search") or self.has_trait("web_search")
+    
+    def supports_vision(self) -> bool:
+        """Check if model supports vision/image processing."""
+        return self.has_capability("vision") or self.has_trait("vision")
+    
+    def supports_audio(self) -> bool:
+        """Check if model supports audio processing."""
+        return self.has_capability("audio") or self.has_trait("audio")
+
+
+@dataclass
+class CompatibilityMapping:
+    """Represents model compatibility mapping between different providers."""
+    openai_to_venice: Dict[str, str]
+    venice_to_openai: Dict[str, str]
+    provider_mappings: Dict[str, Dict[str, str]]
+    
+    def get_venice_model(self, openai_model: str) -> Optional[str]:
+        """Get Venice model equivalent for OpenAI model."""
+        return self.openai_to_venice.get(openai_model)
+    
+    def get_openai_model(self, venice_model: str) -> Optional[str]:
+        """Get OpenAI model equivalent for Venice model."""
+        return self.venice_to_openai.get(venice_model)
+    
+    def get_provider_model(self, provider: str, model: str) -> Optional[str]:
+        """Get model equivalent for a specific provider."""
+        if provider in self.provider_mappings:
+            return self.provider_mappings[provider].get(model)
+        return None
+    
+    def list_available_mappings(self) -> List[str]:
+        """List all available provider mappings."""
+        return list(self.provider_mappings.keys())
+
+
+class ModelsTraitsAPI:
+    """Advanced model traits API client."""
+    
+    def __init__(self, client: HTTPClient):
+        self.client = client
+        self._traits_cache = {}
+    
+    def get_traits(self, use_cache: bool = True) -> Dict[str, ModelTraits]:
+        """
+        Get detailed traits for all models.
+        
+        Args:
+            use_cache: Whether to use cached results
+            
+        Returns:
+            Dictionary mapping model IDs to ModelTraits objects
+        """
+        if use_cache and self._traits_cache:
+            return self._traits_cache
+        
+        response = self.client.get("/models/traits")
+        result = response.json()
+        
+        if "data" not in result:
+            raise ModelNotFoundError("Invalid response format from models traits endpoint")
+        
+        traits = {}
+        for model_id, traits_data in result["data"].items():
+            traits[model_id] = self._parse_model_traits(model_id, traits_data)
+        
+        if use_cache:
+            self._traits_cache = traits
+        
+        return traits
+    
+    def get_model_traits(self, model_id: str, use_cache: bool = True) -> Optional[ModelTraits]:
+        """
+        Get traits for a specific model.
+        
+        Args:
+            model_id: Model identifier
+            use_cache: Whether to use cached results
+            
+        Returns:
+            ModelTraits object or None if not found
+        """
+        all_traits = self.get_traits(use_cache=use_cache)
+        return all_traits.get(model_id)
+    
+    def get_capabilities(self, model_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get capabilities for a specific model.
+        
+        Args:
+            model_id: Model identifier
+            
+        Returns:
+            Capabilities dictionary or None if not found
+        """
+        traits = self.get_model_traits(model_id)
+        return traits.capabilities if traits else None
+    
+    def get_traits_dict(self, model_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get traits dictionary for a specific model.
+        
+        Args:
+            model_id: Model identifier
+            
+        Returns:
+            Traits dictionary or None if not found
+        """
+        traits = self.get_model_traits(model_id)
+        return traits.traits if traits else None
+    
+    def find_models_by_capability(self, capability: str) -> List[str]:
+        """
+        Find models that have a specific capability.
+        
+        Args:
+            capability: Capability to search for
+            
+        Returns:
+            List of model IDs with the capability
+        """
+        all_traits = self.get_traits()
+        matching_models = []
+        
+        for model_id, traits in all_traits.items():
+            if traits.has_capability(capability):
+                matching_models.append(model_id)
+        
+        return matching_models
+    
+    def find_models_by_trait(self, trait: str) -> List[str]:
+        """
+        Find models that have a specific trait.
+        
+        Args:
+            trait: Trait to search for
+            
+        Returns:
+            List of model IDs with the trait
+        """
+        all_traits = self.get_traits()
+        matching_models = []
+        
+        for model_id, traits in all_traits.items():
+            if traits.has_trait(trait):
+                matching_models.append(model_id)
+        
+        return matching_models
+    
+    def get_models_by_type(self, model_type: str) -> List[str]:
+        """
+        Get models of a specific type.
+        
+        Args:
+            model_type: Type of model (e.g., "text", "image", "audio")
+            
+        Returns:
+            List of model IDs of the specified type
+        """
+        all_traits = self.get_traits()
+        matching_models = []
+        
+        for model_id, traits in all_traits.items():
+            if traits.get_capability_value("type") == model_type:
+                matching_models.append(model_id)
+        
+        return matching_models
+    
+    def get_best_models_for_task(self, task: str) -> List[str]:
+        """
+        Get best models for a specific task.
+        
+        Args:
+            task: Task description
+            
+        Returns:
+            List of model IDs ranked by suitability for the task
+        """
+        # Define task-to-capability mapping
+        task_capabilities = {
+            "chat": ["function_calling", "streaming", "web_search"],
+            "image_generation": ["image_generation", "vision"],
+            "text_to_speech": ["audio", "speech_synthesis"],
+            "embeddings": ["embeddings", "vector_generation"],
+            "code_generation": ["code_generation", "function_calling"],
+            "translation": ["translation", "multilingual"],
+            "summarization": ["summarization", "text_processing"],
+            "question_answering": ["question_answering", "web_search"]
+        }
+        
+        task_lower = task.lower()
+        required_capabilities = []
+        
+        for task_name, capabilities in task_capabilities.items():
+            if task_name in task_lower:
+                required_capabilities.extend(capabilities)
+        
+        if not required_capabilities:
+            # Default to general text capabilities
+            required_capabilities = ["text_generation", "chat"]
+        
+        all_traits = self.get_traits()
+        scored_models = []
+        
+        for model_id, traits in all_traits.items():
+            score = 0
+            for capability in required_capabilities:
+                if traits.has_capability(capability):
+                    score += 1
+            
+            if score > 0:
+                scored_models.append((model_id, score))
+        
+        # Sort by score (descending) and return model IDs
+        scored_models.sort(key=lambda x: x[1], reverse=True)
+        return [model_id for model_id, _ in scored_models]
+    
+    def clear_cache(self) -> None:
+        """Clear the traits cache."""
+        self._traits_cache.clear()
+    
+    def _parse_model_traits(self, model_id: str, data: Dict[str, Any]) -> ModelTraits:
+        """Parse model traits from API response."""
+        return ModelTraits(
+            model_id=model_id,
+            capabilities=data.get("capabilities", {}),
+            traits=data.get("traits", {}),
+            performance_metrics=data.get("performance_metrics"),
+            supported_formats=data.get("supported_formats"),
+            context_length=data.get("context_length"),
+            max_tokens=data.get("max_tokens"),
+            temperature_range=tuple(data["temperature_range"]) if data.get("temperature_range") else None,
+            languages=data.get("languages")
+        )
+
+
+class ModelsCompatibilityAPI:
+    """Model compatibility mapping API client."""
+    
+    def __init__(self, client: HTTPClient):
+        self.client = client
+        self._mapping_cache = None
+    
+    def get_mapping(self, use_cache: bool = True) -> CompatibilityMapping:
+        """
+        Get model compatibility mapping.
+        
+        Args:
+            use_cache: Whether to use cached results
+            
+        Returns:
+            CompatibilityMapping object
+        """
+        if use_cache and self._mapping_cache:
+            return self._mapping_cache
+        
+        response = self.client.get("/models/compatibility_mapping")
+        result = response.json()
+        
+        if "data" not in result:
+            raise ModelNotFoundError("Invalid response format from compatibility mapping endpoint")
+        
+        data = result["data"]
+        mapping = CompatibilityMapping(
+            openai_to_venice=data.get("openai_to_venice", {}),
+            venice_to_openai=data.get("venice_to_openai", {}),
+            provider_mappings=data.get("provider_mappings", {})
+        )
+        
+        if use_cache:
+            self._mapping_cache = mapping
+        
+        return mapping
+    
+    def get_venice_model(self, openai_model: str) -> Optional[str]:
+        """
+        Get Venice model equivalent for OpenAI model.
+        
+        Args:
+            openai_model: OpenAI model name
+            
+        Returns:
+            Venice model name or None if not found
+        """
+        mapping = self.get_mapping()
+        return mapping.get_venice_model(openai_model)
+    
+    def get_openai_model(self, venice_model: str) -> Optional[str]:
+        """
+        Get OpenAI model equivalent for Venice model.
+        
+        Args:
+            venice_model: Venice model name
+            
+        Returns:
+            OpenAI model name or None if not found
+        """
+        mapping = self.get_mapping()
+        return mapping.get_openai_model(venice_model)
+    
+    def migrate_openai_models(self, models: List[str]) -> Dict[str, str]:
+        """
+        Migrate a list of OpenAI models to Venice equivalents.
+        
+        Args:
+            models: List of OpenAI model names
+            
+        Returns:
+            Dictionary mapping OpenAI models to Venice models
+        """
+        mapping = self.get_mapping()
+        migrated = {}
+        
+        for model in models:
+            venice_model = mapping.get_venice_model(model)
+            if venice_model:
+                migrated[model] = venice_model
+        
+        return migrated
+    
+    def get_available_providers(self) -> List[str]:
+        """
+        Get list of available provider mappings.
+        
+        Returns:
+            List of provider names
+        """
+        mapping = self.get_mapping()
+        return mapping.list_available_mappings()
+    
+    def clear_cache(self) -> None:
+        """Clear the mapping cache."""
+        self._mapping_cache = None
+
+
+class ModelRecommendationEngine:
+    """Advanced model recommendation engine."""
+    
+    def __init__(self, traits_api: ModelsTraitsAPI, compatibility_api: ModelsCompatibilityAPI):
+        self.traits_api = traits_api
+        self.compatibility_api = compatibility_api
+    
+    def recommend_models(
+        self,
+        task: str,
+        requirements: Optional[Dict[str, Any]] = None,
+        budget_constraint: Optional[str] = None,
+        performance_priority: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Recommend models based on task and requirements.
+        
+        Args:
+            task: Task description
+            requirements: Specific requirements dictionary
+            budget_constraint: Budget constraint level ("low", "medium", "high")
+            performance_priority: Performance priority ("speed", "quality", "balanced")
+            
+        Returns:
+            List of model recommendations with scores
+        """
+        # Get best models for the task
+        best_models = self.traits_api.get_best_models_for_task(task)
+        
+        if not best_models:
+            return []
+        
+        # Get traits for all models
+        all_traits = self.traits_api.get_traits()
+        recommendations = []
+        
+        for model_id in best_models:
+            if model_id not in all_traits:
+                continue
+            
+            traits = all_traits[model_id]
+            score = self._calculate_recommendation_score(
+                traits, task, requirements, budget_constraint, performance_priority
+            )
+            
+            recommendations.append({
+                "model_id": model_id,
+                "score": score,
+                "capabilities": traits.capabilities,
+                "traits": traits.traits,
+                "context_length": traits.context_length,
+                "max_tokens": traits.max_tokens
+            })
+        
+        # Sort by score (descending)
+        recommendations.sort(key=lambda x: x["score"], reverse=True)
+        return recommendations
+    
+    def _calculate_recommendation_score(
+        self,
+        traits: ModelTraits,
+        task: str,
+        requirements: Optional[Dict[str, Any]],
+        budget_constraint: Optional[str],
+        performance_priority: Optional[str]
+    ) -> float:
+        """Calculate recommendation score for a model."""
+        score = 0.0
+        
+        # Base score from task matching
+        task_models = self.traits_api.get_best_models_for_task(task)
+        if traits.model_id in task_models:
+            score += 10.0
+        
+        # Requirements matching
+        if requirements:
+            for req_key, req_value in requirements.items():
+                if traits.has_capability(req_key) and traits.get_capability_value(req_key) == req_value:
+                    score += 5.0
+                elif traits.has_trait(req_key) and traits.get_trait_value(req_key) == req_value:
+                    score += 5.0
+        
+        # Budget constraint scoring
+        if budget_constraint:
+            cost_trait = traits.get_trait_value("cost_level", "medium")
+            if budget_constraint == "low" and cost_trait == "low":
+                score += 3.0
+            elif budget_constraint == "medium" and cost_trait in ["low", "medium"]:
+                score += 2.0
+            elif budget_constraint == "high":
+                score += 1.0
+        
+        # Performance priority scoring
+        if performance_priority:
+            speed_trait = traits.get_trait_value("speed", "medium")
+            quality_trait = traits.get_trait_value("quality", "medium")
+            
+            if performance_priority == "speed" and speed_trait == "high":
+                score += 3.0
+            elif performance_priority == "quality" and quality_trait == "high":
+                score += 3.0
+            elif performance_priority == "balanced":
+                score += 2.0
+        
+        return score
+
+
+# Convenience functions
+def get_model_traits(
+    model_id: str,
+    client: Optional[HTTPClient] = None
+) -> Optional[ModelTraits]:
+    """Convenience function to get model traits."""
+    if client is None:
+        from .config import load_config
+        from .client import VeniceClient
+        config = load_config()
+        client = VeniceClient(config)
+    
+    api = ModelsTraitsAPI(client)
+    return api.get_model_traits(model_id)
+
+
+def get_compatibility_mapping(
+    client: Optional[HTTPClient] = None
+) -> CompatibilityMapping:
+    """Convenience function to get compatibility mapping."""
+    if client is None:
+        from .config import load_config
+        from .client import VeniceClient
+        config = load_config()
+        client = VeniceClient(config)
+    
+    api = ModelsCompatibilityAPI(client)
+    return api.get_mapping()
+
+
+def find_models_by_capability(
+    capability: str,
+    client: Optional[HTTPClient] = None
+) -> List[str]:
+    """Convenience function to find models by capability."""
+    if client is None:
+        from .config import load_config
+        from .client import VeniceClient
+        config = load_config()
+        client = VeniceClient(config)
+    
+    api = ModelsTraitsAPI(client)
+    return api.find_models_by_capability(capability)
