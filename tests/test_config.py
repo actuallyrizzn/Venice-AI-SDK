@@ -97,10 +97,18 @@ def test_load_config_with_custom_base_url():
     assert config.base_url == "https://custom.venice.ai/api/v1"
 
 
+@patch("venice_sdk.config.load_dotenv")
 @patch("builtins.open", new_callable=mock_open, read_data="VENICE_API_KEY=file_key\nVENICE_BASE_URL=https://file.venice.ai/api/v1")
 @patch.dict(os.environ, {}, clear=True)
-def test_load_config_from_dotenv(mock_file):
+def test_load_config_from_dotenv(mock_file, mock_load_dotenv):
     """Test loading config from .env file."""
+    # Mock load_dotenv to set the environment variables
+    def mock_load():
+        os.environ["VENICE_API_KEY"] = "file_key"
+        os.environ["VENICE_BASE_URL"] = "https://file.venice.ai/api/v1"
+    
+    mock_load_dotenv.side_effect = mock_load
+    
     config = load_config()
     assert config.api_key == "file_key"
     assert config.base_url == "https://file.venice.ai/api/v1"

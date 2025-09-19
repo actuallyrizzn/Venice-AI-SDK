@@ -36,12 +36,15 @@ def mock_models_response():
             {
                 "id": "test-model",
                 "name": "Test Model",
-                "description": "A test model",
-                "capabilities": {
-                    "completion": True,
-                    "chat": True,
-                    "stream": True
-                }
+                "type": "text",
+                "model_spec": {
+                    "capabilities": {
+                        "supportsFunctionCalling": True,
+                        "supportsWebSearch": True
+                    },
+                    "availableContextTokens": 4096
+                },
+                "description": "A test model"
             }
         ]
     }
@@ -50,16 +53,21 @@ def mock_models_response():
 @pytest.fixture
 def mock_model_response():
     return {
-        "data": {
-            "id": "test-model",
-            "name": "Test Model",
-            "description": "A test model",
-            "capabilities": {
-                "completion": True,
-                "chat": True,
-                "stream": True
+        "data": [
+            {
+                "id": "test-model",
+                "name": "Test Model",
+                "type": "text",
+                "model_spec": {
+                    "capabilities": {
+                        "supportsFunctionCalling": True,
+                        "supportsWebSearch": True
+                    },
+                    "availableContextTokens": 4096
+                },
+                "description": "A test model"
             }
-        }
+        ]
     }
 
 
@@ -110,10 +118,12 @@ def test_list_models_success(models_api, mock_client):
                 "id": "llama-3.3-70b",
                 "name": "Llama 3.3 70B",
                 "type": "text",
-                "capabilities": {
-                    "supports_function_calling": True,
-                    "supports_web_search": True,
-                    "available_context_tokens": 4096
+                "model_spec": {
+                    "capabilities": {
+                        "supportsFunctionCalling": True,
+                        "supportsWebSearch": True
+                    },
+                    "availableContextTokens": 4096
                 },
                 "description": "A powerful language model"
             },
@@ -121,10 +131,12 @@ def test_list_models_success(models_api, mock_client):
                 "id": "llama-3.3-13b",
                 "name": "Llama 3.3 13B",
                 "type": "text",
-                "capabilities": {
-                    "supports_function_calling": True,
-                    "supports_web_search": True,
-                    "available_context_tokens": 4096
+                "model_spec": {
+                    "capabilities": {
+                        "supportsFunctionCalling": True,
+                        "supportsWebSearch": True
+                    },
+                    "availableContextTokens": 4096
                 },
                 "description": "A smaller language model"
             }
@@ -152,22 +164,28 @@ def test_get_model_success(models_api, mock_client):
     """Test successful model retrieval."""
     mock_response = MagicMock()
     mock_response.json.return_value = {
-        "id": "llama-3.3-70b",
-        "name": "Llama 3.3 70B",
-        "type": "text",
-        "capabilities": {
-            "supports_function_calling": True,
-            "supports_web_search": True,
-            "available_context_tokens": 4096
-        },
-        "description": "A powerful language model"
+        "data": [
+            {
+                "id": "llama-3.3-70b",
+                "name": "Llama 3.3 70B",
+                "type": "text",
+                "model_spec": {
+                    "capabilities": {
+                        "supportsFunctionCalling": True,
+                        "supportsWebSearch": True
+                    },
+                    "availableContextTokens": 4096
+                },
+                "description": "A powerful language model"
+            }
+        ]
     }
     mock_client.get.return_value = mock_response
 
     model = models_api.get("llama-3.3-70b")
     assert model["id"] == "llama-3.3-70b"
     assert model["name"] == "Llama 3.3 70B"
-    mock_client.get.assert_called_once_with("models/llama-3.3-70b")
+    mock_client.get.assert_called_once_with("models")
 
 
 def test_get_model_not_found(models_api, mock_client):
@@ -183,28 +201,36 @@ def test_validate_model_success(models_api, mock_client):
     """Test successful model validation."""
     mock_response = MagicMock()
     mock_response.json.return_value = {
-        "id": "llama-3.3-70b",
-        "name": "Llama 3.3 70B",
-        "type": "text",
-        "capabilities": {
-            "supports_function_calling": True,
-            "supports_web_search": True,
-            "available_context_tokens": 4096
-        },
-        "description": "A powerful language model"
+        "data": [
+            {
+                "id": "llama-3.3-70b",
+                "name": "Llama 3.3 70B",
+                "type": "text",
+                "model_spec": {
+                    "capabilities": {
+                        "supportsFunctionCalling": True,
+                        "supportsWebSearch": True
+                    },
+                    "availableContextTokens": 4096
+                },
+                "description": "A powerful language model"
+            }
+        ]
     }
     mock_client.get.return_value = mock_response
 
     assert models_api.validate("llama-3.3-70b") is True
-    mock_client.get.assert_called_once_with("models/llama-3.3-70b")
+    mock_client.get.assert_called_once_with("models")
 
 
 def test_validate_model_failure(models_api, mock_client):
     """Test model validation for non-existent model."""
-    mock_client.get.side_effect = VeniceAPIError("Model not found", status_code=404)
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"data": []}
+    mock_client.get.return_value = mock_response
 
     assert models_api.validate("non-existent-model") is False
-    mock_client.get.assert_called_once_with("models/non-existent-model")
+    mock_client.get.assert_called_once_with("models")
 
 
 def test_get_models_utility(mock_client):
@@ -216,10 +242,12 @@ def test_get_models_utility(mock_client):
                 "id": "llama-3.3-70b",
                 "name": "Llama 3.3 70B",
                 "type": "text",
-                "capabilities": {
-                    "supports_function_calling": True,
-                    "supports_web_search": True,
-                    "available_context_tokens": 4096
+                "model_spec": {
+                    "capabilities": {
+                        "supportsFunctionCalling": True,
+                        "supportsWebSearch": True
+                    },
+                    "availableContextTokens": 4096
                 },
                 "description": "A powerful language model"
             }
@@ -238,15 +266,21 @@ def test_get_model_by_id_utility(mock_client):
     """Test the get_model_by_id utility function."""
     mock_response = MagicMock()
     mock_response.json.return_value = {
-        "id": "llama-3.3-70b",
-        "name": "Llama 3.3 70B",
-        "type": "text",
-        "capabilities": {
-            "supports_function_calling": True,
-            "supports_web_search": True,
-            "available_context_tokens": 4096
-        },
-        "description": "A powerful language model"
+        "data": [
+            {
+                "id": "llama-3.3-70b",
+                "name": "Llama 3.3 70B",
+                "type": "text",
+                "model_spec": {
+                    "capabilities": {
+                        "supportsFunctionCalling": True,
+                        "supportsWebSearch": True
+                    },
+                    "availableContextTokens": 4096
+                },
+                "description": "A powerful language model"
+            }
+        ]
     }
     mock_client.get.return_value = mock_response
 
@@ -265,10 +299,12 @@ def test_get_text_models_utility(mock_client):
                 "id": "llama-3.3-70b",
                 "name": "Llama 3.3 70B",
                 "type": "text",
-                "capabilities": {
-                    "supports_function_calling": True,
-                    "supports_web_search": True,
-                    "available_context_tokens": 4096
+                "model_spec": {
+                    "capabilities": {
+                        "supportsFunctionCalling": True,
+                        "supportsWebSearch": True
+                    },
+                    "availableContextTokens": 4096
                 },
                 "description": "A powerful language model"
             },
@@ -276,10 +312,12 @@ def test_get_text_models_utility(mock_client):
                 "id": "image-model",
                 "name": "Image Model",
                 "type": "image",
-                "capabilities": {
-                    "supports_function_calling": False,
-                    "supports_web_search": False,
-                    "available_context_tokens": 0
+                "model_spec": {
+                    "capabilities": {
+                        "supportsFunctionCalling": False,
+                        "supportsWebSearch": False
+                    },
+                    "availableContextTokens": 0
                 },
                 "description": "An image model"
             }
@@ -297,24 +335,35 @@ def test_get_text_models_utility(mock_client):
 
 def test_model_capabilities_init():
     """Test ModelCapabilities initialization"""
-    caps = ModelCapabilities(completion=True, chat=True, stream=True)
-    assert caps.completion is True
-    assert caps.chat is True
-    assert caps.stream is True
+    caps = ModelCapabilities(
+        supports_function_calling=True,
+        supports_web_search=True,
+        available_context_tokens=4096
+    )
+    assert caps.supports_function_calling is True
+    assert caps.supports_web_search is True
+    assert caps.available_context_tokens == 4096
 
 
 def test_model_init():
     """Test Model initialization"""
+    capabilities = ModelCapabilities(
+        supports_function_calling=True,
+        supports_web_search=True,
+        available_context_tokens=4096
+    )
     model = Model(
         id="test-model",
         name="Test Model",
+        type="text",
         description="A test model",
-        capabilities=ModelCapabilities(completion=True, chat=True, stream=True)
+        capabilities=capabilities
     )
     assert model.id == "test-model"
     assert model.name == "Test Model"
+    assert model.type == "text"
     assert model.description == "A test model"
-    assert model.capabilities.completion is True
+    assert model.capabilities.supports_function_calling is True
 
 
 def test_models_api_list_success(client, mock_models_response, mocker):
@@ -326,7 +375,7 @@ def test_models_api_list_success(client, mock_models_response, mocker):
     models = models_api.list()
     
     assert len(models) == 1
-    assert models[0].id == "test-model"
+    assert models[0]["id"] == "test-model"
     mock_get.assert_called_once_with("models")
 
 
@@ -338,9 +387,9 @@ def test_models_api_get_success(client, mock_model_response, mocker):
     models_api = ModelsAPI(client)
     model = models_api.get("test-model")
     
-    assert model.id == "test-model"
-    assert model.name == "Test Model"
-    mock_get.assert_called_once_with("models/test-model")
+    assert model["id"] == "test-model"
+    assert model["name"] == "Test Model"
+    mock_get.assert_called_once_with("models")
 
 
 def test_models_api_list_error(client, mocker):
@@ -370,9 +419,10 @@ def test_get_text_models(client, mock_models_response, mocker):
     mock_get = mocker.patch.object(client, "get")
     mock_get.return_value.json.return_value = mock_models_response
     
-    models_api = ModelsAPI(client)
-    text_models = models_api.get_text_models()
+    # Use the utility function instead of a non-existent method
+    with patch('venice_sdk.models.HTTPClient', return_value=client):
+        text_models = get_text_models()
     
     assert len(text_models) == 1
     assert text_models[0].id == "test-model"
-    assert text_models[0].capabilities.completion is True 
+    assert text_models[0].type == "text" 
