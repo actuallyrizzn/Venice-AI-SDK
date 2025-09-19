@@ -1,10 +1,6 @@
-Perfect. I’ll compile a modular reference guide for VeniceAPI’s LLM, focusing on Chat Completions and adjacent API calls, using Python SDK examples when available and falling back to cURL where necessary. I’ll also include authentication setup and error-handling best practices so it’s fully reusable in future AI coding workflows within Sanctum’s Letta framework.
+# VeniceAPI Complete Integration Guide (Sanctum Letta)
 
-I’ll get started and will let you know when the guide is ready for review.
-
-# VeniceAPI LLM Chat Completions Integration Guide (Sanctum Letta)
-
-This guide provides a modular reference for using **VeniceAPI’s LLM Chat Completions** within the Sanctum Letta framework. It focuses on chat completion endpoints and related features (streaming, function calling, context handling, etc.), with Python SDK-style examples (and cURL equivalents where appropriate). Each section covers a specific aspect of the API for clarity and future reusability.
+This guide provides a comprehensive reference for using **VeniceAPI's complete suite of AI services** within the Sanctum Letta framework. It covers all major endpoints including chat completions, embeddings, image generation, audio/speech, and character management, with Python SDK-style examples (and cURL equivalents where appropriate). Each section covers a specific aspect of the API for clarity and future reusability.
 
 ## Authentication and API Key Setup
 
@@ -271,6 +267,634 @@ Key points for using function calling:
 
 In summary, **function calling** allows your LLM agent to perform actions (like database queries, calculations, web browsing, etc.) during a conversation. Venice’s API gives you the hooks to implement this in a step-by-step manner. Be prepared to capture the model’s function call request, execute it, and then continue the conversation with the results.
 
+## Embeddings API
+
+The **Embeddings** endpoint generates vector representations of text that can be used for semantic search, similarity matching, and other machine learning applications.
+
+### Embeddings Overview
+
+- **Endpoint URL:** `POST https://api.venice.ai/api/v1/embeddings/generate` ([Venice API Docs: /embeddings](https://docs.venice.ai/api-reference/endpoint/embeddings/generate))
+- **Purpose:** Convert text into high-dimensional vectors that capture semantic meaning
+- **Use Cases:** Semantic search, document similarity, clustering, recommendation systems
+
+### Request Structure
+
+The embeddings request requires the following fields:
+
+- `model` (string, required): The ID of the embedding model to use
+- `input` (string or array, required): The text to embed. Can be a single string or array of strings
+- `encoding_format` (string, optional): The format of the returned embeddings. Default is "float"
+
+### Example – Basic Embeddings Request
+
+**Python Example:**
+
+```python
+import requests
+
+url = "https://api.venice.ai/api/v1/embeddings/generate"
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json"
+}
+data = {
+    "model": "text-embedding-ada-002",  # Example model ID
+    "input": "The quick brown fox jumps over the lazy dog"
+}
+response = requests.post(url, headers=headers, json=data)
+result = response.json()
+print(f"Embedding dimensions: {len(result['data'][0]['embedding'])}")
+```
+
+**cURL Equivalent:**
+
+```bash
+curl --request POST \
+  --url https://api.venice.ai/api/v1/embeddings/generate \
+  --header "Authorization: Bearer <your-api-key>" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "model": "text-embedding-ada-002",
+    "input": "The quick brown fox jumps over the lazy dog"
+  }'
+```
+
+### Response Structure
+
+The embeddings response includes:
+
+- `object`: Type of object (should be "list")
+- `data`: Array of embedding objects, each containing:
+  - `object`: Type of embedding object
+  - `embedding`: The vector representation as an array of floats
+  - `index`: Position of the embedding in the input array
+- `model`: The model ID used for generation
+- `usage`: Token usage statistics
+
+### Batch Processing
+
+You can process multiple texts in a single request:
+
+```python
+data = {
+    "model": "text-embedding-ada-002",
+    "input": [
+        "First text to embed",
+        "Second text to embed",
+        "Third text to embed"
+    ]
+}
+```
+
+## Image Generation API
+
+The **Image Generation** endpoint creates images from text descriptions using AI models.
+
+### Image Generation Overview
+
+- **Endpoint URL:** `POST https://api.venice.ai/api/v1/image/generate` ([Venice API Docs: /image/generate](https://docs.venice.ai/api-reference/endpoint/image/generate))
+- **Purpose:** Generate images from text prompts
+- **Use Cases:** Content creation, visual design, creative applications
+
+### Request Structure
+
+The image generation request requires:
+
+- `model` (string, required): The ID of the image generation model
+- `prompt` (string, required): Text description of the desired image
+- `n` (integer, optional): Number of images to generate (default: 1)
+- `size` (string, optional): Image dimensions (e.g., "1024x1024", "512x512")
+- `quality` (string, optional): Image quality setting
+- `style` (string, optional): Artistic style for the image
+
+### Example – Basic Image Generation Request
+
+**Python Example:**
+
+```python
+import requests
+import base64
+from io import BytesIO
+from PIL import Image
+
+url = "https://api.venice.ai/api/v1/image/generate"
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json"
+}
+data = {
+    "model": "dall-e-3",  # Example model ID
+    "prompt": "A serene mountain landscape at sunset with a lake in the foreground",
+    "n": 1,
+    "size": "1024x1024",
+    "quality": "standard"
+}
+response = requests.post(url, headers=headers, json=data)
+result = response.json()
+
+# Save the generated image
+if result['data']:
+    image_data = base64.b64decode(result['data'][0]['b64_json'])
+    image = Image.open(BytesIO(image_data))
+    image.save("generated_image.png")
+```
+
+**cURL Equivalent:**
+
+```bash
+curl --request POST \
+  --url https://api.venice.ai/api/v1/image/generate \
+  --header "Authorization: Bearer <your-api-key>" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "model": "dall-e-3",
+    "prompt": "A serene mountain landscape at sunset with a lake in the foreground",
+    "n": 1,
+    "size": "1024x1024"
+  }'
+```
+
+### Response Structure
+
+The image generation response includes:
+
+- `created`: Timestamp of the request
+- `data`: Array of generated images, each containing:
+  - `url`: URL to the generated image (if using URL format)
+  - `b64_json`: Base64-encoded image data (if using base64 format)
+  - `revised_prompt`: The refined prompt used for generation
+
+## Image Editing API
+
+The **Image Editing** endpoint allows you to edit existing images using text prompts.
+
+### Image Editing Overview
+
+- **Endpoint URL:** `POST https://api.venice.ai/api/v1/image/edit` ([Venice API Docs: /image/edit](https://docs.venice.ai/api-reference/endpoint/image/edit))
+- **Purpose:** Edit existing images based on text instructions
+- **Use Cases:** Image modification, content editing, creative transformations
+
+### Request Structure
+
+The image editing request requires:
+
+- `model` (string, required): The ID of the image editing model
+- `image` (string, required): Base64-encoded image data or image URL
+- `prompt` (string, required): Text description of the desired edits
+- `mask` (string, optional): Base64-encoded mask image for selective editing
+- `n` (integer, optional): Number of edited images to generate (default: 1)
+- `size` (string, optional): Output image dimensions
+
+### Example – Basic Image Editing Request
+
+**Python Example:**
+
+```python
+import requests
+import base64
+
+url = "https://api.venice.ai/api/v1/image/edit"
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json"
+}
+
+# Read and encode image
+with open("input_image.png", "rb") as image_file:
+    image_data = base64.b64encode(image_file.read()).decode('utf-8')
+
+data = {
+    "model": "dall-e-2-edit",  # Example model ID
+    "image": image_data,
+    "prompt": "Add a rainbow in the sky",
+    "n": 1,
+    "size": "1024x1024"
+}
+response = requests.post(url, headers=headers, json=data)
+result = response.json()
+```
+
+## Image Upscaling API
+
+The **Image Upscaling** endpoint enhances the resolution and quality of existing images.
+
+### Image Upscaling Overview
+
+- **Endpoint URL:** `POST https://api.venice.ai/api/v1/image/upscale` ([Venice API Docs: /image/upscale](https://docs.venice.ai/api-reference/endpoint/image/upscale))
+- **Purpose:** Increase image resolution and improve quality
+- **Use Cases:** Image enhancement, upscaling low-resolution content, quality improvement
+
+### Request Structure
+
+The image upscaling request requires:
+
+- `model` (string, required): The ID of the upscaling model
+- `image` (string, required): Base64-encoded image data or image URL
+- `scale` (integer, optional): Upscaling factor (e.g., 2 for 2x, 4 for 4x)
+
+### Example – Basic Image Upscaling Request
+
+**Python Example:**
+
+```python
+import requests
+import base64
+
+url = "https://api.venice.ai/api/v1/image/upscale"
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json"
+}
+
+# Read and encode image
+with open("low_res_image.png", "rb") as image_file:
+    image_data = base64.b64encode(image_file.read()).decode('utf-8')
+
+data = {
+    "model": "upscaler-v1",  # Example model ID
+    "image": image_data,
+    "scale": 2
+}
+response = requests.post(url, headers=headers, json=data)
+result = response.json()
+```
+
+## Image Styles API
+
+The **Image Styles** endpoint provides information about available artistic styles for image generation.
+
+### Image Styles Overview
+
+- **Endpoint URL:** `GET https://api.venice.ai/api/v1/image/styles` ([Venice API Docs: /image/styles](https://docs.venice.ai/api-reference/endpoint/image/styles))
+- **Purpose:** Retrieve available artistic styles for image generation
+- **Use Cases:** Style selection, creative applications, consistent visual themes
+
+### Example – List Available Styles
+
+**Python Example:**
+
+```python
+import requests
+
+url = "https://api.venice.ai/api/v1/image/styles"
+headers = {
+    "Authorization": f"Bearer {API_KEY}"
+}
+response = requests.get(url, headers=headers)
+styles = response.json()
+
+for style in styles.get('data', []):
+    print(f"Style: {style['name']}")
+    print(f"Description: {style['description']}")
+    print(f"ID: {style['id']}")
+    print("---")
+```
+
+**cURL Equivalent:**
+
+```bash
+curl --request GET \
+  --url https://api.venice.ai/api/v1/image/styles \
+  --header "Authorization: Bearer <your-api-key>"
+```
+
+## Audio/Speech API
+
+The **Audio/Speech** endpoint converts text to speech using AI voice synthesis.
+
+### Audio/Speech Overview
+
+- **Endpoint URL:** `POST https://api.venice.ai/api/v1/audio/speech` ([Venice API Docs: /audio/speech](https://docs.venice.ai/api-reference/endpoint/audio/speech))
+- **Purpose:** Convert text to natural-sounding speech
+- **Use Cases:** Voice assistants, accessibility, content creation, language learning
+
+### Request Structure
+
+The audio/speech request requires:
+
+- `model` (string, required): The ID of the speech synthesis model
+- `input` (string, required): Text to convert to speech
+- `voice` (string, required): Voice to use for synthesis
+- `response_format` (string, optional): Audio format (e.g., "mp3", "wav", "aac")
+- `speed` (float, optional): Speech speed multiplier (0.25 to 4.0)
+
+### Example – Basic Audio/Speech Request
+
+**Python Example:**
+
+```python
+import requests
+
+url = "https://api.venice.ai/api/v1/audio/speech"
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json"
+}
+data = {
+    "model": "tts-1",  # Example model ID
+    "input": "Hello, this is a test of the Venice AI text-to-speech system.",
+    "voice": "alloy",
+    "response_format": "mp3",
+    "speed": 1.0
+}
+response = requests.post(url, headers=headers, json=data)
+
+# Save the audio file
+if response.status_code == 200:
+    with open("speech_output.mp3", "wb") as f:
+        f.write(response.content)
+    print("Audio file saved as speech_output.mp3")
+```
+
+**cURL Equivalent:**
+
+```bash
+curl --request POST \
+  --url https://api.venice.ai/api/v1/audio/speech \
+  --header "Authorization: Bearer <your-api-key>" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "model": "tts-1",
+    "input": "Hello, this is a test of the Venice AI text-to-speech system.",
+    "voice": "alloy",
+    "response_format": "mp3"
+  }' \
+  --output speech_output.mp3
+```
+
+### Available Voices
+
+Common voice options include:
+- `alloy`: Neutral, balanced voice
+- `echo`: Warm, friendly voice
+- `fable`: Professional, clear voice
+- `onyx`: Deep, authoritative voice
+- `nova`: Bright, energetic voice
+- `shimmer`: Soft, gentle voice
+
+## Characters API
+
+The **Characters** endpoint allows you to list and retrieve information about available AI characters/personas.
+
+### Characters Overview
+
+- **List Characters:** `GET https://api.venice.ai/api/v1/characters` ([Venice API Docs: /characters](https://docs.venice.ai/api-reference/endpoint/characters/list))
+- **Get Character:** `GET https://api.venice.ai/api/v1/characters/{slug}` ([Venice API Docs: /characters/{slug}](https://docs.venice.ai/api-reference/endpoint/characters/get))
+- **Purpose:** Discover and retrieve character information for use in chat completions
+- **Use Cases:** Character-based conversations, role-playing, specialized AI assistants
+
+### List Characters
+
+**Python Example:**
+
+```python
+import requests
+
+url = "https://api.venice.ai/api/v1/characters"
+headers = {
+    "Authorization": f"Bearer {API_KEY}"
+}
+response = requests.get(url, headers=headers)
+characters = response.json()
+
+for character in characters.get('data', []):
+    print(f"Name: {character['name']}")
+    print(f"Slug: {character['slug']}")
+    print(f"Description: {character['description']}")
+    print("---")
+```
+
+**cURL Equivalent:**
+
+```bash
+curl --request GET \
+  --url https://api.venice.ai/api/v1/characters \
+  --header "Authorization: Bearer <your-api-key>"
+```
+
+### Get Specific Character
+
+**Python Example:**
+
+```python
+character_slug = "venice"  # Example character slug
+url = f"https://api.venice.ai/api/v1/characters/{character_slug}"
+headers = {
+    "Authorization": f"Bearer {API_KEY}"
+}
+response = requests.get(url, headers=headers)
+character = response.json()
+
+print(f"Character: {character['name']}")
+print(f"Description: {character['description']}")
+print(f"System Prompt: {character['system_prompt']}")
+```
+
+**cURL Equivalent:**
+
+```bash
+curl --request GET \
+  --url https://api.venice.ai/api/v1/characters/venice \
+  --header "Authorization: Bearer <your-api-key>"
+```
+
+### Using Characters in Chat Completions
+
+To use a character in chat completions, include the character slug in the `venice_parameters`:
+
+```python
+data = {
+    "model": "llama-3.3-70b",
+    "messages": [
+        {"role": "user", "content": "Tell me about yourself"}
+    ],
+    "venice_parameters": {
+        "character_slug": "venice"
+    }
+}
+```
+
+## API Keys Management API
+
+The **API Keys Management** endpoints allow you to manage your API keys, view usage, and generate new keys.
+
+### API Keys Overview
+
+- **List Keys:** `GET https://api.venice.ai/api/v1/api_keys` ([Venice API Docs: /api_keys](https://docs.venice.ai/api-reference/endpoint/api-keys))
+- **Generate Web3 Key:** `POST https://api.venice.ai/api/v1/api_keys/generate_web3_key` ([Venice API Docs: /api_keys/generate_web3_key](https://docs.venice.ai/api-reference/endpoint/api-keys/generate_web3_key))
+- **Rate Limits:** `GET https://api.venice.ai/api/v1/api_keys/rate_limits` ([Venice API Docs: /api_keys/rate_limits](https://docs.venice.ai/api-reference/endpoint/api-keys/rate_limits))
+- **Rate Limits Log:** `GET https://api.venice.ai/api/v1/api_keys/rate_limits/log` ([Venice API Docs: /api_keys/rate_limits/log](https://docs.venice.ai/api-reference/endpoint/api-keys/rate_limits/log))
+- **Purpose:** Manage API keys, monitor usage, and generate Web3-compatible keys
+- **Use Cases:** Key rotation, usage monitoring, Web3 integration
+
+### List API Keys
+
+**Python Example:**
+
+```python
+import requests
+
+url = "https://api.venice.ai/api/v1/api_keys"
+headers = {
+    "Authorization": f"Bearer {API_KEY}"
+}
+response = requests.get(url, headers=headers)
+keys = response.json()
+
+for key in keys.get('data', []):
+    print(f"Key ID: {key['id']}")
+    print(f"Name: {key['name']}")
+    print(f"Created: {key['created']}")
+    print(f"Last Used: {key.get('last_used', 'Never')}")
+    print("---")
+```
+
+### Generate Web3 API Key
+
+**Python Example:**
+
+```python
+import requests
+
+url = "https://api.venice.ai/api/v1/api_keys/generate_web3_key"
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json"
+}
+data = {
+    "name": "Web3 Integration Key",
+    "description": "API key for Web3 application integration"
+}
+response = requests.post(url, headers=headers, json=data)
+result = response.json()
+
+print(f"New Web3 Key: {result['api_key']}")
+print(f"Key ID: {result['id']}")
+```
+
+### Check Rate Limits
+
+**Python Example:**
+
+```python
+import requests
+
+url = "https://api.venice.ai/api/v1/api_keys/rate_limits"
+headers = {
+    "Authorization": f"Bearer {API_KEY}"
+}
+response = requests.get(url, headers=headers)
+limits = response.json()
+
+print(f"Current Usage: {limits['usage']}")
+print(f"Rate Limits: {limits['rate_limits']}")
+print(f"Reset Time: {limits['reset_time']}")
+```
+
+## Billing and Usage API
+
+The **Billing and Usage** endpoint provides information about your account usage and billing.
+
+### Billing Overview
+
+- **Endpoint URL:** `GET https://api.venice.ai/api/v1/billing/usage` ([Venice API Docs: /billing/usage](https://docs.venice.ai/api-reference/endpoint/billing/usage))
+- **Purpose:** Monitor API usage, costs, and billing information
+- **Use Cases:** Usage tracking, cost monitoring, billing management
+
+### Example – Check Usage
+
+**Python Example:**
+
+```python
+import requests
+
+url = "https://api.venice.ai/api/v1/billing/usage"
+headers = {
+    "Authorization": f"Bearer {API_KEY}"
+}
+response = requests.get(url, headers=headers)
+usage = response.json()
+
+print(f"Total Usage: {usage['total_usage']}")
+print(f"Current Period: {usage['current_period']}")
+print(f"Credits Remaining: {usage['credits_remaining']}")
+print(f"Usage by Model:")
+for model, usage_data in usage['usage_by_model'].items():
+    print(f"  {model}: {usage_data['requests']} requests, {usage_data['tokens']} tokens")
+```
+
+**cURL Equivalent:**
+
+```bash
+curl --request GET \
+  --url https://api.venice.ai/api/v1/billing/usage \
+  --header "Authorization: Bearer <your-api-key>"
+```
+
+## Models Traits API
+
+The **Models Traits** endpoint provides detailed information about model capabilities and characteristics.
+
+### Models Traits Overview
+
+- **Endpoint URL:** `GET https://api.venice.ai/api/v1/models/traits` ([Venice API Docs: /models/traits](https://docs.venice.ai/api-reference/endpoint/models/traits))
+- **Purpose:** Get detailed traits and capabilities of available models
+- **Use Cases:** Model selection, capability assessment, feature planning
+
+### Example – List Model Traits
+
+**Python Example:**
+
+```python
+import requests
+
+url = "https://api.venice.ai/api/v1/models/traits"
+headers = {
+    "Authorization": f"Bearer {API_KEY}"
+}
+response = requests.get(url, headers=headers)
+traits = response.json()
+
+for model_id, model_traits in traits.get('data', {}).items():
+    print(f"Model: {model_id}")
+    print(f"Capabilities: {model_traits.get('capabilities', {})}")
+    print(f"Traits: {model_traits.get('traits', {})}")
+    print("---")
+```
+
+## Models Compatibility Mapping API
+
+The **Models Compatibility Mapping** endpoint provides mapping information between different model naming conventions.
+
+### Compatibility Mapping Overview
+
+- **Endpoint URL:** `GET https://api.venice.ai/api/v1/models/compatibility_mapping` ([Venice API Docs: /models/compatibility_mapping](https://docs.venice.ai/api-reference/endpoint/models/compatibility_mapping))
+- **Purpose:** Map between different model naming conventions (e.g., OpenAI to Venice)
+- **Use Cases:** Migration from other APIs, model name translation, compatibility checking
+
+### Example – Get Compatibility Mapping
+
+**Python Example:**
+
+```python
+import requests
+
+url = "https://api.venice.ai/api/v1/models/compatibility_mapping"
+headers = {
+    "Authorization": f"Bearer {API_KEY}"
+}
+response = requests.get(url, headers=headers)
+mapping = response.json()
+
+print("OpenAI to Venice Model Mapping:")
+for openai_model, venice_model in mapping.get('openai_to_venice', {}).items():
+    print(f"  {openai_model} -> {venice_model}")
+
+print("\nVenice to OpenAI Model Mapping:")
+for venice_model, openai_model in mapping.get('venice_to_openai', {}).items():
+    print(f"  {venice_model} -> {openai_model}")
+```
+
 ## Error Handling and Retry Strategies
 
 When integrating the Venice LLM API, robust error handling is important for a smooth developer and user experience. Here are common error scenarios, how to catch them in Python, and strategies to handle or retry:
@@ -312,11 +936,63 @@ By handling errors gracefully, your integration will be more robust. For instanc
 
 ## Conclusion and Best Practices
 
-Integrating VeniceAPI’s LLM into Sanctum Letta involves using the chat completions endpoint with proper authentication and then leveraging the rich feature set (streaming, function calls, etc.) as needed:
+Integrating VeniceAPI's comprehensive AI services into Sanctum Letta involves using multiple endpoints with proper authentication and leveraging the rich feature set as needed:
 
-- Always test your requests with the specific model you plan to use – different models might have slight differences (e.g., in how they utilize system prompts or tools).
-- Use the **Python examples** provided as a starting point for your implementation, and refer to the cURL examples or official documentation for any fields you’re unsure about.
-- Keep the guide handy as a **modular reference**: you can refer to the Authentication section when setting up keys, the Chat Completions section when constructing prompts, and so on, without wading through unrelated API parts (embeddings, file uploads, etc. are intentionally omitted as they’re not needed for basic LLM interaction).
+### Available Venice API Endpoints
 
-By following this guide, you can confidently integrate VeniceAPI’s chat AI capabilities into the Letta framework (or any other AI orchestration framework) and build powerful, stateful LLM applications. For more details, always consult the [official Venice API documentation](https://docs.venice.ai) and the Letta docs for provider integration, and keep an eye on version changes or new features (Venice’s API may evolve with new parameters or capabilities over time).
+This guide covers all major Venice API endpoints:
+
+#### Core AI Services
+1. **Chat Completions** (`/chat/completions`) - Core LLM text generation with streaming, function calling, and Venice-specific features
+2. **Models** (`/models`) - List available models and their capabilities
+3. **Models Traits** (`/models/traits`) - Detailed model capabilities and characteristics
+4. **Models Compatibility** (`/models/compatibility_mapping`) - Model name mapping between different conventions
+5. **Embeddings** (`/embeddings/generate`) - Generate vector representations for semantic search and similarity
+
+#### Image Processing
+6. **Image Generation** (`/image/generate`) - Create images from text descriptions
+7. **Image Editing** (`/image/edit`) - Edit existing images using text prompts
+8. **Image Upscaling** (`/image/upscale`) - Enhance image resolution and quality
+9. **Image Styles** (`/image/styles`) - Retrieve available artistic styles
+
+#### Audio Services
+10. **Audio/Speech** (`/audio/speech`) - Convert text to natural-sounding speech
+
+#### Character Management
+11. **Characters** (`/characters`) - List and retrieve AI character/persona information
+
+#### Account Management
+12. **API Keys** (`/api_keys`) - Manage API keys and generate Web3 keys
+13. **Rate Limits** (`/api_keys/rate_limits`) - Monitor API usage and rate limits
+14. **Billing** (`/billing/usage`) - Track usage and billing information
+
+### Integration Best Practices
+
+- **Authentication**: Always use secure API key management with environment variables
+- **Model Selection**: Choose appropriate models based on your use case and required capabilities
+- **Error Handling**: Implement robust retry logic for transient errors and proper error reporting
+- **Rate Limiting**: Respect API rate limits and implement exponential backoff
+- **Testing**: Always test with specific models you plan to use in production
+- **Modular Design**: Use this guide as a reference for specific endpoints without needing to understand all APIs
+
+### Use Case Examples
+
+- **Chat Applications**: Use chat completions with streaming for real-time conversations
+- **Search Systems**: Combine embeddings with chat completions for semantic search
+- **Content Creation**: Leverage image generation, editing, and text-to-speech for multimedia content
+- **Image Processing**: Use image editing and upscaling for professional image workflows
+- **Character-Based AI**: Use the characters API for specialized AI personalities
+- **Account Management**: Monitor usage, manage API keys, and track billing
+- **Model Migration**: Use compatibility mapping when migrating from other AI providers
+- **Multi-Modal Applications**: Combine multiple endpoints for rich, interactive experiences
+
+### Framework Integration
+
+VeniceAPI is designed to be compatible with OpenAI's API format, making it easy to integrate with frameworks like Sanctum Letta. Simply configure your framework to use Venice's endpoints:
+
+- Set `OPENAI_API_BASE=https://api.venice.ai/api/v1`
+- Use your Venice API key as `OPENAI_API_KEY`
+- Leverage Venice's additional features through `venice_parameters`
+
+By following this comprehensive guide, you can confidently integrate VeniceAPI's full suite of AI capabilities into any application or framework. For the most up-to-date information, always consult the [official Venice API documentation](https://docs.venice.ai) and keep an eye on new features and updates.
 
