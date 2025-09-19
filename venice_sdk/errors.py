@@ -58,8 +58,16 @@ def handle_api_error(status_code: int, response_data: dict) -> None:
     Raises:
         VeniceAPIError: Appropriate exception based on the error
     """
-    error_code = response_data.get("error", {}).get("code")
-    error_message = response_data.get("error", {}).get("message", "Unknown error")
+    # Normalize shapes: "error" may be a string or dict
+    error_obj = response_data.get("error")
+    if isinstance(error_obj, str):
+        error_code = None
+        error_message = error_obj
+        error_payload = {}
+    else:
+        error_payload = error_obj or {}
+        error_code = error_payload.get("code")
+        error_message = error_payload.get("message", "Unknown error")
     
     if status_code == 401:
         raise UnauthorizedError(error_message, status_code=status_code)
@@ -74,4 +82,5 @@ def handle_api_error(status_code: int, response_data: dict) -> None:
         else:
             raise InvalidRequestError(error_message, status_code=status_code)
     elif status_code >= 400:
-        raise InvalidRequestError(error_message, status_code=status_code) 
+        # If we don't have a more specific mapping, raise generic API error
+        raise VeniceAPIError(error_message, status_code=status_code)

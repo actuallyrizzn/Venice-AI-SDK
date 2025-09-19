@@ -10,7 +10,7 @@ import requests
 from requests import Response
 
 from .config import Config, load_config
-from .errors import VeniceAPIError, VeniceConnectionError
+from .errors import VeniceAPIError, VeniceConnectionError, handle_api_error
 
 
 class HTTPClient:
@@ -77,19 +77,57 @@ class HTTPClient:
                     **kwargs
                 )
                 
-                # Handle streaming responses
-                if stream:
-                    return self._handle_streaming_response(response)
-                
-                # Handle non-streaming responses
+                # Common error handling (non-2xx)
                 if response.status_code >= 400:
-                    error_data = response.json()
+                    # Attempt to parse error payload safely
+                    try:
+                        error_data = response.json() or {}
+                    except Exception:
+                        error_data = {"error": {"message": response.text or "Unknown error"}}
+
+                    # Normalize string error payloads to dict form
                     if isinstance(error_data.get("error"), str):
-                        error_message = error_data["error"]
-                    else:
-                        error_message = error_data.get("error", {}).get("message", "Unknown error")
-                    raise VeniceAPIError(error_message, status_code=response.status_code)
-                return response
+                        error_data = {"error": {"message": error_data.get("error")}}
+
+                    status = response.status_code
+
+                    # Determine if this error is retriable
+                    is_rate_limited = status == 429
+                    is_server_error = status >= 500
+
+                    # Calculate retry delay using Retry-After header if present
+                    retry_after_header = response.headers.get("Retry-After") if hasattr(response, "headers") else None
+                    retry_after_seconds = None
+                    if retry_after_header is not None:
+                        try:
+                            retry_after_seconds = int(retry_after_header)
+                        except Exception:
+                            retry_after_seconds = None
+
+                    # If 429 and body lacks retry_after, inject from header for better error context
+                    if is_rate_limited:
+                        error_obj = error_data.get("error") or {}
+                        if isinstance(error_obj, dict) and error_obj.get("retry_after") is None and retry_after_seconds is not None:
+                            error_obj["retry_after"] = retry_after_seconds
+                            error_data["error"] = error_obj
+
+                    # Retry on 429 and 5xx if attempts remain
+                    if (is_rate_limited or is_server_error) and attempt < self.config.max_retries - 1:
+                        delay_seconds = retry_after_seconds if retry_after_seconds is not None else self.config.retry_delay * (2 ** attempt)
+                        time.sleep(delay_seconds)
+                        continue
+
+                    # No retry or attempts exhausted: raise specific API error
+                    handle_api_error(status, error_data)
+                    # handle_api_error always raises; the following return is unreachable.
+                    return response
+
+                # Success
+                if stream:
+                    # For streaming success, return generator
+                    return self._handle_streaming_response(response)
+                else:
+                    return response
                 
             except requests.exceptions.RequestException as e:
                 if attempt == self.config.max_retries - 1:
@@ -110,12 +148,30 @@ class HTTPClient:
             VeniceAPIError: If the request fails
         """
         if response.status_code >= 400:
-            error_data = response.json()
+            try:
+                error_data = response.json() or {}
+            except Exception:
+                error_data = {"error": {"message": response.text or "Unknown error"}}
+
+            # Normalize string error payloads to dict form
             if isinstance(error_data.get("error"), str):
-                error_message = error_data["error"]
-            else:
-                error_message = error_data.get("error", {}).get("message", "Unknown error")
-            raise VeniceAPIError(error_message, status_code=response.status_code)
+                error_data = {"error": {"message": error_data.get("error")}}
+
+            # Inject Retry-After header if present but missing in body for 429s
+            if response.status_code == 429:
+                retry_after_header = response.headers.get("Retry-After") if hasattr(response, "headers") else None
+                if retry_after_header is not None:
+                    try:
+                        retry_after_seconds = int(retry_after_header)
+                    except Exception:
+                        retry_after_seconds = None
+                    if retry_after_seconds is not None:
+                        error_obj = error_data.get("error") or {}
+                        if isinstance(error_obj, dict) and error_obj.get("retry_after") is None:
+                            error_obj["retry_after"] = retry_after_seconds
+                            error_data["error"] = error_obj
+
+            handle_api_error(response.status_code, error_data)
         
         for line in response.iter_lines():
             if not line:
