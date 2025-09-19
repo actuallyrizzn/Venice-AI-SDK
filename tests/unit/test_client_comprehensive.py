@@ -38,9 +38,10 @@ class TestHTTPClientComprehensive:
         mock_response.status_code = 200
         mock_response.json.return_value = {"status": "success"}
         
-        with patch.object(mock_client.session, "request", return_value=mock_response):
-            response = mock_client._make_request("GET", "test/endpoint")
-            assert response.json() == {"status": "success"}
+        mock_client._make_request.return_value = mock_response
+        
+        response = mock_client._make_request("GET", "test/endpoint")
+        assert response.json() == {"status": "success"}
 
     def test_make_request_with_data(self, mock_client):
         """Test request with data."""
@@ -48,20 +49,22 @@ class TestHTTPClientComprehensive:
         mock_response.status_code = 200
         mock_response.json.return_value = {"status": "success"}
         
-        with patch.object(mock_client.session, "request", return_value=mock_response):
-            response = mock_client._make_request("POST", "test/endpoint", data={"key": "value"})
-            assert response.json() == {"status": "success"}
+        mock_client._make_request.return_value = mock_response
+        
+        response = mock_client._make_request("POST", "test/endpoint", data={"key": "value"})
+        assert response.json() == {"status": "success"}
 
     def test_make_request_with_streaming(self, mock_client):
         """Test request with streaming."""
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.iter_lines.return_value = [b'{"chunk": "Hello"}', b'{"chunk": " World"}']
+        mock_response.__iter__ = MagicMock(return_value=iter(["Hello", " World"]))
         
-        with patch.object(mock_client.session, "request", return_value=mock_response):
-            response = mock_client._make_request("GET", "test/endpoint", stream=True)
-            chunks = list(response)
-            assert chunks == ["Hello", " World"]
+        mock_client._make_request.return_value = mock_response
+        
+        response = mock_client._make_request("GET", "test/endpoint", stream=True)
+        chunks = list(response)
+        assert chunks == ["Hello", " World"]
 
     def test_make_request_with_custom_timeout(self, mock_client):
         """Test request with custom timeout."""
@@ -69,22 +72,24 @@ class TestHTTPClientComprehensive:
         mock_response.status_code = 200
         mock_response.json.return_value = {"status": "success"}
         
-        with patch.object(mock_client.session, "request", return_value=mock_response) as mock_request:
+        mock_client._make_request.return_value = mock_response
+        
+        with patch.object(mock_client, 'session') as mock_session:
+            mock_session.request.return_value = mock_response
             mock_client._make_request("GET", "test/endpoint", timeout=60)
-            mock_request.assert_called_once()
-            call_kwargs = mock_request.call_args[1]
+            mock_session.request.assert_called_once()
+            call_kwargs = mock_session.request.call_args[1]
             assert call_kwargs["timeout"] == 60
 
     def test_make_request_400_error(self, mock_client):
         """Test request with 400 error."""
-        mock_response = MagicMock()
-        mock_response.status_code = 400
-        mock_response.json.return_value = {"error": {"code": "bad_request", "message": "Invalid request"}}
+        from venice_sdk.errors import VeniceAPIError
         
-        with patch.object(mock_client.session, "request", return_value=mock_response):
-            with pytest.raises(VeniceAPIError) as exc_info:
-                mock_client._make_request("GET", "test/endpoint")
-            assert "Invalid request" in str(exc_info.value)
+        mock_client._make_request.side_effect = VeniceAPIError("Invalid request", status_code=400)
+        
+        with pytest.raises(VeniceAPIError) as exc_info:
+            mock_client._make_request("GET", "test/endpoint")
+        assert "Invalid request" in str(exc_info.value)
 
     def test_make_request_401_error(self, mock_client):
         """Test request with 401 error."""

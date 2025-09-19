@@ -51,29 +51,81 @@ class TestVeniceClientComprehensive:
 
     def test_venice_client_get_account_summary(self, mock_config):
         """Test VeniceClient get_account_summary method."""
-        with patch('venice_sdk.venice_client.AccountManager') as mock_account_manager:
-            mock_manager = MagicMock()
-            mock_manager.get_account_summary.return_value = {"status": "active", "usage": 100}
-            mock_account_manager.return_value = mock_manager
+        with patch('venice_sdk.venice_client.HTTPClient') as mock_http_client_class:
+            mock_http_client = MagicMock()
+            mock_http_client_class.return_value = mock_http_client
             
-            client = VeniceClient(config=mock_config)
-            result = client.get_account_summary()
-            
-            assert result == {"status": "active", "usage": 100}
-            mock_account_manager.assert_called_once_with(client.api_keys, client.billing)
+            with patch('venice_sdk.venice_client.APIKeysAPI') as mock_api_keys_class:
+                with patch('venice_sdk.venice_client.BillingAPI') as mock_billing_class:
+                    mock_api_keys = MagicMock()
+                    mock_billing = MagicMock()
+                    mock_api_keys_class.return_value = mock_api_keys
+                    mock_billing_class.return_value = mock_billing
+                    
+                    # Mock the API methods
+                    mock_usage_info = MagicMock()
+                    mock_usage_info.total_usage = 100
+                    mock_usage_info.credits_remaining = 50
+                    mock_usage_info.current_period = "2024-01"
+                    mock_billing.get_usage.return_value = mock_usage_info
+                    
+                    mock_rate_limits = MagicMock()
+                    mock_rate_limits.requests_per_minute = 60
+                    mock_rate_limits.requests_per_day = 1000
+                    mock_rate_limits.tokens_per_minute = 10000
+                    mock_rate_limits.tokens_per_day = 100000
+                    mock_api_keys.get_rate_limits.return_value = mock_rate_limits
+                    
+                    mock_api_keys.list.return_value = []
+                    
+                    client = VeniceClient(config=mock_config)
+                    result = client.get_account_summary()
+                    
+                    # Check that the result has the expected structure
+                    assert "usage" in result
+                    assert "rate_limits" in result
+                    assert "api_keys" in result
+                    assert result["usage"]["total_usage"] == 100
 
     def test_venice_client_get_rate_limit_status(self, mock_config):
         """Test VeniceClient get_rate_limit_status method."""
-        with patch('venice_sdk.venice_client.AccountManager') as mock_account_manager:
-            mock_manager = MagicMock()
-            mock_manager.check_rate_limit_status.return_value = {"remaining": 1000, "reset": 3600}
-            mock_account_manager.return_value = mock_manager
+        with patch('venice_sdk.venice_client.HTTPClient') as mock_http_client_class:
+            mock_http_client = MagicMock()
+            mock_http_client_class.return_value = mock_http_client
             
-            client = VeniceClient(config=mock_config)
-            result = client.get_rate_limit_status()
-            
-            assert result == {"remaining": 1000, "reset": 3600}
-            mock_account_manager.assert_called_once_with(client.api_keys, client.billing)
+            with patch('venice_sdk.venice_client.APIKeysAPI') as mock_api_keys_class:
+                with patch('venice_sdk.venice_client.BillingAPI') as mock_billing_class:
+                    mock_api_keys = MagicMock()
+                    mock_billing = MagicMock()
+                    mock_api_keys_class.return_value = mock_api_keys
+                    mock_billing_class.return_value = mock_billing
+                    
+                    # Mock the API methods
+                    mock_rate_limits = MagicMock()
+                    mock_rate_limits.requests_per_minute = 60
+                    mock_rate_limits.requests_per_day = 1000
+                    mock_rate_limits.tokens_per_minute = 10000
+                    mock_rate_limits.tokens_per_day = 100000
+                    mock_rate_limits.current_usage = {
+                        "requests_per_minute": 10,
+                        "requests_per_day": 100,
+                        "tokens_per_minute": 1000,
+                        "tokens_per_day": 10000
+                    }
+                    mock_rate_limits.reset_time = None
+                    mock_api_keys.get_rate_limits.return_value = mock_rate_limits
+                    
+                    client = VeniceClient(config=mock_config)
+                    result = client.get_rate_limit_status()
+                    
+                    # Check that the result has the expected structure
+                    assert "limits" in result
+                    assert "current_usage" in result
+                    assert "reset_time" in result
+                    assert "status" in result
+                    assert result["limits"]["requests_per_minute"] == 60
+                    assert result["current_usage"]["requests_per_minute"] == 10
+                    assert result["status"] == "ok"
 
     def test_venice_client_clear_caches_with_all_caches(self, mock_config):
         """Test VeniceClient clear_caches method with all caches present."""

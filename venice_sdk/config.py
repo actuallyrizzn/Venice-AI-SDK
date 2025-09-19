@@ -33,15 +33,15 @@ class Config:
         Raises:
             ValueError: If api_key is not provided
         """
-        if not api_key:
+        if not api_key or not api_key.strip():
             raise ValueError("API key must be provided")
 
         self.api_key = api_key
         self.base_url = base_url or "https://api.venice.ai/api/v1"
         self.default_model = default_model
-        self.timeout = timeout or 30
-        self.max_retries = max_retries or 3
-        self.retry_delay = retry_delay or 1
+        self.timeout = timeout if timeout is not None else 30
+        self.max_retries = max_retries if max_retries is not None else 3
+        self.retry_delay = retry_delay if retry_delay is not None else 1
 
     @property
     def headers(self) -> dict:
@@ -76,9 +76,16 @@ def load_config(api_key: Optional[str] = None) -> Config:
     # Get other configuration values from environment
     base_url = os.getenv("VENICE_BASE_URL")
     default_model = os.getenv("VENICE_DEFAULT_MODEL")
-    timeout = int(os.getenv("VENICE_TIMEOUT", "30"))
-    max_retries = int(os.getenv("VENICE_MAX_RETRIES", "3"))
-    retry_delay = int(os.getenv("VENICE_RETRY_DELAY", "1"))
+    
+    # Handle zero values properly
+    timeout_str = os.getenv("VENICE_TIMEOUT", "30")
+    timeout = int(timeout_str) if timeout_str else 30
+    
+    max_retries_str = os.getenv("VENICE_MAX_RETRIES", "3")
+    max_retries = int(max_retries_str) if max_retries_str else 3
+    
+    retry_delay_str = os.getenv("VENICE_RETRY_DELAY", "1")
+    retry_delay = int(retry_delay_str) if retry_delay_str else 1
     
     return Config(
         api_key=api_key,

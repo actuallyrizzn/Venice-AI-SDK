@@ -985,8 +985,8 @@ class TestConvenienceFunctionsComprehensive:
 
     def test_generate_image_without_client(self):
         """Test generate_image without provided client."""
-        with patch('venice_sdk.images.load_config') as mock_load_config:
-            with patch('venice_sdk.images.VeniceClient') as mock_venice_client:
+        with patch('venice_sdk.config.load_config') as mock_load_config:
+            with patch('venice_sdk.venice_client.VeniceClient') as mock_venice_client:
                 mock_config = MagicMock()
                 mock_load_config.return_value = mock_config
                 

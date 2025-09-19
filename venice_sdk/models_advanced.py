@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from .client import HTTPClient
 from .errors import VeniceAPIError, ModelNotFoundError
+from .config import load_config
 
 
 @dataclass
@@ -503,7 +504,7 @@ def get_model_traits(
     """Convenience function to get model traits."""
     if client is None:
         from .config import load_config
-        from .client import VeniceClient
+        from .venice_client import VeniceClient
         config = load_config()
         client = VeniceClient(config)
     
@@ -517,7 +518,7 @@ def get_compatibility_mapping(
     """Convenience function to get compatibility mapping."""
     if client is None:
         from .config import load_config
-        from .client import VeniceClient
+        from .venice_client import VeniceClient
         config = load_config()
         client = VeniceClient(config)
     
@@ -532,7 +533,7 @@ def find_models_by_capability(
     """Convenience function to find models by capability."""
     if client is None:
         from .config import load_config
-        from .client import VeniceClient
+        from .venice_client import VeniceClient
         config = load_config()
         client = VeniceClient(config)
     

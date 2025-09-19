@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import json
+import requests
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union, Generator
@@ -16,6 +17,7 @@ from urllib.parse import urlparse
 
 from .client import HTTPClient
 from .errors import VeniceAPIError, ImageGenerationError
+from .config import load_config
 
 
 @dataclass
@@ -466,7 +468,7 @@ def generate_image(
     """Convenience function to generate a single image."""
     if client is None:
         from .config import load_config
-        from .client import VeniceClient
+        from .venice_client import VeniceClient
         config = load_config()
         client = VeniceClient(config)
     
@@ -483,7 +485,7 @@ def edit_image(
     """Convenience function to edit an image."""
     if client is None:
         from .config import load_config
-        from .client import VeniceClient
+        from .venice_client import VeniceClient
         config = load_config()
         client = VeniceClient(config)
     
@@ -499,7 +501,7 @@ def upscale_image(
     """Convenience function to upscale an image."""
     if client is None:
         from .config import load_config
-        from .client import VeniceClient
+        from .venice_client import VeniceClient
         config = load_config()
         client = VeniceClient(config)
     

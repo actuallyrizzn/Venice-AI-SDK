@@ -13,6 +13,12 @@ import io
 
 from .client import HTTPClient
 from .errors import VeniceAPIError, AudioGenerationError
+from .config import load_config
+
+try:
+    import pygame
+except ImportError:
+    pygame = None
 
 
 @dataclass
@@ -42,14 +48,13 @@ class AudioResult:
     
     def play(self) -> None:
         """Play the audio (requires pygame or similar)."""
-        try:
-            import pygame
-            pygame.mixer.init()
-            audio_file = io.BytesIO(self.audio_data)
-            pygame.mixer.music.load(audio_file)
-            pygame.mixer.music.play()
-        except ImportError:
+        if pygame is None:
             raise AudioGenerationError("pygame is required for audio playback. Install with: pip install pygame")
+        
+        pygame.mixer.init()
+        audio_file = io.BytesIO(self.audio_data)
+        pygame.mixer.music.load(audio_file)
+        pygame.mixer.music.play()
 
 
 class AudioAPI:
@@ -353,7 +358,7 @@ def text_to_speech(
     """Convenience function to convert text to speech."""
     if client is None:
         from .config import load_config
-        from .client import VeniceClient
+        from .venice_client import VeniceClient
         config = load_config()
         client = VeniceClient(config)
     
@@ -370,7 +375,7 @@ def text_to_speech_file(
     """Convenience function to convert text to speech and save to file."""
     if client is None:
         from .config import load_config
-        from .client import VeniceClient
+        from .venice_client import VeniceClient
         config = load_config()
         client = VeniceClient(config)
     

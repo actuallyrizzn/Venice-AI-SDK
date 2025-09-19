@@ -779,8 +779,8 @@ class TestConvenienceFunctionsComprehensive:
 
     def test_generate_embedding_without_client(self):
         """Test generate_embedding without provided client."""
-        with patch('venice_sdk.embeddings.load_config') as mock_load_config:
-            with patch('venice_sdk.embeddings.VeniceClient') as mock_venice_client:
+        with patch('venice_sdk.config.load_config') as mock_load_config:
+            with patch('venice_sdk.venice_client.VeniceClient') as mock_venice_client:
                 mock_config = MagicMock()
                 mock_load_config.return_value = mock_config
                 
@@ -818,8 +818,8 @@ class TestConvenienceFunctionsComprehensive:
 
     def test_calculate_similarity_without_client(self):
         """Test calculate_similarity without provided client."""
-        with patch('venice_sdk.embeddings.load_config') as mock_load_config:
-            with patch('venice_sdk.embeddings.VeniceClient') as mock_venice_client:
+        with patch('venice_sdk.config.load_config') as mock_load_config:
+            with patch('venice_sdk.venice_client.VeniceClient') as mock_venice_client:
                 mock_config = MagicMock()
                 mock_load_config.return_value = mock_config
                 
@@ -862,8 +862,8 @@ class TestConvenienceFunctionsComprehensive:
 
     def test_generate_embeddings_without_client(self):
         """Test generate_embeddings without provided client."""
-        with patch('venice_sdk.embeddings.load_config') as mock_load_config:
-            with patch('venice_sdk.embeddings.VeniceClient') as mock_venice_client:
+        with patch('venice_sdk.config.load_config') as mock_load_config:
+            with patch('venice_sdk.venice_client.VeniceClient') as mock_venice_client:
                 mock_config = MagicMock()
                 mock_load_config.return_value = mock_config
                 

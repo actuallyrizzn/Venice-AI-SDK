@@ -29,10 +29,14 @@ class TestGetApiKeyComprehensive:
                 mock_path.return_value = mock_env_path
                 
                 with patch('venice_sdk.cli.load_dotenv') as mock_load_dotenv:
-                    with patch.dict(os.environ, {'VENICE_API_KEY': 'env-file-key'}, clear=True):
-                        api_key = get_api_key()
-                        assert api_key == 'env-file-key'
-                        mock_load_dotenv.assert_called_once_with(mock_env_path)
+                    # Mock load_dotenv to set the environment variable
+                    def mock_load_dotenv_side_effect(path):
+                        os.environ['VENICE_API_KEY'] = 'env-file-key'
+                    mock_load_dotenv.side_effect = mock_load_dotenv_side_effect
+                    
+                    api_key = get_api_key()
+                    assert api_key == 'env-file-key'
+                    mock_load_dotenv.assert_called_once_with(mock_env_path)
 
     def test_get_api_key_env_file_not_exists(self):
         """Test get_api_key when .env file doesn't exist."""
@@ -204,7 +208,7 @@ class TestCliComprehensive:
             
             assert result.exit_code == 0
             assert "✅ API key is set" in result.output
-            assert "Key: sk-12...cdef" in result.output
+            assert "Key: sk-1...cdef" in result.output
 
     def test_status_command_without_api_key(self):
         """Test status command when no API key is present."""

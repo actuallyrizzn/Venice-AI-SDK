@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from .client import HTTPClient
 from .errors import VeniceAPIError, BillingError, APIKeyError
+from .config import load_config
 
 
 @dataclass
@@ -435,7 +436,7 @@ def get_account_usage(client: Optional[HTTPClient] = None) -> UsageInfo:
     """Convenience function to get account usage."""
     if client is None:
         from .config import load_config
-        from .client import VeniceClient
+        from .venice_client import VeniceClient
         config = load_config()
         client = VeniceClient(config)
     
@@ -447,7 +448,7 @@ def get_rate_limits(client: Optional[HTTPClient] = None) -> RateLimits:
     """Convenience function to get rate limits."""
     if client is None:
         from .config import load_config
-        from .client import VeniceClient
+        from .venice_client import VeniceClient
         config = load_config()
         client = VeniceClient(config)
     
@@ -459,7 +460,7 @@ def list_api_keys(client: Optional[HTTPClient] = None) -> List[APIKey]:
     """Convenience function to list API keys."""
     if client is None:
         from .config import load_config
-        from .client import VeniceClient
+        from .venice_client import VeniceClient
         config = load_config()
         client = VeniceClient(config)
     

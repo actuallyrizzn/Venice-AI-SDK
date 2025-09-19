@@ -15,7 +15,7 @@ from .models import ModelsAPI
 from .images import ImageAPI, ImageEditAPI, ImageUpscaleAPI, ImageStylesAPI
 from .audio import AudioAPI
 from .characters import CharactersAPI
-from .account import APIKeysAPI, BillingAPI
+from .account import APIKeysAPI, BillingAPI, AccountManager
 from .models_advanced import ModelsTraitsAPI, ModelsCompatibilityAPI
 from .embeddings import EmbeddingsAPI
 

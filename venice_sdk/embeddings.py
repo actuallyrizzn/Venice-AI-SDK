@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from .client import HTTPClient
 from .errors import VeniceAPIError, EmbeddingError
+from .config import load_config
 
 
 @dataclass
@@ -403,7 +404,7 @@ def generate_embedding(
     """Convenience function to generate a single embedding."""
     if client is None:
         from .config import load_config
-        from .client import VeniceClient
+        from .venice_client import VeniceClient
         config = load_config()
         client = VeniceClient(config)
     
@@ -420,7 +421,7 @@ def calculate_similarity(
     """Convenience function to calculate similarity between two texts."""
     if client is None:
         from .config import load_config
-        from .client import VeniceClient
+        from .venice_client import VeniceClient
         config = load_config()
         client = VeniceClient(config)
     
@@ -439,7 +440,7 @@ def generate_embeddings(
     """Convenience function to generate embeddings."""
     if client is None:
         from .config import load_config
-        from .client import VeniceClient
+        from .venice_client import VeniceClient
         config = load_config()
         client = VeniceClient(config)
     

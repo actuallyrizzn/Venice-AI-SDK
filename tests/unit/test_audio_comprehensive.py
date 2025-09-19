@@ -135,8 +135,8 @@ class TestAudioResultComprehensive:
         """Test AudioResult play method without pygame."""
         audio_data = b"fake audio data"
         audio_result = AudioResult(audio_data=audio_data, format="mp3")
-        
-        with patch('venice_sdk.audio.pygame', side_effect=ImportError):
+
+        with patch('venice_sdk.audio.pygame', None):
             with pytest.raises(AudioGenerationError, match="pygame is required for audio playback"):
                 audio_result.play()
 
@@ -658,8 +658,8 @@ class TestConvenienceFunctionsComprehensive:
 
     def test_text_to_speech_without_client(self):
         """Test text_to_speech without provided client."""
-        with patch('venice_sdk.audio.load_config') as mock_load_config:
-            with patch('venice_sdk.audio.VeniceClient') as mock_venice_client:
+        with patch('venice_sdk.config.load_config') as mock_load_config:
+            with patch('venice_sdk.venice_client.VeniceClient') as mock_venice_client:
                 mock_config = MagicMock()
                 mock_load_config.return_value = mock_config
                 
@@ -692,8 +692,8 @@ class TestConvenienceFunctionsComprehensive:
 
     def test_text_to_speech_file_without_client(self, tmp_path):
         """Test text_to_speech_file without provided client."""
-        with patch('venice_sdk.audio.load_config') as mock_load_config:
-            with patch('venice_sdk.audio.VeniceClient') as mock_venice_client:
+        with patch('venice_sdk.config.load_config') as mock_load_config:
+            with patch('venice_sdk.venice_client.VeniceClient') as mock_venice_client:
                 mock_config = MagicMock()
                 mock_load_config.return_value = mock_config
                 

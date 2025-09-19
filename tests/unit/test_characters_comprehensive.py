@@ -878,8 +878,8 @@ class TestConvenienceFunctionsComprehensive:
 
     def test_get_character_without_client(self):
         """Test get_character without provided client."""
-        with patch('venice_sdk.characters.load_config') as mock_load_config:
-            with patch('venice_sdk.characters.VeniceClient') as mock_venice_client:
+        with patch('venice_sdk.config.load_config') as mock_load_config:
+            with patch('venice_sdk.venice_client.VeniceClient') as mock_venice_client:
                 mock_config = MagicMock()
                 mock_load_config.return_value = mock_config
                 
@@ -951,8 +951,8 @@ class TestConvenienceFunctionsComprehensive:
 
     def test_search_characters_without_client(self):
         """Test search_characters without provided client."""
-        with patch('venice_sdk.characters.load_config') as mock_load_config:
-            with patch('venice_sdk.characters.VeniceClient') as mock_venice_client:
+        with patch('venice_sdk.config.load_config') as mock_load_config:
+            with patch('venice_sdk.venice_client.VeniceClient') as mock_venice_client:
                 mock_config = MagicMock()
                 mock_load_config.return_value = mock_config
                 

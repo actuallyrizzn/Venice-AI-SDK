@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 from .client import HTTPClient
+from .errors import VeniceAPIError
 
 
 @dataclass

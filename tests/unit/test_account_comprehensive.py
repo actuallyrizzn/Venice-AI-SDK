@@ -815,8 +815,8 @@ class TestConvenienceFunctionsComprehensive:
 
     def test_get_account_usage_without_client(self):
         """Test get_account_usage without provided client."""
-        with patch('venice_sdk.account.load_config') as mock_load_config:
-            with patch('venice_sdk.account.VeniceClient') as mock_venice_client:
+        with patch('venice_sdk.config.load_config') as mock_load_config:
+            with patch('venice_sdk.venice_client.VeniceClient') as mock_venice_client:
                 mock_config = MagicMock()
                 mock_load_config.return_value = mock_config
                 

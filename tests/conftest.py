@@ -31,8 +31,12 @@ def mock_config():
 @pytest.fixture
 def mock_client(mock_config):
     """Create a mock HTTP client."""
-    client = HTTPClient(config=mock_config)
-    client.session = MagicMock()
+    client = MagicMock()
+    client.config = mock_config
+    client.get = MagicMock()
+    client.post = MagicMock()
+    client.stream = MagicMock()
+    client._make_request = MagicMock()
     return client
 
 

@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from .client import HTTPClient
 from .errors import VeniceAPIError, CharacterNotFoundError
+from .config import load_config
 
 
 @dataclass
@@ -226,6 +227,9 @@ class CharactersAPI:
     
     def _parse_character(self, data: Dict[str, Any]) -> Character:
         """Parse character data from API response."""
+        if data is None:
+            raise CharacterNotFoundError("Character not found")
+        
         return Character(
             id=data.get("id", ""),
             name=data.get("name", ""),
@@ -351,7 +355,7 @@ def get_character(
     """Convenience function to get a character by slug."""
     if client is None:
         from .config import load_config
-        from .client import VeniceClient
+        from .venice_client import VeniceClient
         config = load_config()
         client = VeniceClient(config)
     
@@ -366,7 +370,7 @@ def list_characters(
     """Convenience function to list characters."""
     if client is None:
         from .config import load_config
-        from .client import VeniceClient
+        from .venice_client import VeniceClient
         config = load_config()
         client = VeniceClient(config)
     
@@ -382,7 +386,7 @@ def search_characters(
     """Convenience function to search characters."""
     if client is None:
         from .config import load_config
-        from .client import VeniceClient
+        from .venice_client import VeniceClient
         config = load_config()
         client = VeniceClient(config)
     
