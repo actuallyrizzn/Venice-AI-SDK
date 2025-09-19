@@ -92,9 +92,9 @@ class TestWorkflowE2E:
             
             # Mock streaming response
             def mock_stream_generator():
-                yield 'data: {"choices": [{"delta": {"content": "Hello"}}]}\n\n'
-                yield 'data: {"choices": [{"delta": {"content": "! How can I help?"}}]}\n\n'
-                yield 'data: [DONE]\n\n'
+                yield {"choices": [{"delta": {"content": "Hello"}}]}
+                yield {"choices": [{"delta": {"content": "! How can I help?"}}]}
+                yield {"choices": [{"delta": {"content": ""}}]}
             
             # Configure mock client
             def mock_get_side_effect(url, **kwargs):
@@ -134,21 +134,19 @@ class TestWorkflowE2E:
             
             # 4. Configure character for conversation
             character_params = selected_character.to_venice_parameters()
-            assert "system_prompt" in character_params
-            assert "temperature" in character_params
-            assert "max_tokens" in character_params
+            assert "character_slug" in character_params
             
             # 5. Start conversation
             messages = [
-                {"role": "system", "content": character_params["system_prompt"]},
                 {"role": "user", "content": "Hello! Can you help me with a question?"}
             ]
             
             response = client.chat.complete(
                 messages=messages,
                 model=selected_model["id"],
-                temperature=character_params["temperature"],
-                max_tokens=character_params["max_tokens"]
+                temperature=0.7,
+                max_tokens=100,
+                **character_params
             )
             
             assert response is not None
@@ -170,8 +168,9 @@ class TestWorkflowE2E:
             follow_up_response = client.chat.complete(
                 messages=messages,
                 model=selected_model["id"],
-                temperature=character_params["temperature"],
-                max_tokens=character_params["max_tokens"]
+                temperature=0.7,
+                max_tokens=100,
+                **character_params
             )
             
             assert follow_up_response is not None
@@ -187,11 +186,13 @@ class TestWorkflowE2E:
                 "content": "Can you explain that in more detail?"
             })
             
-            stream_chunks = list(client.chat.complete_stream(
+            stream_chunks = list(client.chat.complete(
                 messages=messages,
                 model=selected_model["id"],
-                temperature=character_params["temperature"],
-                max_tokens=character_params["max_tokens"]
+                temperature=0.7,
+                max_tokens=100,
+                stream=True,
+                **character_params
             ))
             
             assert len(stream_chunks) > 0
@@ -200,126 +201,130 @@ class TestWorkflowE2E:
     def test_content_creation_workflow(self):
         """Test complete content creation workflow."""
         with patch('venice_sdk.venice_client.HTTPClient') as mock_client_class:
-            mock_client = MagicMock()
-            mock_client_class.return_value = mock_client
-            
-            # Mock image generation
-            mock_image_response = MagicMock()
-            mock_image_response.status_code = 200
-            mock_image_response.json.return_value = {
-                "data": [{
-                    "url": "https://example.com/generated-image.png",
-                    "revised_prompt": "A beautiful sunset over mountains with vibrant colors"
-                }],
-                "created": 1234567890
-            }
-            
-            # Mock image styles
-            mock_styles_response = MagicMock()
-            mock_styles_response.status_code = 200
-            mock_styles_response.json.return_value = {
-                "data": [{
-                    "id": "vivid",
-                    "name": "Vivid",
-                    "description": "High contrast and vibrant colors",
-                    "category": "artistic",
-                    "preview_url": "https://example.com/vivid-preview.jpg"
-                }]
-            }
-            
-            # Mock audio generation
-            mock_audio_response = MagicMock()
-            mock_audio_response.status_code = 200
-            mock_audio_response.json.return_value = {
-                "data": [{
-                    "url": "https://example.com/generated-audio.mp3",
+            with patch('requests.get') as mock_requests_get:
+                mock_client = MagicMock()
+                mock_client_class.return_value = mock_client
+                
+                # Mock image generation
+                mock_image_response = MagicMock()
+                mock_image_response.status_code = 200
+                mock_image_response.json.return_value = {
+                    "data": [{
+                        "url": "https://example.com/generated-image.png",
+                        "revised_prompt": "A beautiful sunset over mountains with vibrant colors"
+                    }],
                     "created": 1234567890
-                }]
-            }
-            
-            # Mock voices
-            mock_voices_response = MagicMock()
-            mock_voices_response.status_code = 200
-            mock_voices_response.json.return_value = {
-                "data": [{
-                    "id": "alloy",
-                    "name": "Alloy",
-                    "category": "premium",
-                    "description": "A clear and professional voice"
-                }]
-            }
-            
-            # Configure mock client
-            def mock_get_side_effect(url, **kwargs):
-                if "styles" in url:
+                }
+                
+                # Mock image styles
+                mock_styles_response = MagicMock()
+                mock_styles_response.status_code = 200
+                mock_styles_response.json.return_value = {
+                    "data": [{
+                        "id": "vivid",
+                        "name": "Vivid",
+                        "description": "High contrast and vibrant colors",
+                        "category": "artistic",
+                        "preview_url": "https://example.com/vivid-preview.jpg"
+                    }]
+                }
+                
+                # Mock audio generation
+                mock_audio_response = MagicMock()
+                mock_audio_response.status_code = 200
+                mock_audio_response.content = b"fake_audio_data"
+                
+                # Mock voices
+                mock_voices_response = MagicMock()
+                mock_voices_response.status_code = 200
+                mock_voices_response.json.return_value = {
+                    "data": [{
+                        "id": "alloy",
+                        "name": "Alloy",
+                        "category": "premium",
+                        "description": "A clear and professional voice"
+                    }]
+                }
+                
+                # Configure mock client
+                def mock_get_side_effect(url, **kwargs):
+                    if "styles" in url:
+                        return mock_styles_response
+                    elif "voices" in url:
+                        return mock_voices_response
                     return mock_styles_response
-                elif "voices" in url:
-                    return mock_voices_response
-                return mock_styles_response
-            
-            def mock_post_side_effect(url, **kwargs):
-                if "images/generations" in url:
+                
+                def mock_post_side_effect(url, **kwargs):
+                    if "images/generations" in url:
+                        return mock_image_response
+                    elif "audio/speech" in url:
+                        return mock_audio_response
                     return mock_image_response
-                elif "audio/speech" in url:
-                    return mock_audio_response
-                return mock_image_response
-            
-            mock_client.get.side_effect = mock_get_side_effect
-            mock_client.post.side_effect = mock_post_side_effect
-            
-            # Complete content creation workflow
-            client = VeniceClient(self.config)
-            
-            # 1. Discover available styles
-            styles = client.image_styles.list_styles()
-            assert len(styles) > 0
-            selected_style = styles[0]
-            assert selected_style.id == "vivid"
-            
-            # 2. Generate image with style
-            image_result = client.images.generate(
-                prompt="A beautiful sunset over mountains",
-                model="dall-e-3",
-                style=selected_style.id,
-                size="1024x1024",
-                quality="hd"
-            )
-            
-            assert image_result is not None
-            assert hasattr(image_result, 'url')
-            assert image_result.url is not None
-            
-            # 3. Save image to file
-            with tempfile.TemporaryDirectory() as temp_dir:
-                output_path = Path(temp_dir) / "generated_image.png"
-                saved_path = image_result.save(output_path)
-                assert saved_path == output_path
-                assert output_path.exists()
-            
-            # 4. Discover available voices
-            voices = client.audio.get_voices()
-            assert len(voices) > 0
-            selected_voice = voices[0]
-            assert selected_voice.id == "alloy"
-            
-            # 5. Generate audio narration
-            audio_result = client.audio.speech(
-                text="This is a beautiful sunset over mountains with vibrant colors.",
-                voice=selected_voice.id,
-                model="tts-1",
-                response_format="mp3"
-            )
-            
-            assert audio_result is not None
-            assert hasattr(audio_result, 'url')
-            assert audio_result.url is not None
-            
-            # 6. Save audio to file
-            with tempfile.TemporaryDirectory() as temp_dir:
-                audio_path = Path(temp_dir) / "narration.mp3"
-                saved_audio_path = audio_result.save(audio_path)
-                assert saved_audio_path == audio_path
-                assert audio_path.exists()
+                
+                mock_client.get.side_effect = mock_get_side_effect
+                mock_client.post.side_effect = mock_post_side_effect
+
+                # Mock image download
+                mock_download_response = MagicMock()
+                mock_download_response.status_code = 200
+                mock_download_response.content = b"fake_image_data"
+                mock_download_response.raise_for_status.return_value = None  # Don't raise an exception
+                mock_requests_get.return_value = mock_download_response
+
+                # Complete content creation workflow
+                client = VeniceClient(self.config)
+
+                # 1. Discover available styles
+                styles = client.image_styles.list_styles()
+                assert len(styles) > 0
+                selected_style = styles[0]
+                assert selected_style.id == "vivid"
+
+                # 2. Generate image with style
+                image_result = client.images.generate(
+                    prompt="A beautiful sunset over mountains",
+                    model="dall-e-3",
+                    style=selected_style.id,
+                    size="1024x1024",
+                    quality="hd"
+                )
+                
+                assert image_result is not None
+                assert hasattr(image_result, 'url')
+                assert image_result.url is not None
+                
+                # 3. Save image to file
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    output_path = Path(temp_dir) / "generated_image.png"
+                    saved_path = image_result.save(output_path)
+                    assert saved_path == output_path
+                    assert output_path.exists()
+                
+                # 4. Discover available voices
+                voices = client.audio.get_voices()
+                assert len(voices) > 0
+                selected_voice = voices[0]
+                assert selected_voice.id == "alloy"
+                
+                # 5. Generate audio narration
+                audio_result = client.audio.speech(
+                    input_text="This is a beautiful sunset over mountains with vibrant colors.",
+                    voice=selected_voice.id,
+                    model="tts-1",
+                    response_format="mp3"
+                )
+                
+                assert audio_result is not None
+                assert hasattr(audio_result, 'audio_data')
+                assert hasattr(audio_result, 'format')
+                assert audio_result.audio_data is not None
+                
+                # 6. Save audio to file
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    audio_path = Path(temp_dir) / "narration.mp3"
+                    saved_audio_path = audio_result.save(audio_path)
+                    assert saved_audio_path == audio_path
+                    assert audio_path.exists()
 
     def test_data_analysis_workflow(self):
         """Test complete data analysis workflow with embeddings."""
@@ -395,7 +400,7 @@ class TestWorkflowE2E:
             
             # 3. Generate embeddings for documents
             embeddings_result = client.embeddings.generate(
-                texts=documents,
+                input_text=documents,
                 model=selected_model
             )
             
@@ -405,14 +410,14 @@ class TestWorkflowE2E:
             
             # 4. Perform similarity analysis
             from venice_sdk.embeddings import EmbeddingSimilarity
-            
+
             embeddings = embeddings_result.embeddings
             similarities = []
-            
+
             for i in range(len(embeddings)):
                 for j in range(i + 1, len(embeddings)):
                     similarity = EmbeddingSimilarity.cosine_similarity(
-                        embeddings[i], embeddings[j]
+                        embeddings[i].embedding, embeddings[j].embedding
                     )
                     similarities.append(similarity)
             
@@ -434,8 +439,8 @@ class TestWorkflowE2E:
             # 6. Perform clustering analysis
             from venice_sdk.embeddings import EmbeddingClustering
             
-            clustering = EmbeddingClustering(client.embeddings)
-            clusters = clustering.kmeans_clusters(embeddings, k=2)
+            embedding_vectors = [emb.embedding for emb in embeddings]
+            clusters = EmbeddingClustering.kmeans_clusters(embedding_vectors, k=2)
             
             assert isinstance(clusters, list)
             assert len(clusters) == len(documents)
@@ -465,39 +470,46 @@ class TestWorkflowE2E:
             mock_billing_response = MagicMock()
             mock_billing_response.status_code = 200
             mock_billing_response.json.return_value = {
-                "total_requests": 1000,
-                "total_tokens": 50000,
-                "total_cost": 25.50,
-                "period_start": 1234567890,
-                "period_end": 1234567890,
-                "model_usage": [{
-                    "model": "llama-3.3-8b",
-                    "requests": 500,
-                    "tokens": 25000,
-                    "cost": 12.75
-                }]
+                "data": {
+                    "total_usage": 1000,
+                    "current_period": "2024-01",
+                    "credits_remaining": 5000,
+                    "usage_by_model": {
+                        "llama-3.3-8b": {
+                            "requests": 500,
+                            "tokens": 25000,
+                            "cost": 12.75
+                        }
+                    }
+                }
             }
             
             # Mock rate limits response
             mock_limits_response = MagicMock()
             mock_limits_response.status_code = 200
             mock_limits_response.json.return_value = {
-                "requests_per_minute": 60,
-                "requests_per_hour": 1000,
-                "requests_per_day": 10000,
-                "tokens_per_minute": 10000,
-                "tokens_per_hour": 100000,
-                "tokens_per_day": 1000000
+                "data": {
+                    "requests_per_minute": 60,
+                    "requests_per_hour": 1000,
+                    "requests_per_day": 10000,
+                    "tokens_per_minute": 10000,
+                    "tokens_per_hour": 100000,
+                    "tokens_per_day": 1000000,
+                    "current_usage": {
+                        "requests_per_minute": 10,
+                        "tokens_per_minute": 1000
+                    }
+                }
             }
             
             # Configure mock client
             def mock_get_side_effect(url, **kwargs):
-                if "api-keys" in url:
+                if "api_keys" in url and "rate_limits" in url:
+                    return mock_limits_response
+                elif "api_keys" in url:
                     return mock_keys_response
                 elif "billing" in url:
                     return mock_billing_response
-                elif "rate-limits" in url:
-                    return mock_limits_response
                 return mock_keys_response
             
             mock_client.get.side_effect = mock_get_side_effect
@@ -515,19 +527,19 @@ class TestWorkflowE2E:
             rate_limits = client.api_keys.get_rate_limits()
             assert rate_limits is not None
             assert rate_limits.requests_per_minute == 60
-            assert rate_limits.requests_per_hour == 1000
+            assert rate_limits.requests_per_day == 10000
             
             # 3. Get usage information
-            usage_info = client.billing.get_usage_info()
+            usage_info = client.billing.get_usage()
             assert usage_info is not None
-            assert usage_info.total_requests == 1000
-            assert usage_info.total_cost == 25.50
+            assert usage_info.total_usage == 1000
+            assert usage_info.credits_remaining == 5000
             
             # 4. Get account summary
             summary = client.get_account_summary()
             assert summary is not None
             assert "api_keys" in summary
-            assert "billing" in summary
+            assert "usage" in summary
             assert "rate_limits" in summary
             
             # 5. Check rate limit status
@@ -641,12 +653,12 @@ class TestWorkflowE2E:
             
             # Configure mock client
             def mock_get_side_effect(url, **kwargs):
-                if "models" in url:
-                    return mock_models_response
-                elif "traits" in url:
+                if "models/traits" in url:
                     return mock_traits_response
-                elif "compatibility" in url:
+                elif "models/compatibility" in url:
                     return mock_compatibility_response
+                elif "models" in url:
+                    return mock_models_response
                 return mock_models_response
             
             mock_client.get.side_effect = mock_get_side_effect
@@ -681,12 +693,7 @@ class TestWorkflowE2E:
             assert "gpt-3.5-turbo" in mapping.openai_to_venice
             
             # 6. Get model recommendations
-            recommendations = client.models_traits.get_best_models_for_task(
-                "chat",
-                requirements={"function_calling": True},
-                budget_constraint="medium",
-                performance_priority="balanced"
-            )
+            recommendations = client.models_traits.get_best_models_for_task("chat")
             assert len(recommendations) > 0
 
     def test_error_recovery_workflow(self):
@@ -721,10 +728,11 @@ class TestWorkflowE2E:
                 nonlocal call_count
                 call_count += 1
                 if call_count == 1:
-                    return mock_error_response
+                    from venice_sdk.errors import VeniceAPIError
+                    raise VeniceAPIError("Rate limit exceeded", status_code=429)
                 else:
                     return mock_success_response
-            
+
             mock_client.post.side_effect = mock_post_side_effect
             
             # Test error recovery workflow

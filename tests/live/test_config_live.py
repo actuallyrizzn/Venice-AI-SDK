@@ -204,6 +204,10 @@ class TestConfigLive:
             env_dir = Path(env_file_path).parent
             os.chdir(env_dir)
             
+            # Rename the file to .env so load_dotenv can find it
+            env_file = Path(env_file_path)
+            env_file.rename(env_dir / ".env")
+            
             # Remove API key from environment
             original_api_key = os.environ.get("VENICE_API_KEY")
             if "VENICE_API_KEY" in os.environ:
@@ -227,7 +231,9 @@ class TestConfigLive:
                 os.environ["VENICE_API_KEY"] = original_api_key
             
             # Clean up .env file
-            os.unlink(env_file_path)
+            env_file_path = env_dir / ".env"
+            if env_file_path.exists():
+                os.unlink(env_file_path)
 
     def test_load_config_with_invalid_timeout(self):
         """Test load_config with invalid timeout value."""

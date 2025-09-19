@@ -37,7 +37,7 @@ class Config:
             raise ValueError("API key must be provided")
 
         self.api_key = api_key
-        self.base_url = base_url or "https://api.venice.ai/api/v1"
+        self.base_url = base_url if base_url is not None else "https://api.venice.ai/api/v1"
         self.default_model = default_model
         self.timeout = timeout if timeout is not None else 30
         self.max_retries = max_retries if max_retries is not None else 3
@@ -50,6 +50,27 @@ class Config:
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
+    
+    def __eq__(self, other) -> bool:
+        """Check if two Config objects are equal."""
+        if not isinstance(other, Config):
+            return False
+        return (
+            self.api_key == other.api_key and
+            self.base_url == other.base_url and
+            self.default_model == other.default_model and
+            self.timeout == other.timeout and
+            self.max_retries == other.max_retries and
+            self.retry_delay == other.retry_delay
+        )
+    
+    def __str__(self) -> str:
+        """String representation of the Config object."""
+        return f"Config(api_key='{self.api_key}', base_url='{self.base_url}', default_model='{self.default_model}', timeout={self.timeout}, max_retries={self.max_retries}, retry_delay={self.retry_delay})"
+    
+    def __repr__(self) -> str:
+        """Detailed string representation of the Config object."""
+        return f"Config(api_key='{self.api_key}', base_url='{self.base_url}', default_model='{self.default_model}', timeout={self.timeout}, max_retries={self.max_retries}, retry_delay={self.retry_delay})"
 
 
 def load_config(api_key: Optional[str] = None) -> Config:

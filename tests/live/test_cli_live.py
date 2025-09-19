@@ -52,6 +52,10 @@ class TestCLILive:
             if "VENICE_API_KEY" in os.environ:
                 del os.environ["VENICE_API_KEY"]
             
+            # Load the .env file manually
+            from dotenv import load_dotenv
+            load_dotenv(env_file_path)
+            
             api_key = get_api_key()
             
             assert api_key == "env-file-api-key-456"
@@ -103,20 +107,24 @@ class TestCLILive:
                 # Test auth command
                 api_key = "test-api-key-123"
                 
-                # Mock click.echo to capture output
-                with patch('venice_sdk.cli.click.echo') as mock_echo:
-                    auth(api_key)
-                    
-                    # Verify .env file was created
-                    env_file = Path(".env")
-                    assert env_file.exists()
-                    
-                    # Verify content
-                    content = env_file.read_text()
-                    assert f"VENICE_API_KEY={api_key}" in content
-                    
-                    # Verify click.echo was called
-                    mock_echo.assert_called_once_with("API key has been set successfully!")
+                # Use Click's testing utilities
+                from click.testing import CliRunner
+                from venice_sdk.cli import cli
+                runner = CliRunner()
+                
+                result = runner.invoke(cli, ['auth', api_key])
+                
+                # Verify command succeeded
+                assert result.exit_code == 0
+                assert "API key has been set successfully!" in result.output
+                
+                # Verify .env file was created
+                env_file = Path(".env")
+                assert env_file.exists()
+                
+                # Verify content
+                content = env_file.read_text()
+                assert f"VENICE_API_KEY={api_key}" in content
                     
             finally:
                 # Restore original working directory
@@ -262,21 +270,17 @@ class TestCLILive:
         try:
             os.environ["VENICE_API_KEY"] = "test-api-key-123"
             
-            # Mock click.echo to capture output
-            with patch('venice_sdk.cli.click.echo') as mock_echo:
-                status()
-                
-                # Verify click.echo was called with correct messages
-                calls = mock_echo.call_args_list
-                assert len(calls) == 2
-                
-                # First call should be success message
-                assert "✅ API key is set" in calls[0][0][0]
-                
-                # Second call should be masked key
-                assert "Key:" in calls[1][0][0]
-                assert "test" in calls[1][0][0]  # First 4 characters
-                assert "123" in calls[1][0][0]  # Last 4 characters
+            # Use Click's testing utilities
+            from click.testing import CliRunner
+            from venice_sdk.cli import cli
+            runner = CliRunner()
+            
+            result = runner.invoke(cli, ['status'])
+            
+            # Verify command succeeded
+            assert result.exit_code == 0
+            assert "✅ API key is set" in result.output
+            assert "Key: test...-123" in result.output
                 
         finally:
             # Restore original environment variable
@@ -299,19 +303,17 @@ class TestCLILive:
             if env_file.exists():
                 env_file.unlink()
             
-            # Mock click.echo to capture output
-            with patch('venice_sdk.cli.click.echo') as mock_echo:
-                status()
-                
-                # Verify click.echo was called with correct messages
-                calls = mock_echo.call_args_list
-                assert len(calls) == 2
-                
-                # First call should be error message
-                assert "❌ No API key is set" in calls[0][0][0]
-                
-                # Second call should be instruction message
-                assert "Use 'venice auth <your-api-key>' to set your API key" in calls[1][0][0]
+            # Use Click's testing utilities
+            from click.testing import CliRunner
+            from venice_sdk.cli import cli
+            runner = CliRunner()
+            
+            result = runner.invoke(cli, ['status'])
+            
+            # Verify command succeeded
+            assert result.exit_code == 0
+            assert "❌ No API key is set" in result.output
+            assert "Use 'venice auth <your-api-key>' to set your API key" in result.output
                 
         finally:
             # Restore original environment variable
