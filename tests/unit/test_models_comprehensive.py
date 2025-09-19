@@ -422,9 +422,9 @@ class TestGetModelByIdComprehensive:
     def test_get_model_by_id_not_found(self, mock_client, mock_models_response):
         """Test model retrieval by ID when model not found."""
         mock_client.get.return_value = mock_models_response
-        model = get_model_by_id("nonexistent-model", client=mock_client)
         
-        assert model is None
+        with pytest.raises(VeniceAPIError, match="Model nonexistent-model not found"):
+            get_model_by_id("nonexistent-model", client=mock_client)
 
     def test_get_model_by_id_without_client(self):
         """Test get_model_by_id without provided client."""
@@ -457,9 +457,9 @@ class TestGetModelByIdComprehensive:
     def test_get_model_by_id_with_api_error(self, mock_client):
         """Test get_model_by_id with API error."""
         mock_client.get.side_effect = VeniceAPIError("API error", status_code=500)
-        model = get_model_by_id("test-model", client=mock_client)
         
-        assert model is None
+        with pytest.raises(VeniceAPIError, match="API error"):
+            get_model_by_id("test-model", client=mock_client)
 
 
 class TestGetTextModelsComprehensive:

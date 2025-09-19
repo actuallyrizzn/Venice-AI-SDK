@@ -241,15 +241,15 @@ class TestModelsTraitsAPIComprehensive:
     def test_get_traits_with_cache(self, mock_client):
         """Test traits retrieval with caching."""
         mock_response = MagicMock()
-        mock_response.json.return_value = {"data": {}}
+        mock_response.json.return_value = {"data": {"model1": {"name": "Test Model"}}}
         mock_client.get.return_value = mock_response
-        
+
         api = ModelsTraitsAPI(mock_client)
-        
+
         # First call
         traits1 = api.get_traits()
         assert mock_client.get.call_count == 1
-        
+
         # Second call should use cache
         traits2 = api.get_traits()
         assert mock_client.get.call_count == 1
@@ -648,26 +648,37 @@ class TestModelRecommendationEngineComprehensive:
 
     def test_calculate_recommendation_score(self, mock_client):
         """Test recommendation score calculation."""
+        # Mock the get_traits method to return expected data
+        mock_traits = {
+            "test-model": ModelTraits(
+                model_id="test-model",
+                capabilities={"function_calling": True},
+                traits={"speed": "high", "quality": "excellent", "cost_level": "low"}
+            )
+        }
+        
         traits_api = ModelsTraitsAPI(mock_client)
         compatibility_api = ModelsCompatibilityAPI(mock_client)
         engine = ModelRecommendationEngine(traits_api, compatibility_api)
         
-        traits = ModelTraits(
-            model_id="test-model",
-            capabilities={"function_calling": True},
-            traits={"speed": "high", "quality": "excellent", "cost_level": "low"}
-        )
-        
-        score = engine._calculate_recommendation_score(
-            traits,
-            "chat",
-            {"function_calling": True},
-            "low",
-            "speed"
-        )
-        
-        assert isinstance(score, float)
-        assert score > 0
+        # Mock the get_traits method
+        with patch.object(traits_api, 'get_traits', return_value=mock_traits):
+            traits = ModelTraits(
+                model_id="test-model",
+                capabilities={"function_calling": True},
+                traits={"speed": "high", "quality": "excellent", "cost_level": "low"}
+            )
+            
+            score = engine._calculate_recommendation_score(
+                traits,
+                "chat",
+                {"function_calling": True},
+                "low",
+                "speed"
+            )
+            
+            assert isinstance(score, float)
+            assert score > 0
 
 
 class TestConvenienceFunctionsComprehensive:

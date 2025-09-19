@@ -107,7 +107,7 @@ class ModelsTraitsAPI:
         Returns:
             Dictionary mapping model IDs to ModelTraits objects
         """
-        if use_cache and self._traits_cache:
+        if use_cache and self._traits_cache is not None and len(self._traits_cache) > 0:
             return self._traits_cache
         
         response = self.client.get("/models/traits")
