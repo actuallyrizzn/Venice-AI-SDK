@@ -44,7 +44,7 @@ class TestHTTPClientLive:
     def test_post_chat_completion(self):
         """Test POST request to chat completion endpoint."""
         data = {
-            "model": "llama-3.3-8b",
+            "model": "qwen3-4b",
             "messages": [
                 {"role": "user", "content": "Hello, how are you?"}
             ],
@@ -63,7 +63,7 @@ class TestHTTPClientLive:
     def test_streaming_chat_completion(self):
         """Test streaming chat completion."""
         data = {
-            "model": "llama-3.3-8b",
+            "model": "qwen3-4b",
             "messages": [
                 {"role": "user", "content": "Tell me a short story about a robot."}
             ],
@@ -136,7 +136,7 @@ class TestHTTPClientLive:
     def test_large_response_handling(self):
         """Test handling of large responses."""
         data = {
-            "model": "llama-3.3-8b",
+            "model": "qwen3-4b",
             "messages": [
                 {"role": "user", "content": "Write a detailed explanation of machine learning algorithms."}
             ],
@@ -181,7 +181,7 @@ class TestHTTPClientLive:
         
         # POST request
         post_data = {
-            "model": "llama-3.3-8b",
+            "model": "qwen3-4b",
             "messages": [{"role": "user", "content": "Hi"}],
             "max_tokens": 10
         }
@@ -252,7 +252,7 @@ class TestHTTPClientLive:
         # Make several requests to test memory usage
         for _ in range(5):
             data = {
-                "model": "llama-3.3-8b",
+                "model": "qwen3-4b",
                 "messages": [
                     {"role": "user", "content": "Write a comprehensive guide to Python programming."}
                 ],
@@ -282,7 +282,7 @@ class TestHTTPClientLive:
 
     def test_streaming_with_different_models(self):
         """Test streaming with different models."""
-        models_to_test = ["llama-3.3-8b", "llama-3.3-70b"]
+        models_to_test = ["qwen3-4b", "venice-uncensored"]
         
         for model in models_to_test:
             try:

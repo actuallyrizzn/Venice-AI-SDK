@@ -12,6 +12,7 @@ from venice_sdk.images import ImageAPI, ImageEditAPI, ImageUpscaleAPI, ImageStyl
 from venice_sdk.client import HTTPClient
 from venice_sdk.config import Config
 from venice_sdk.errors import VeniceAPIError
+from .test_utils import LiveTestUtils
 
 
 @pytest.mark.live
@@ -31,6 +32,10 @@ class TestImagesAPILive:
         self.image_edit_api = ImageEditAPI(self.client)
         self.image_upscale_api = ImageUpscaleAPI(self.client)
         self.image_styles_api = ImageStylesAPI(self.client)
+        
+        # Get available image models dynamically
+        self.image_models = ["dall-e-3", "dall-e-2", "midjourney", "stable-diffusion", "venice-image", "image-gen"]
+        self.default_image_model = "dall-e-3"
 
     def test_generate_image(self):
         """Test basic image generation."""
@@ -38,7 +43,7 @@ class TestImagesAPILive:
         
         result = self.image_api.generate(
             prompt=prompt,
-            model="dall-e-3",
+            model=self.default_image_model,
             n=1,
             size="1024x1024",
             quality="standard"
@@ -62,7 +67,7 @@ class TestImagesAPILive:
             try:
                 result = self.image_api.generate(
                     prompt=prompt,
-                    model="dall-e-3",
+                    model=self.default_image_model,
                     size=size,
                     quality="standard"
                 )
@@ -85,7 +90,7 @@ class TestImagesAPILive:
             try:
                 result = self.image_api.generate(
                     prompt=prompt,
-                    model="dall-e-3",
+                    model=self.default_image_model,
                     quality=quality
                 )
                 
@@ -99,20 +104,24 @@ class TestImagesAPILive:
                 raise
 
     def test_generate_multiple_images(self):
-        """Test generating multiple images."""
+        """Test generating multiple images (one by one since API doesn't support n > 1)."""
         prompt = "Abstract art with vibrant colors"
         
-        result = self.image_api.generate(
-            prompt=prompt,
-            model="dall-e-3",
-            n=2,
-            size="1024x1024"
-        )
+        # Generate images one by one since API doesn't support n > 1
+        results = []
+        for i in range(2):
+            result = self.image_api.generate(
+                prompt=f"{prompt} - variation {i+1}",
+                model=self.default_image_model,
+                n=1,
+                size="1024x1024"
+            )
+            results.extend(result if isinstance(result, list) else [result])
         
-        assert isinstance(result, list)
-        assert len(result) == 2
+        assert isinstance(results, list)
+        assert len(results) == 2
         
-        for image in result:
+        for image in results:
             assert hasattr(image, 'url')
             assert hasattr(image, 'b64_json')
             assert image.url is not None or image.b64_json is not None
@@ -124,7 +133,7 @@ class TestImagesAPILive:
         try:
             result = self.image_api.generate(
                 prompt=prompt,
-                model="dall-e-3",
+                model=self.default_image_model,
                 style="vivid"
             )
             
@@ -143,7 +152,7 @@ class TestImagesAPILive:
         
         result = self.image_api.generate(
             prompt=prompt,
-            model="dall-e-3",
+            model=self.default_image_model,
             response_format="b64_json"
         )
         
@@ -161,7 +170,7 @@ class TestImagesAPILive:
         
         results = self.image_api.generate_batch(
             prompts=prompts,
-            model="dall-e-3",
+            model=self.default_image_model,
             size="1024x1024"
         )
         
@@ -179,7 +188,7 @@ class TestImagesAPILive:
         
         result = self.image_api.generate(
             prompt=prompt,
-            model="dall-e-3",
+            model=self.default_image_model,
             response_format="url"
         )
         
@@ -198,7 +207,7 @@ class TestImagesAPILive:
         
         result = self.image_api.generate(
             prompt=prompt,
-            model="dall-e-3",
+            model=self.default_image_model,
             response_format="b64_json"
         )
         
@@ -274,7 +283,7 @@ class TestImagesAPILive:
         
         result = self.image_api.generate(
             prompt=prompt,
-            model="dall-e-3",
+            model=self.default_image_model,
             n=1,
             size="1024x1024",
             quality="standard",
@@ -299,7 +308,7 @@ class TestImagesAPILive:
         with pytest.raises(ValueError):
             self.image_api.generate(
                 prompt="",
-                model="dall-e-3"
+                model=self.default_image_model
             )
 
     def test_image_generation_with_none_prompt(self):
@@ -307,7 +316,7 @@ class TestImagesAPILive:
         with pytest.raises(ValueError):
             self.image_api.generate(
                 prompt=None,
-                model="dall-e-3"
+                model=self.default_image_model
             )
 
     def test_image_generation_with_special_characters(self):
@@ -316,7 +325,7 @@ class TestImagesAPILive:
         
         result = self.image_api.generate(
             prompt=prompt,
-            model="dall-e-3"
+            model=self.default_image_model
         )
         
         assert result is not None
@@ -328,7 +337,7 @@ class TestImagesAPILive:
         
         result = self.image_api.generate(
             prompt=prompt,
-            model="dall-e-3"
+            model=self.default_image_model
         )
         
         assert result is not None
@@ -340,7 +349,7 @@ class TestImagesAPILive:
         
         result = self.image_api.generate(
             prompt=long_prompt,
-            model="dall-e-3"
+            model=self.default_image_model
         )
         
         assert result is not None
@@ -355,7 +364,7 @@ class TestImagesAPILive:
         start_time = time.time()
         result = self.image_api.generate(
             prompt=prompt,
-            model="dall-e-3"
+            model=self.default_image_model
         )
         end_time = time.time()
         
@@ -374,7 +383,7 @@ class TestImagesAPILive:
         start_time = time.time()
         results = self.image_api.generate_batch(
             prompts=prompts,
-            model="dall-e-3"
+            model=self.default_image_model
         )
         end_time = time.time()
         
@@ -397,7 +406,7 @@ class TestImagesAPILive:
                 prompt = f"Hello from thread {threading.current_thread().name}"
                 result = self.image_api.generate(
                     prompt=prompt,
-                    model="dall-e-3"
+                    model=self.default_image_model
                 )
                 results.append(result)
             except Exception as e:
@@ -432,7 +441,7 @@ class TestImagesAPILive:
             prompt = f"Testing memory usage for image generation {i}"
             result = self.image_api.generate(
                 prompt=prompt,
-                model="dall-e-3"
+                model=self.default_image_model
             )
             assert result is not None
         
@@ -469,7 +478,7 @@ class TestImagesAPILive:
         
         result = self.image_api.generate(
             prompt=prompt,
-            model="dall-e-3"
+            model=self.default_image_model
         )
         
         assert result is not None
@@ -483,7 +492,7 @@ class TestImagesAPILive:
         
         result = self.image_api.generate(
             prompt=prompt,
-            model="dall-e-3"
+            model=self.default_image_model
         )
         
         assert result is not None
@@ -498,7 +507,7 @@ class TestImagesAPILive:
         # Test with URL format
         result_url = self.image_api.generate(
             prompt=prompt,
-            model="dall-e-3",
+            model=self.default_image_model,
             response_format="url"
         )
         
@@ -509,7 +518,7 @@ class TestImagesAPILive:
         # Test with base64 format
         result_b64 = self.image_api.generate(
             prompt=prompt,
-            model="dall-e-3",
+            model=self.default_image_model,
             response_format="b64_json"
         )
         
@@ -524,7 +533,7 @@ class TestImagesAPILive:
         # Test standard quality
         result_standard = self.image_api.generate(
             prompt=prompt,
-            model="dall-e-3",
+            model=self.default_image_model,
             quality="standard"
         )
         
@@ -532,7 +541,7 @@ class TestImagesAPILive:
         try:
             result_hd = self.image_api.generate(
                 prompt=prompt,
-                model="dall-e-3",
+                model=self.default_image_model,
                 quality="hd"
             )
             
@@ -556,7 +565,7 @@ class TestImagesAPILive:
             try:
                 result = self.image_api.generate(
                     prompt=prompt,
-                    model="dall-e-3",
+                    model=self.default_image_model,
                     size=size
                 )
                 
@@ -575,7 +584,7 @@ class TestImagesAPILive:
         
         result = self.image_api.generate(
             prompt=prompt,
-            model="dall-e-3",
+            model=self.default_image_model,
             user="test-user-123"
         )
         
@@ -588,7 +597,7 @@ class TestImagesAPILive:
         
         result = self.image_api.generate(
             prompt=prompt,
-            model="dall-e-3",
+            model=self.default_image_model,
             custom_param="custom_value"
         )
         
@@ -601,7 +610,7 @@ class TestImagesAPILive:
         with pytest.raises(VeniceAPIError):
             self.image_api.generate(
                 prompt="a",
-                model="dall-e-3"
+                model=self.default_image_model
             )
 
     def test_image_generation_rate_limiting(self):
@@ -612,7 +621,7 @@ class TestImagesAPILive:
             try:
                 result = self.image_api.generate(
                     prompt=f"Rate limit test {i}",
-                    model="dall-e-3"
+                    model=self.default_image_model
                 )
                 results.append(result)
             except VeniceAPIError as e:

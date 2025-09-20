@@ -171,7 +171,7 @@ class ImageAPI:
         if user:
             data["user"] = user
         
-        response = self.client.post("/image/generate", data=data)
+        response = self.client.post("/images/generations", data=data)
         result = response.json()
         
         if "data" not in result:
@@ -413,13 +413,15 @@ class ImageStylesAPI:
             raise ImageGenerationError("Invalid response format from image styles API")
         
         styles = []
-        for item in result["data"]:
+        for style_name in result["data"]:
+            # Convert style name to a valid ID (lowercase, replace spaces with underscores)
+            style_id = style_name.lower().replace(" ", "_").replace("-", "_")
             styles.append(ImageStyle(
-                id=item["id"],
-                name=item["name"],
-                description=item["description"],
-                category=item.get("category"),
-                preview_url=item.get("preview_url")
+                id=style_id,
+                name=style_name,
+                description=f"Image style: {style_name}",
+                category=None,
+                preview_url=None
             ))
         
         return styles

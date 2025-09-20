@@ -34,9 +34,9 @@ class TestAudioAPILive:
         text = "Hello, this is a test of the Venice AI text-to-speech system."
         
         result = self.audio_api.speech(
-            text=text,
-            voice="alloy",
-            model="tts-1"
+            input_text=text,
+            voice="af_alloy",
+            model="tts-kokoro"
         )
         
         assert result is not None
@@ -55,9 +55,9 @@ class TestAudioAPILive:
         for voice in voices:
             try:
                 result = self.audio_api.speech(
-                    text=text,
+                    input_text=text,
                     voice=voice,
-                    model="tts-1"
+                    model="tts-kokoro"
                 )
                 
                 assert result is not None
@@ -77,8 +77,8 @@ class TestAudioAPILive:
         for model in models:
             try:
                 result = self.audio_api.speech(
-                    text=text,
-                    voice="alloy",
+                    input_text=text,
+                    voice="af_alloy",
                     model=model
                 )
                 
@@ -96,9 +96,9 @@ class TestAudioAPILive:
         text = "Testing speech generation with different parameters."
         
         result = self.audio_api.speech(
-            text=text,
-            voice="alloy",
-            model="tts-1",
+            input_text=text,
+            voice="af_alloy",
+            model="tts-kokoro",
             response_format="mp3",
             speed=1.0
         )
@@ -114,10 +114,10 @@ class TestAudioAPILive:
             output_path = Path(temp_dir) / "test_speech.mp3"
             
             result = self.audio_api.speech_to_file(
-                text=text,
+                input_text=text,
                 output_path=output_path,
-                voice="alloy",
-                model="tts-1"
+                voice="af_alloy",
+                model="tts-kokoro"
             )
             
             assert result == output_path
@@ -129,9 +129,9 @@ class TestAudioAPILive:
         text = "This is a test of streaming speech generation."
         
         chunks = list(self.audio_api.speech_stream(
-            text=text,
-            voice="alloy",
-            model="tts-1"
+            input_text=text,
+            voice="af_alloy",
+            model="tts-kokoro"
         ))
         
         assert len(chunks) > 0
@@ -210,8 +210,8 @@ class TestAudioAPILive:
         
         results = self.audio_api.process_batch(
             texts=texts,
-            voice="alloy",
-            model="tts-1"
+            voice="af_alloy",
+            model="tts-kokoro"
         )
         
         assert isinstance(results, list)
@@ -234,8 +234,8 @@ class TestAudioAPILive:
         try:
             results = self.audio_api.process_batch(
                 texts=texts,
-                voice="alloy",
-                model="tts-1"
+                voice="af_alloy",
+                model="tts-kokoro"
             )
             
             assert isinstance(results, list)
@@ -252,9 +252,9 @@ class TestAudioAPILive:
         long_text = "This is a very long text that will test the audio generation system's ability to handle substantial amounts of text. " * 10
         
         result = self.audio_api.speech(
-            text=long_text,
-            voice="alloy",
-            model="tts-1"
+            input_text=long_text,
+            voice="af_alloy",
+            model="tts-kokoro"
         )
         
         assert result is not None
@@ -265,9 +265,9 @@ class TestAudioAPILive:
         text = "Testing special characters: @#$%^&*()_+-=[]{}|;':\",./<>? and unicode: 🌟🎵🎤"
         
         result = self.audio_api.speech(
-            text=text,
-            voice="alloy",
-            model="tts-1"
+            input_text=text,
+            voice="af_alloy",
+            model="tts-kokoro"
         )
         
         assert result is not None
@@ -278,9 +278,9 @@ class TestAudioAPILive:
         multilingual_text = "Hello! 你好! Hola! Bonjour! Guten Tag! こんにちは! Привет!"
         
         result = self.audio_api.speech(
-            text=multilingual_text,
-            voice="alloy",
-            model="tts-1"
+            input_text=multilingual_text,
+            voice="af_alloy",
+            model="tts-kokoro"
         )
         
         assert result is not None
@@ -291,27 +291,27 @@ class TestAudioAPILive:
         # Test with invalid voice
         with pytest.raises(VeniceAPIError):
             self.audio_api.speech(
-                text="Test text",
+                input_text="Test text",
                 voice="invalid-voice",
-                model="tts-1"
+                model="tts-kokoro"
             )
 
     def test_audio_with_empty_text(self):
         """Test audio generation with empty text."""
         with pytest.raises(ValueError):
             self.audio_api.speech(
-                text="",
-                voice="alloy",
-                model="tts-1"
+                input_text="",
+                voice="af_alloy",
+                model="tts-kokoro"
             )
 
     def test_audio_with_none_text(self):
         """Test audio generation with None text."""
         with pytest.raises(ValueError):
             self.audio_api.speech(
-                text=None,
-                voice="alloy",
-                model="tts-1"
+                input_text=None,
+                voice="af_alloy",
+                model="tts-kokoro"
             )
 
     def test_audio_performance(self):
@@ -322,9 +322,9 @@ class TestAudioAPILive:
         
         start_time = time.time()
         result = self.audio_api.speech(
-            text=text,
-            voice="alloy",
-            model="tts-1"
+            input_text=text,
+            voice="af_alloy",
+            model="tts-kokoro"
         )
         end_time = time.time()
         
@@ -342,9 +342,9 @@ class TestAudioAPILive:
         
         start_time = time.time()
         chunks = list(self.audio_api.speech_stream(
-            text=text,
-            voice="alloy",
-            model="tts-1"
+            input_text=text,
+            voice="af_alloy",
+            model="tts-kokoro"
         ))
         end_time = time.time()
         
@@ -366,9 +366,9 @@ class TestAudioAPILive:
             try:
                 text = f"Hello from thread {threading.current_thread().name}"
                 result = self.audio_api.speech(
-                    text=text,
-                    voice="alloy",
-                    model="tts-1"
+                    input_text=text,
+                    voice="af_alloy",
+                    model="tts-kokoro"
                 )
                 results.append(result)
             except Exception as e:
@@ -403,10 +403,10 @@ class TestAudioAPILive:
                 
                 try:
                     result = self.audio_api.speech_to_file(
-                        text=text,
+                        input_text=text,
                         output_path=output_path,
-                        voice="alloy",
-                        model="tts-1",
+                        voice="af_alloy",
+                        model="tts-kokoro",
                         response_format=fmt
                     )
                     
@@ -426,16 +426,16 @@ class TestAudioAPILive:
         
         # Test standard model
         result_standard = self.audio_api.speech(
-            text=text,
-            voice="alloy",
-            model="tts-1"
+            input_text=text,
+            voice="af_alloy",
+            model="tts-kokoro"
         )
         
         # Test HD model
         try:
             result_hd = self.audio_api.speech(
-                text=text,
-                voice="alloy",
+                input_text=text,
+                voice="af_alloy",
                 model="tts-1-hd"
             )
             
@@ -468,9 +468,9 @@ class TestAudioAPILive:
             if category_voices:
                 voice = category_voices[0]
                 result = self.audio_api.speech(
-                    text=f"Testing voice from {category} category.",
+                    input_text=f"Testing voice from {category} category.",
                     voice=voice.id,
-                    model="tts-1"
+                    model="tts-kokoro"
                 )
                 
                 assert result is not None
@@ -517,9 +517,9 @@ class TestAudioAPILive:
         for i in range(5):
             text = f"Testing memory usage for audio generation {i}."
             result = self.audio_api.speech(
-                text=text,
-                voice="alloy",
-                model="tts-1"
+                input_text=text,
+                voice="af_alloy",
+                model="tts-kokoro"
             )
             assert result is not None
         

@@ -62,39 +62,39 @@ class AudioAPI:
     
     # Available voices
     VOICES = {
-        "alloy": Voice(
-            id="alloy",
+        "af_alloy": Voice(
+            id="af_alloy",
             name="Alloy",
             description="Neutral, balanced voice",
             gender="neutral"
         ),
-        "echo": Voice(
-            id="echo",
-            name="Echo",
+        "af_aoede": Voice(
+            id="af_aoede",
+            name="Aoede",
             description="Warm, friendly voice",
             gender="male"
         ),
-        "fable": Voice(
-            id="fable",
-            name="Fable",
+        "af_bella": Voice(
+            id="af_bella",
+            name="Bella",
             description="Professional, clear voice",
             gender="male"
         ),
-        "onyx": Voice(
-            id="onyx",
-            name="Onyx",
+        "af_heart": Voice(
+            id="af_heart",
+            name="Heart",
             description="Deep, authoritative voice",
             gender="male"
         ),
-        "nova": Voice(
-            id="nova",
-            name="Nova",
+        "af_jadzia": Voice(
+            id="af_jadzia",
+            name="Jadzia",
             description="Bright, energetic voice",
             gender="female"
         ),
-        "shimmer": Voice(
-            id="shimmer",
-            name="Shimmer",
+        "af_jessica": Voice(
+            id="af_jessica",
+            name="Jessica",
             description="Soft, gentle voice",
             gender="female"
         )
