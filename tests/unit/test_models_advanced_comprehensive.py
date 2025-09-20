@@ -688,12 +688,15 @@ class TestConvenienceFunctionsComprehensive:
         """Test get_model_traits with provided client."""
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "data": {
-                "llama-3.3-70b": {
-                    "capabilities": {"function_calling": True},
-                    "traits": {"speed": "high"}
+            "data": [
+                {
+                    "id": "llama-3.3-70b",
+                    "model_spec": {
+                        "capabilities": {"function_calling": True},
+                        "traits": ["speed"]
+                    }
                 }
-            }
+            ]
         }
         mock_client.get.return_value = mock_response
         
@@ -715,12 +718,15 @@ class TestConvenienceFunctionsComprehensive:
                 
                 mock_response = MagicMock()
                 mock_response.json.return_value = {
-                    "data": {
-                        "llama-3.3-70b": {
-                            "capabilities": {"function_calling": True},
-                            "traits": {"speed": "high"}
+                    "data": [
+                        {
+                            "id": "llama-3.3-70b",
+                            "model_spec": {
+                                "capabilities": {"function_calling": True},
+                                "traits": ["speed"]
+                            }
                         }
-                    }
+                    ]
                 }
                 mock_client.get.return_value = mock_response
                 
@@ -750,12 +756,15 @@ class TestConvenienceFunctionsComprehensive:
         """Test find_models_by_capability with provided client."""
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "data": {
-                "llama-3.3-70b": {
-                    "capabilities": {"function_calling": True},
-                    "traits": {}
+            "data": [
+                {
+                    "id": "llama-3.3-70b",
+                    "model_spec": {
+                        "capabilities": {"function_calling": True},
+                        "traits": []
+                    }
                 }
-            }
+            ]
         }
         mock_client.get.return_value = mock_response
         
@@ -775,12 +784,15 @@ class TestConvenienceFunctionsComprehensive:
                 
                 mock_response = MagicMock()
                 mock_response.json.return_value = {
-                    "data": {
-                        "llama-3.3-70b": {
-                            "capabilities": {"function_calling": True},
-                            "traits": {}
+                    "data": [
+                        {
+                            "id": "llama-3.3-70b",
+                            "model_spec": {
+                                "capabilities": {"function_calling": True},
+                                "traits": []
+                            }
                         }
-                    }
+                    ]
                 }
                 mock_client.get.return_value = mock_response
                 
