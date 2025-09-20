@@ -120,7 +120,14 @@ class CharactersAPI:
             result = response.json()
             
             if "data" in result:
-                return self._parse_character(result["data"])
+                data = result["data"]
+                # Handle both list and dict responses
+                if isinstance(data, list):
+                    if len(data) > 0:
+                        return self._parse_character(data[0])
+                    return None
+                else:
+                    return self._parse_character(data)
             return None
             
         except VeniceAPIError as e:
