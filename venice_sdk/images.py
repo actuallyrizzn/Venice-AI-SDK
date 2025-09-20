@@ -413,15 +413,28 @@ class ImageStylesAPI:
             raise ImageGenerationError("Invalid response format from image styles API")
         
         styles = []
-        for style_name in result["data"]:
-            # Convert style name to a valid ID (lowercase, replace spaces with underscores)
-            style_id = style_name.lower().replace(" ", "_").replace("-", "_")
+        for style_data in result["data"]:
+            # Handle both dict and string formats
+            if isinstance(style_data, dict):
+                style_id = style_data.get("id", "")
+                name = style_data.get("name", "")
+                description = style_data.get("description", f"Image style: {name}")
+                category = style_data.get("category")
+                preview_url = style_data.get("preview_url")
+            else:
+                # Fallback for string format
+                style_id = style_data.lower().replace(" ", "_").replace("-", "_")
+                name = style_data
+                description = f"Image style: {style_data}"
+                category = None
+                preview_url = None
+            
             styles.append(ImageStyle(
                 id=style_id,
-                name=style_name,
-                description=f"Image style: {style_name}",
-                category=None,
-                preview_url=None
+                name=name,
+                description=description,
+                category=category,
+                preview_url=preview_url
             ))
         
         return styles

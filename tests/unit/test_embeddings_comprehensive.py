@@ -285,7 +285,7 @@ class TestEmbeddingsAPIComprehensive:
         )
         
         assert result.model == "text-embedding-3-large"
-        mock_client.post.assert_called_once_with("/embeddings/generate", data={
+        mock_client.post.assert_called_once_with("/embeddings", data={
             "model": "text-embedding-3-large",
             "input": "Hello world",
             "encoding_format": "float",

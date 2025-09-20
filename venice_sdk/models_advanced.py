@@ -117,25 +117,24 @@ class ModelsTraitsAPI:
             raise ModelNotFoundError("Invalid response format from models traits endpoint")
         
         traits = {}
-        # The API returns trait categories mapped to model names
-        # We need to create ModelTraits objects for each model
-        for trait_category, model_id in result["data"].items():
-            if model_id not in traits:
-                # Create a basic ModelTraits object for the model
-                traits[model_id] = ModelTraits(
-                    model_id=model_id,
-                    capabilities={},
-                    traits={trait_category: True},
-                    performance_metrics=None,
-                    supported_formats=None,
-                    context_length=None,
-                    max_tokens=None,
-                    temperature_range=None,
-                    languages=None
-                )
-            else:
-                # Add the trait category to existing model
-                traits[model_id].traits[trait_category] = True
+        # The API returns model IDs mapped to their traits
+        for model_id, model_data in result["data"].items():
+            capabilities = model_data.get("capabilities", {})
+            model_traits = model_data.get("traits", {})
+            context_length = model_data.get("context_length")
+            max_tokens = model_data.get("max_tokens")
+            
+            traits[model_id] = ModelTraits(
+                model_id=model_id,
+                capabilities=capabilities,
+                traits=model_traits,
+                performance_metrics=None,
+                supported_formats=None,
+                context_length=context_length,
+                max_tokens=max_tokens,
+                temperature_range=None,
+                languages=None
+            )
         
         if use_cache:
             self._traits_cache = traits

@@ -380,7 +380,7 @@ class TestImageAPIComprehensive:
             custom_param="value"
         )
         
-        mock_client.post.assert_called_once_with("/image/generate", data={
+        mock_client.post.assert_called_once_with("/images/generations", data={
             "model": "dall-e-3",
             "prompt": "A beautiful sunset",
             "n": 1,

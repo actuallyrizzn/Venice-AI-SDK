@@ -107,7 +107,7 @@ class AudioAPI:
         self,
         input_text: str,
         model: str = "tts-1",
-        voice: str = "alloy",
+        voice: str = "af_alloy",
         response_format: str = "mp3",
         speed: float = 1.0,
         user: Optional[str] = None,
@@ -167,7 +167,7 @@ class AudioAPI:
         input_text: str,
         output_path: Union[str, Path],
         model: str = "tts-1",
-        voice: str = "alloy",
+        voice: str = "af_alloy",
         response_format: str = "mp3",
         speed: float = 1.0,
         **kwargs
@@ -203,7 +203,7 @@ class AudioAPI:
         self,
         input_text: str,
         model: str = "tts-1",
-        voice: str = "alloy",
+        voice: str = "af_alloy",
         response_format: str = "mp3",
         speed: float = 1.0,
         chunk_size: int = 1024,
@@ -305,7 +305,7 @@ class AudioBatchProcessor:
         self,
         texts: List[str],
         output_dir: Union[str, Path],
-        voice: str = "alloy",
+        voice: str = "af_alloy",
         response_format: str = "mp3",
         **kwargs
     ) -> List[Path]:

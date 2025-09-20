@@ -172,16 +172,16 @@ class TestAudioAPIComprehensive:
         """Test that VOICES constant is properly defined."""
         api = AudioAPI(mock_client)
         
-        assert "alloy" in api.VOICES
-        assert "echo" in api.VOICES
-        assert "fable" in api.VOICES
-        assert "onyx" in api.VOICES
-        assert "nova" in api.VOICES
-        assert "shimmer" in api.VOICES
+        assert "af_alloy" in api.VOICES
+        assert "af_aoede" in api.VOICES
+        assert "af_bella" in api.VOICES
+        assert "af_heart" in api.VOICES
+        assert "af_jadzia" in api.VOICES
+        assert "af_jessica" in api.VOICES
         
         # Test voice properties
-        alloy_voice = api.VOICES["alloy"]
-        assert alloy_voice.id == "alloy"
+        alloy_voice = api.VOICES["af_alloy"]
+        assert alloy_voice.id == "af_alloy"
         assert alloy_voice.name == "Alloy"
         assert alloy_voice.gender == "neutral"
 
@@ -193,7 +193,7 @@ class TestAudioAPIComprehensive:
         mock_client.post.return_value = mock_response
         
         api = AudioAPI(mock_client)
-        result = api.speech("Hello world", voice="alloy", response_format="mp3")
+        result = api.speech("Hello world", voice="af_alloy", response_format="mp3")
         
         assert isinstance(result, AudioResult)
         assert result.audio_data == b"fake audio data"
@@ -211,7 +211,7 @@ class TestAudioAPIComprehensive:
         result = api.speech(
             input_text="Hello world",
             model="tts-1",
-            voice="echo",
+            voice="af_aoede",
             response_format="wav",
             speed=1.5,
             user="test-user",
@@ -222,7 +222,7 @@ class TestAudioAPIComprehensive:
         mock_client.post.assert_called_once_with("/audio/speech", data={
             "model": "tts-1",
             "input": "Hello world",
-            "voice": "echo",
+            "voice": "af_aoede",
             "response_format": "wav",
             "speed": 1.5,
             "user": "test-user",
@@ -305,7 +305,7 @@ class TestAudioAPIComprehensive:
         result_path = api.speech_to_file(
             input_text="Hello world",
             output_path=output_path,
-            voice="alloy",
+            voice="af_alloy",
             response_format="mp3"
         )
         
@@ -339,7 +339,7 @@ class TestAudioAPIComprehensive:
         mock_client.stream.return_value = mock_response
         
         api = AudioAPI(mock_client)
-        chunks = list(api.speech_stream("Hello world", voice="alloy"))
+        chunks = list(api.speech_stream("Hello world", voice="af_alloy"))
         
         assert chunks == [b"chunk1", b"chunk2", b"chunk3"]
         mock_client.stream.assert_called_once()
@@ -354,7 +354,7 @@ class TestAudioAPIComprehensive:
         chunks = list(api.speech_stream(
             input_text="Hello world",
             model="tts-1",
-            voice="echo",
+            voice="af_aoede",
             response_format="wav",
             speed=1.5,
             chunk_size=512,
@@ -365,7 +365,7 @@ class TestAudioAPIComprehensive:
         mock_client.stream.assert_called_once_with("/audio/speech", data={
             "model": "tts-1",
             "input": "Hello world",
-            "voice": "echo",
+            "voice": "af_aoede",
             "response_format": "wav",
             "speed": 1.5,
             "custom_param": "value"
@@ -405,17 +405,17 @@ class TestAudioAPIComprehensive:
         assert len(voices) == 6
         assert all(isinstance(voice, Voice) for voice in voices)
         voice_ids = [voice.id for voice in voices]
-        assert "alloy" in voice_ids
-        assert "echo" in voice_ids
+        assert "af_alloy" in voice_ids
+        assert "af_aoede" in voice_ids
 
     def test_get_voice_success(self, mock_client):
         """Test getting a specific voice by ID."""
         api = AudioAPI(mock_client)
-        voice = api.get_voice("alloy")
+        voice = api.get_voice("af_alloy")
         
         assert voice is not None
         assert isinstance(voice, Voice)
-        assert voice.id == "alloy"
+        assert voice.id == "af_alloy"
         assert voice.name == "Alloy"
 
     def test_get_voice_not_found(self, mock_client):
@@ -431,7 +431,7 @@ class TestAudioAPIComprehensive:
         voices = api.search_voices("alloy")
         
         assert len(voices) == 1
-        assert voices[0].id == "alloy"
+        assert voices[0].id == "af_alloy"
 
     def test_search_voices_by_description(self, mock_client):
         """Test searching voices by description."""
@@ -439,7 +439,7 @@ class TestAudioAPIComprehensive:
         voices = api.search_voices("neutral")
         
         assert len(voices) == 1
-        assert voices[0].id == "alloy"
+        assert voices[0].id == "af_alloy"
 
     def test_search_voices_case_insensitive(self, mock_client):
         """Test searching voices case insensitive."""
@@ -447,7 +447,7 @@ class TestAudioAPIComprehensive:
         voices = api.search_voices("ALLOY")
         
         assert len(voices) == 1
-        assert voices[0].id == "alloy"
+        assert voices[0].id == "af_alloy"
 
     def test_search_voices_multiple_matches(self, mock_client):
         """Test searching voices with multiple matches."""
@@ -503,7 +503,7 @@ class TestAudioBatchProcessorComprehensive:
         saved_files = processor.process_batch(
             texts=texts,
             output_dir=output_dir,
-            voice="alloy",
+            voice="af_alloy",
             response_format="mp3"
         )
         
@@ -528,7 +528,7 @@ class TestAudioBatchProcessorComprehensive:
         saved_files = processor.process_batch(
             texts=texts,
             output_dir=output_dir,
-            voice="echo",
+            voice="af_aoede",
             response_format="wav",
             speed=1.5,
             model="tts-1"
@@ -652,7 +652,7 @@ class TestConvenienceFunctionsComprehensive:
         mock_response.content = b"fake audio data"
         mock_client.post.return_value = mock_response
         
-        result = text_to_speech("Hello world", client=mock_client, voice="alloy")
+        result = text_to_speech("Hello world", client=mock_client, voice="af_alloy")
         
         assert isinstance(result, AudioResult)
         assert result.audio_data == b"fake audio data"
@@ -672,7 +672,7 @@ class TestConvenienceFunctionsComprehensive:
                 mock_response.content = b"fake audio data"
                 mock_client.post.return_value = mock_response
                 
-                result = text_to_speech("Hello world", voice="alloy")
+                result = text_to_speech("Hello world", voice="af_alloy")
                 
                 assert isinstance(result, AudioResult)
                 assert result.audio_data == b"fake audio data"
@@ -735,7 +735,7 @@ class TestConvenienceFunctionsComprehensive:
         result = text_to_speech(
             "Hello world",
             client=mock_client,
-            voice="echo",
+            voice="af_aoede",
             speed=1.5,
             response_format="wav",
             custom_param="value"
