@@ -100,29 +100,42 @@ class ModelsTraitsAPI:
     def get_traits(self, use_cache: bool = True) -> Dict[str, ModelTraits]:
         """
         Get detailed traits for all models.
-        
+
         Args:
             use_cache: Whether to use cached results
-            
+
         Returns:
             Dictionary mapping model IDs to ModelTraits objects
         """
         if use_cache and self._traits_cache is not None and len(self._traits_cache) > 0:
             return self._traits_cache
-        
-        response = self.client.get("/models/traits")
+
+        # Use the regular models endpoint since /models/traits doesn't exist
+        response = self.client.get("/models")
         result = response.json()
-        
-        if "data" not in result:
-            raise ModelNotFoundError("Invalid response format from models traits endpoint")
-        
+
+        if not isinstance(result, dict) or "data" not in result:
+            raise ModelNotFoundError("Invalid response format from models endpoint")
+
         traits = {}
-        # The API returns model IDs mapped to their traits
-        for model_id, model_data in result["data"].items():
-            capabilities = model_data.get("capabilities", {})
-            model_traits = model_data.get("traits", {})
-            context_length = model_data.get("context_length")
-            max_tokens = model_data.get("max_tokens")
+        # Extract traits from the models data
+        for model_data in result["data"]:
+            model_id = model_data.get("id")
+            if not model_id:
+                continue
+                
+            model_spec = model_data.get("model_spec", {})
+            capabilities = model_spec.get("capabilities", {})
+            traits_list = model_spec.get("traits", [])
+            context_length = model_spec.get("availableContextTokens")
+            
+            # Convert traits list to dict
+            model_traits = {}
+            for trait in traits_list:
+                if isinstance(trait, str):
+                    model_traits[trait] = True
+                elif isinstance(trait, dict):
+                    model_traits.update(trait)
             
             traits[model_id] = ModelTraits(
                 model_id=model_id,
@@ -131,14 +144,14 @@ class ModelsTraitsAPI:
                 performance_metrics=None,
                 supported_formats=None,
                 context_length=context_length,
-                max_tokens=max_tokens,
+                max_tokens=None,
                 temperature_range=None,
                 languages=None
             )
-        
+
         if use_cache:
             self._traits_cache = traits
-        
+
         return traits
     
     def get_model_traits(self, model_id: str, use_cache: bool = True) -> Optional[ModelTraits]:

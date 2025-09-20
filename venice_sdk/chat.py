@@ -2,6 +2,7 @@
 Chat API implementation for the Venice SDK.
 """
 
+import json
 from dataclasses import dataclass
 from typing import Any, Dict, Generator, List, Optional, Union
 
@@ -145,6 +146,53 @@ class ChatAPI:
                 total_tokens=result["usage"]["total_tokens"]
             )
         )
+    
+    def complete_stream(
+        self,
+        messages: List[Dict[str, str]],
+        model: str = "llama-3.3-70b",
+        temperature: float = 0.7,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        venice_parameters: Optional[Dict[str, Any]] = None,
+        **kwargs: Any
+    ) -> Generator[str, None, None]:
+        """
+        Create a streaming chat completion.
+
+        Args:
+            messages: List of messages in the conversation
+            model: Model to use for completion
+            temperature: Sampling temperature (0-1)
+            tools: Optional list of tools for function calling
+            venice_parameters: Optional Venice-specific parameters
+            **kwargs: Additional optional parameters
+
+        Returns:
+            Generator yielding response chunks as strings in SSE format
+        """
+        data = {
+            "messages": messages,
+            "model": model,
+            "temperature": temperature,
+            "stream": True
+        }
+        if tools:
+            data["tools"] = tools
+        if venice_parameters:
+            data["venice_parameters"] = venice_parameters
+        if kwargs:
+            data.update(kwargs)
+
+        response = self.client.stream("chat/completions", data=data)
+        for chunk in response:
+            # Convert chunk to SSE format
+            if chunk.get("object") == "chat.completion.chunk":
+                yield f"data: {json.dumps(chunk)}\n\n"
+            elif chunk.get("object") == "chat.completion":
+                yield f"data: {json.dumps(chunk)}\n\n"
+        
+        # Send final SSE event
+        yield "data: [DONE]\n\n"
     
     def _stream_completion(self, data: Dict[str, Any]) -> Generator[ChatCompletion, None, None]:
         """Create a streaming completion."""

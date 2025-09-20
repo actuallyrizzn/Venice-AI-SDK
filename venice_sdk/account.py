@@ -44,8 +44,10 @@ class Web3APIKey:
 class RateLimits:
     """Represents current rate limit information."""
     requests_per_minute: int
+    requests_per_hour: int
     requests_per_day: int
     tokens_per_minute: int
+    tokens_per_hour: int
     tokens_per_day: int
     current_usage: Dict[str, int]
     reset_time: Optional[datetime] = None
@@ -108,6 +110,119 @@ class APIKeysAPI:
             keys.append(self._parse_api_key(item))
         
         return keys
+    
+    def get(self, key_id: str) -> Optional[APIKey]:
+        """
+        Get a specific API key by ID.
+        
+        Args:
+            key_id: The ID of the API key to retrieve
+            
+        Returns:
+            APIKey object if found, None otherwise
+        """
+        try:
+            response = self.client.get(f"/api_keys/{key_id}")
+            result = response.json()
+            
+            if "data" not in result:
+                return None
+                
+            return APIKey(
+                id=result["data"]["id"],
+                name=result["data"]["name"],
+                created=result["data"]["created"],
+                last_used=result["data"].get("last_used"),
+                permissions=result["data"].get("permissions", []),
+                is_active=result["data"].get("is_active", True)
+            )
+        except APIKeyError:
+            return None
+    
+    def create(self, name: str, permissions: Optional[List[str]] = None, expires_in_days: Optional[int] = None) -> APIKey:
+        """
+        Create a new API key.
+        
+        Args:
+            name: Name for the API key
+            permissions: Optional list of permissions
+            expires_in_days: Optional expiration in days
+            
+        Returns:
+            New APIKey object
+        """
+        data = {"name": name}
+        if permissions:
+            data["permissions"] = permissions
+        if expires_in_days:
+            data["expires_in_days"] = expires_in_days
+            
+        response = self.client.post("/api_keys", data=data)
+        result = response.json()
+        
+        if "data" not in result:
+            raise APIKeyError("Invalid response format from API key creation")
+            
+        return APIKey(
+            id=result["data"]["id"],
+            name=result["data"]["name"],
+            created=result["data"]["created"],
+            last_used=result["data"].get("last_used"),
+            permissions=result["data"].get("permissions", []),
+            is_active=result["data"].get("is_active", True)
+        )
+    
+    def delete(self, key_id: str) -> bool:
+        """
+        Delete an API key.
+        
+        Args:
+            key_id: The ID of the API key to delete
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            response = self.client.delete(f"/api_keys/{key_id}")
+            return response.status_code == 200
+        except APIKeyError:
+            return False
+    
+    def update(self, key_id: str, name: Optional[str] = None, permissions: Optional[List[str]] = None) -> Optional[APIKey]:
+        """
+        Update an API key.
+        
+        Args:
+            key_id: The ID of the API key to update
+            name: New name for the API key
+            permissions: New permissions for the API key
+            
+        Returns:
+            Updated APIKey object if successful, None otherwise
+        """
+        try:
+            data = {}
+            if name is not None:
+                data["name"] = name
+            if permissions is not None:
+                data["permissions"] = permissions
+                
+            response = self.client.put(f"/api_keys/{key_id}", data=data)
+            result = response.json()
+            
+            if "data" not in result:
+                return None
+                
+            return APIKey(
+                id=result["data"]["id"],
+                name=result["data"]["name"],
+                created=result["data"]["created"],
+                last_used=result["data"].get("last_used"),
+                permissions=result["data"].get("permissions", []),
+                is_active=result["data"].get("is_active", True)
+            )
+        except APIKeyError:
+            return None
     
     def generate_web3_key(
         self,
@@ -175,8 +290,10 @@ class APIKeysAPI:
         data = result["data"]
         return RateLimits(
             requests_per_minute=data.get("requests_per_minute", 0),
+            requests_per_hour=data.get("requests_per_hour", 0),
             requests_per_day=data.get("requests_per_day", 0),
             tokens_per_minute=data.get("tokens_per_minute", 0),
+            tokens_per_hour=data.get("tokens_per_hour", 0),
             tokens_per_day=data.get("tokens_per_day", 0),
             current_usage=data.get("current_usage", {}),
             reset_time=self._parse_datetime(data.get("reset_time")),
@@ -429,6 +546,33 @@ class AccountManager:
             return False
         
         return True
+    
+    def get_rate_limit_logs(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+        """Alias for get_rate_limits_log() for backward compatibility."""
+        return self.get_rate_limits_log(limit)
+    
+    def get_usage_info(self) -> UsageInfo:
+        """Alias for get_usage() for backward compatibility."""
+        return self.get_usage()
+    
+    def get_model_usage(self) -> Dict[str, ModelUsage]:
+        """Alias for get_usage_by_model() for backward compatibility."""
+        return self.get_usage_by_model()
+    
+    def get_billing_summary(self) -> Dict[str, Any]:
+        """
+        Get a comprehensive billing summary.
+        
+        Returns:
+            Dictionary with billing summary information
+        """
+        response = self.client.get("/billing/summary")
+        result = response.json()
+        
+        if "data" not in result:
+            raise BillingError("Invalid response format from billing summary endpoint")
+        
+        return result["data"]
 
 
 # Convenience functions
