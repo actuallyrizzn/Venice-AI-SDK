@@ -84,7 +84,7 @@ class TestVeniceClientLive:
         
         response = client.chat.complete(
             messages=messages,
-            model="llama-3.3-8b",
+            model="llama-3.3-70b",
             max_tokens=50
         )
         
