@@ -406,7 +406,7 @@ class ImageStylesAPI:
         Returns:
             List of ImageStyle objects
         """
-        response = self.client.get("/image/styles")
+        response = self.client.get("/images/styles")
         result = response.json()
         
         if "data" not in result:
