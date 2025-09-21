@@ -271,14 +271,14 @@ class ModelsTraitsAPI:
         """
         # Define task-to-capability mapping
         task_capabilities = {
-            "chat": ["supportsFunctionCalling", "supportsWebSearch", "supportsResponseSchema"],
-            "image_generation": ["supportsVision", "imageGeneration"],
-            "text_to_speech": ["audio", "speechSynthesis"],
-            "embeddings": ["embeddings", "vectorGeneration"],
-            "code_generation": ["codeGeneration", "supportsFunctionCalling", "optimizedForCode"],
+            "chat": ["function_calling", "web_search", "streaming"],
+            "image_generation": ["image_generation", "vision"],
+            "text_to_speech": ["audio", "speech_synthesis"],
+            "embeddings": ["embeddings", "vector_generation"],
+            "code_generation": ["code_generation", "function_calling", "optimized_for_code"],
             "translation": ["translation", "multilingual"],
-            "summarization": ["summarization", "textProcessing"],
-            "question_answering": ["questionAnswering", "supportsWebSearch"]
+            "summarization": ["summarization", "text_processing"],
+            "question_answering": ["question_answering", "web_search"]
         }
         
         task_lower = task.lower()
@@ -418,8 +418,12 @@ class ModelsCompatibilityAPI:
         Returns:
             List of provider names
         """
-        # Return basic provider list for now
-        return ["openai", "anthropic", "google", "cohere", "huggingface"]
+        try:
+            mapping = self.get_mapping()
+            return list(mapping.provider_mappings.keys())
+        except Exception:
+            # Fallback to basic provider list
+            return ["openai", "anthropic", "google", "cohere", "huggingface"]
     
     def clear_cache(self) -> None:
         """Clear the mapping cache."""

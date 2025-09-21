@@ -669,12 +669,15 @@ class TestModelRecommendationEngineComprehensive:
         """Test model recommendation with specific requirements."""
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "data": {
-                "llama-3.3-70b": {
-                    "capabilities": {"function_calling": True, "streaming": True},
-                    "traits": {"speed": "high", "quality": "excellent"}
+            "data": [
+                {
+                    "id": "llama-3.3-70b",
+                    "model_spec": {
+                        "capabilities": {"function_calling": True, "streaming": True},
+                        "traits": {"speed": "high", "quality": "excellent"}
+                    }
                 }
-            }
+            ]
         }
         mock_client.get.return_value = mock_response
         
