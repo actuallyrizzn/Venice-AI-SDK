@@ -178,8 +178,21 @@ class TestConfigLive:
             if "VENICE_API_KEY" in os.environ:
                 del os.environ["VENICE_API_KEY"]
             
-            with pytest.raises(ValueError, match="API key must be provided"):
-                load_config()
+            # Temporarily rename .env file if it exists
+            env_file = Path(".env")
+            env_backup = Path(".env.backup")
+            env_file_exists = env_file.exists()
+            
+            if env_file_exists:
+                env_file.rename(env_backup)
+            
+            try:
+                with pytest.raises(ValueError, match="API key must be provided"):
+                    load_config()
+            finally:
+                # Restore .env file
+                if env_file_exists and env_backup.exists():
+                    env_backup.rename(env_file)
                 
         finally:
             # Restore original environment variable
@@ -212,6 +225,10 @@ class TestConfigLive:
             original_api_key = os.environ.get("VENICE_API_KEY")
             if "VENICE_API_KEY" in os.environ:
                 del os.environ["VENICE_API_KEY"]
+            
+            # Force reload environment variables from .env file
+            from dotenv import load_dotenv
+            load_dotenv(env_dir / ".env", override=True)
             
             config = load_config()
             

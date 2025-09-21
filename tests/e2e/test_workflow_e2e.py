@@ -570,9 +570,9 @@ class TestWorkflowE2E:
                         },
                         "model_spec": {
                             "capabilities": {
-                                "function_calling": True,
-                                "web_search": False,
-                                "streaming": True
+                                "supportsFunctionCalling": True,
+                                "supportsWebSearch": False,
+                                "supportsLogProbs": True
                             },
                             "availableContextTokens": 4096
                         }
@@ -587,9 +587,9 @@ class TestWorkflowE2E:
                         },
                         "model_spec": {
                             "capabilities": {
-                                "function_calling": True,
-                                "web_search": True,
-                                "streaming": True
+                                "supportsFunctionCalling": True,
+                                "supportsWebSearch": True,
+                                "supportsLogProbs": True
                             },
                             "availableContextTokens": 8192
                         }
@@ -640,7 +640,7 @@ class TestWorkflowE2E:
             assert "llama-3.3-70b" in traits
             
             # 3. Find models by capability
-            function_models = client.models_traits.find_models_by_capability("function_calling")
+            function_models = client.models_traits.find_models_by_capability("supportsFunctionCalling")
             assert len(function_models) > 0
             assert "llama-3.3-8b" in function_models
             assert "llama-3.3-70b" in function_models

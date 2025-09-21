@@ -271,14 +271,14 @@ class ModelsTraitsAPI:
         """
         # Define task-to-capability mapping
         task_capabilities = {
-            "chat": ["function_calling", "web_search", "streaming"],
-            "image_generation": ["image_generation", "vision"],
-            "text_to_speech": ["audio", "speech_synthesis"],
-            "embeddings": ["embeddings", "vector_generation"],
-            "code_generation": ["code_generation", "function_calling", "optimized_for_code"],
-            "translation": ["translation", "multilingual"],
-            "summarization": ["summarization", "text_processing"],
-            "question_answering": ["question_answering", "web_search"]
+            "chat": ["supportsFunctionCalling", "supportsWebSearch", "supportsLogProbs"],
+            "image_generation": ["supportsVision"],
+            "text_to_speech": ["supportsAudio"],
+            "embeddings": ["supportsEmbeddings"],
+            "code_generation": ["optimizedForCode", "supportsFunctionCalling"],
+            "translation": ["supportsMultilingual"],
+            "summarization": ["supportsTextProcessing"],
+            "question_answering": ["supportsWebSearch", "supportsReasoning"]
         }
         
         task_lower = task.lower()

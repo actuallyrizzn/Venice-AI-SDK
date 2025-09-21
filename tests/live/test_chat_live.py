@@ -9,7 +9,7 @@ import os
 from venice_sdk.chat import ChatAPI
 from venice_sdk.client import HTTPClient
 from venice_sdk.config import Config
-from venice_sdk.errors import VeniceAPIError
+from venice_sdk.errors import VeniceAPIError, VeniceConnectionError
 from .test_utils import LiveTestUtils
 
 
@@ -192,6 +192,9 @@ class TestChatAPILive:
                 content = response["choices"][0]["message"]["content"]
                 assert len(content) > 0
                 
+            except (TimeoutError, VeniceConnectionError) as e:
+                # Skip models that timeout or have connection issues
+                pytest.skip(f"Model {model} timed out or connection failed: {e}")
             except VeniceAPIError as e:
                 # Some models might not be available
                 if e.status_code == 404:

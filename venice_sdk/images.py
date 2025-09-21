@@ -33,11 +33,19 @@ class ImageGeneration:
         path = Path(path)
         
         if self.url:
-            # Download from URL
-            import requests
-            response = requests.get(self.url)
-            response.raise_for_status()
-            path.write_bytes(response.content)
+            # Check if it's a data URL
+            if self.url.startswith('data:'):
+                # Extract base64 data from data URL
+                import base64
+                header, data = self.url.split(',', 1)
+                image_data = base64.b64decode(data)
+                path.write_bytes(image_data)
+            else:
+                # Download from HTTP URL
+                import requests
+                response = requests.get(self.url)
+                response.raise_for_status()
+                path.write_bytes(response.content)
         elif self.b64_json:
             # Save from base64 data
             image_data = base64.b64decode(self.b64_json)
@@ -49,11 +57,20 @@ class ImageGeneration:
     
     def get_image_data(self) -> bytes:
         """Get the raw image data as bytes."""
+        import base64
+        
         if self.url:
-            import requests
-            response = requests.get(self.url)
-            response.raise_for_status()
-            return response.content
+            # Check if it's a data URL
+            if self.url.startswith('data:'):
+                # Extract base64 data from data URL
+                header, data = self.url.split(',', 1)
+                return base64.b64decode(data)
+            else:
+                # Download from HTTP URL
+                import requests
+                response = requests.get(self.url)
+                response.raise_for_status()
+                return response.content
         elif self.b64_json:
             return base64.b64decode(self.b64_json)
         else:
@@ -73,10 +90,19 @@ class ImageEditResult:
         path = Path(path)
         
         if self.url:
-            import requests
-            response = requests.get(self.url)
-            response.raise_for_status()
-            path.write_bytes(response.content)
+            # Check if it's a data URL
+            if self.url.startswith('data:'):
+                # Extract base64 data from data URL
+                import base64
+                header, data = self.url.split(',', 1)
+                image_data = base64.b64decode(data)
+                path.write_bytes(image_data)
+            else:
+                # Download from HTTP URL
+                import requests
+                response = requests.get(self.url)
+                response.raise_for_status()
+                path.write_bytes(response.content)
         elif self.b64_json:
             image_data = base64.b64decode(self.b64_json)
             path.write_bytes(image_data)
@@ -98,10 +124,19 @@ class ImageUpscaleResult:
         path = Path(path)
         
         if self.url:
-            import requests
-            response = requests.get(self.url)
-            response.raise_for_status()
-            path.write_bytes(response.content)
+            # Check if it's a data URL
+            if self.url.startswith('data:'):
+                # Extract base64 data from data URL
+                import base64
+                header, data = self.url.split(',', 1)
+                image_data = base64.b64decode(data)
+                path.write_bytes(image_data)
+            else:
+                # Download from HTTP URL
+                import requests
+                response = requests.get(self.url)
+                response.raise_for_status()
+                path.write_bytes(response.content)
         elif self.b64_json:
             image_data = base64.b64decode(self.b64_json)
             path.write_bytes(image_data)

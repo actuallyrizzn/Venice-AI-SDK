@@ -196,11 +196,15 @@ class ChatAPI:
 
         response = self.client.stream("chat/completions", data=data)
         for chunk in response:
-            # Convert chunk to SSE format
-            if chunk.get("object") == "chat.completion.chunk":
-                yield f"data: {json.dumps(chunk)}\n\n"
-            elif chunk.get("object") == "chat.completion":
-                yield f"data: {json.dumps(chunk)}\n\n"
+            # chunk is already in SSE format (string)
+            if isinstance(chunk, str):
+                yield chunk
+            else:
+                # Convert chunk to SSE format if it's a dict
+                if chunk.get("object") == "chat.completion.chunk":
+                    yield f"data: {json.dumps(chunk)}\n\n"
+                elif chunk.get("object") == "chat.completion":
+                    yield f"data: {json.dumps(chunk)}\n\n"
         
         # Send final SSE event
         yield "data: [DONE]\n\n"

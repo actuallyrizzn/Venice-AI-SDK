@@ -483,7 +483,7 @@ class TestAudioAPILive:
             result_hd = self.audio_api.speech(
                 input_text=text,
                 voice="af_alloy",
-                model="tts-1-hd"
+                model="tts-kokoro"
             )
             
             assert result_hd is not None
