@@ -136,7 +136,7 @@ class TestCrossModuleIntegration:
                         response.status_code = 200
                         response.json.return_value = {
                             "data": [{
-                                "id": "alloy",
+                                "id": "af_alloy",
                                 "name": "Alloy",
                                 "category": "premium",
                                 "description": "A clear and professional voice"

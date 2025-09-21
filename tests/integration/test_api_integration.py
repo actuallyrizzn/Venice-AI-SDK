@@ -99,7 +99,7 @@ class TestAPIIntegration:
             mock_voices_response.status_code = 200
             mock_voices_response.json.return_value = {
                 "data": [{
-                    "id": "alloy",
+                    "id": "af_alloy",
                     "name": "Alloy",
                     "category": "premium",
                     "description": "A clear and professional voice"
@@ -141,7 +141,7 @@ class TestAPIIntegration:
             # 1. Get available voices
             voices = self.client.audio.get_voices()
             assert len(voices) > 0
-            assert voices[0].id == "alloy"
+            assert voices[0].id == "af_alloy"
             
             # 2. Get characters that support voice synthesis
             characters = self.client.characters.list()

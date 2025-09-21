@@ -129,13 +129,21 @@ class ModelsTraitsAPI:
             traits_list = model_spec.get("traits", [])
             context_length = model_spec.get("availableContextTokens")
             
-            # Convert traits list to dict
+            # Convert traits to dict
             model_traits = {}
-            for trait in traits_list:
-                if isinstance(trait, str):
-                    model_traits[trait] = True
-                elif isinstance(trait, dict):
-                    model_traits.update(trait)
+            if isinstance(traits_list, dict):
+                # If traits is already a dict, use it directly
+                model_traits = traits_list
+            elif isinstance(traits_list, list):
+                # If traits is a list, convert it
+                for trait in traits_list:
+                    if isinstance(trait, str):
+                        model_traits[trait] = True
+                    elif isinstance(trait, dict):
+                        model_traits.update(trait)
+                    else:
+                        # Handle other types
+                        model_traits[str(trait)] = trait
             
             traits[model_id] = ModelTraits(
                 model_id=model_id,
@@ -166,9 +174,6 @@ class ModelsTraitsAPI:
             ModelTraits object or None if not found
         """
         all_traits = self.get_traits(use_cache=use_cache)
-        if model_id not in all_traits:
-            from venice_sdk.errors import ModelNotFoundError
-            raise ModelNotFoundError(f"Model '{model_id}' not found")
         return all_traits.get(model_id)
     
     def get_capabilities(self, model_id: str) -> Optional[Dict[str, Any]]:

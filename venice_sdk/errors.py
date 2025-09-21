@@ -83,16 +83,33 @@ def handle_api_error(status_code: int, response_data: dict) -> None:
     Raises:
         VeniceAPIError: Appropriate exception based on the error
     """
-    # Normalize shapes: "error" may be a string or dict
-    error_obj = response_data.get("error")
-    if isinstance(error_obj, str):
-        error_code = None
-        error_message = error_obj
-        error_payload = {}
-    else:
-        error_payload = error_obj or {}
-        error_code = error_payload.get("code")
-        error_message = error_payload.get("message", "Unknown error")
+    # Check for error message in various fields
+    error_message = "Unknown error"
+    error_code = None
+    
+    # Try to get error message from different possible fields
+    if "details" in response_data:
+        details = response_data["details"]
+        if isinstance(details, dict):
+            # Look for error messages in the details
+            for field, errors in details.items():
+                if isinstance(errors, dict) and "_errors" in errors:
+                    error_list = errors["_errors"]
+                    if error_list and len(error_list) > 0:
+                        error_message = error_list[0]
+                        break
+                elif isinstance(errors, list) and len(errors) > 0:
+                    error_message = errors[0]
+                    break
+    
+    # Fallback to standard error field
+    if error_message == "Unknown error":
+        error_obj = response_data.get("error")
+        if isinstance(error_obj, str):
+            error_message = error_obj
+        elif isinstance(error_obj, dict):
+            error_code = error_obj.get("code")
+            error_message = error_obj.get("message", "Unknown error")
     
     if status_code == 401:
         raise UnauthorizedError(error_message, status_code=status_code)

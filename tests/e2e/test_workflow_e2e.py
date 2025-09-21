@@ -239,7 +239,7 @@ class TestWorkflowE2E:
                 mock_voices_response.status_code = 200
                 mock_voices_response.json.return_value = {
                     "data": [{
-                        "id": "alloy",
+                        "id": "af_alloy",
                         "name": "Alloy",
                         "category": "premium",
                         "description": "A clear and professional voice"
@@ -304,7 +304,7 @@ class TestWorkflowE2E:
                 voices = client.audio.get_voices()
                 assert len(voices) > 0
                 selected_voice = voices[0]
-                assert selected_voice.id == "alloy"
+                assert selected_voice.id == "af_alloy"
                 
                 # 5. Generate audio narration
                 audio_result = client.audio.speech(

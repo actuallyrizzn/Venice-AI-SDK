@@ -105,7 +105,7 @@ class TestHTTPClientLive:
     def test_connection_error_handling(self):
         """Test connection error handling."""
         # Use invalid base URL to trigger connection error
-        config = Config(api_key=self.api_key, base_url="https://invalid-url-that-does-not-exist.com")
+        config = Config(api_key=self.api_key, base_url="https://this-domain-definitely-does-not-exist-12345.com")
         client = HTTPClient(config)
         
         with pytest.raises(VeniceConnectionError):
@@ -117,7 +117,7 @@ class TestHTTPClientLive:
         client = HTTPClient(config)
         
         with pytest.raises(VeniceAPIError) as exc_info:
-            client.get("/models")
+            client.post("/chat/completions", data={"model": "qwen3-4b", "messages": [{"role": "user", "content": "test"}]})
         
         assert exc_info.value.status_code == 401
 
@@ -204,7 +204,8 @@ class TestHTTPClientLive:
         
         assert response.status_code == 200
         assert callable(response.json)
-        assert callable(response.text)
+        # text is a property, not a method
+        assert isinstance(response.text, str)
         
         # Test json() method
         data = response.json()

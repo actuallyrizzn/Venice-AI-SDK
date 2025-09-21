@@ -125,8 +125,8 @@ class TestCliComprehensive:
                 assert result.exit_code == 0
                 assert "API key has been set successfully!" in result.output
                 mock_env_path.touch.assert_called_once()
-                mock_file.assert_called_once_with(mock_env_path, 'w')
-                mock_file().write.assert_called_once_with('VENICE_API_KEY=test-api-key\n')
+                mock_file.assert_called_once_with(mock_env_path, 'w', encoding='utf-8')
+                mock_file().write.assert_called_once_with('\nVENICE_API_KEY=test-api-key\n')
 
     def test_auth_command_with_existing_env_file(self, tmp_path):
         """Test auth command with existing .env file."""
@@ -143,8 +143,9 @@ class TestCliComprehensive:
                 assert result.exit_code == 0
                 assert "API key has been set successfully!" in result.output
                 mock_env_path.touch.assert_not_called()
-                mock_file.assert_called_once_with(mock_env_path, 'w')
-                mock_file().write.assert_called_once_with('VENICE_API_KEY=test-api-key\n')
+                # Should be called twice: once for reading, once for writing
+                assert mock_file.call_count == 2
+                mock_file().write.assert_called_once_with('\nVENICE_API_KEY=test-api-key\n')
 
     def test_auth_command_with_special_characters(self, tmp_path):
         """Test auth command with special characters in API key."""
@@ -162,7 +163,7 @@ class TestCliComprehensive:
                 
                 assert result.exit_code == 0
                 assert "API key has been set successfully!" in result.output
-                mock_file().write.assert_called_once_with(f'VENICE_API_KEY={special_key}\n')
+                mock_file().write.assert_called_once_with(f'\nVENICE_API_KEY={special_key}\n')
 
     def test_auth_command_with_whitespace_key(self, tmp_path):
         """Test auth command with whitespace in API key."""
@@ -180,7 +181,7 @@ class TestCliComprehensive:
                 
                 assert result.exit_code == 0
                 assert "API key has been set successfully!" in result.output
-                mock_file().write.assert_called_once_with(f'VENICE_API_KEY={whitespace_key}\n')
+                mock_file().write.assert_called_once_with(f'\nVENICE_API_KEY={whitespace_key}\n')
 
     def test_auth_command_with_empty_key(self, tmp_path):
         """Test auth command with empty API key."""
@@ -197,7 +198,7 @@ class TestCliComprehensive:
                 
                 assert result.exit_code == 0
                 assert "API key has been set successfully!" in result.output
-                mock_file().write.assert_called_once_with('VENICE_API_KEY=\n')
+                mock_file().write.assert_called_once_with('\nVENICE_API_KEY=\n')
 
     def test_status_command_with_api_key(self):
         """Test status command when API key is present."""
@@ -374,7 +375,7 @@ class TestCliComprehensive:
                 
                 assert result.exit_code == 0
                 assert "API key has been set successfully!" in result.output
-                mock_file().write.assert_called_once_with(f'VENICE_API_KEY={long_key}\n')
+                mock_file().write.assert_called_once_with(f'\nVENICE_API_KEY={long_key}\n')
 
     def test_status_command_with_long_api_key(self):
         """Test status command with very long API key."""

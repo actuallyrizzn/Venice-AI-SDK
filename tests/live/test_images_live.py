@@ -296,11 +296,11 @@ class TestImagesAPILive:
 
     def test_image_generation_error_handling(self):
         """Test error handling in image generation."""
-        # Test with invalid model
-        with pytest.raises(VeniceAPIError):
+        # Test with invalid parameters that should cause an error
+        with pytest.raises(ValueError):
             self.image_api.generate(
                 prompt="Test prompt",
-                model="invalid-model"
+                n=15  # Invalid: n must be between 1 and 10
             )
 
     def test_image_generation_with_empty_prompt(self):
@@ -347,13 +347,15 @@ class TestImagesAPILive:
         """Test image generation with long prompt."""
         long_prompt = "A very detailed and complex artwork that describes a futuristic city with flying cars, neon lights, and people walking on the streets. The city should have tall buildings, a beautiful skyline, and a sense of wonder and amazement. " * 10
         
-        result = self.image_api.generate(
-            prompt=long_prompt,
-            model=self.default_image_model
-        )
+        # This should fail because the prompt is too long (over 1500 characters)
+        with pytest.raises(VeniceAPIError) as exc_info:
+            self.image_api.generate(
+                prompt=long_prompt,
+                model=self.default_image_model
+            )
         
-        assert result is not None
-        assert result.url is not None or result.b64_json is not None
+        # Verify the error message mentions the character limit
+        assert "1500 character" in str(exc_info.value)
 
     def test_image_generation_performance(self):
         """Test image generation performance."""
@@ -595,21 +597,23 @@ class TestImagesAPILive:
         """Test image generation with custom parameters."""
         prompt = "A test image with custom parameters"
         
-        result = self.image_api.generate(
-            prompt=prompt,
-            model=self.default_image_model,
-            custom_param="custom_value"
-        )
+        # This should fail because custom parameters are not allowed
+        with pytest.raises(VeniceAPIError) as exc_info:
+            self.image_api.generate(
+                prompt=prompt,
+                model=self.default_image_model,
+                custom_param="custom_value"
+            )
         
-        assert result is not None
-        assert result.url is not None or result.b64_json is not None
+        # Verify the error message mentions unrecognized keys
+        assert "Unrecognized key" in str(exc_info.value)
 
     def test_image_generation_error_responses(self):
         """Test image generation error responses."""
-        # Test with invalid prompt (too short)
-        with pytest.raises(VeniceAPIError):
+        # Test with empty prompt (should fail)
+        with pytest.raises(ValueError):
             self.image_api.generate(
-                prompt="a",
+                prompt="",
                 model=self.default_image_model
             )
 

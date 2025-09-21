@@ -212,20 +212,24 @@ class TestModelsTraitsAPIComprehensive:
         """Test successful traits retrieval."""
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "data": {
-                "llama-3.3-70b": {
-                    "capabilities": {"function_calling": True, "streaming": True},
-                    "traits": {"speed": "high", "quality": "excellent"},
-                    "context_length": 4096,
-                    "max_tokens": 2048
+            "data": [
+                {
+                    "id": "llama-3.3-70b",
+                    "model_spec": {
+                        "capabilities": {"function_calling": True, "streaming": True},
+                        "traits": {"speed": "high", "quality": "excellent"},
+                        "availableContextTokens": 4096
+                    }
                 },
-                "llama-3.3-8b": {
-                    "capabilities": {"function_calling": False, "streaming": True},
-                    "traits": {"speed": "very_high", "quality": "good"},
-                    "context_length": 2048,
-                    "max_tokens": 1024
+                {
+                    "id": "llama-3.3-8b",
+                    "model_spec": {
+                        "capabilities": {"function_calling": False, "streaming": True},
+                        "traits": {"speed": "very_high", "quality": "good"},
+                        "availableContextTokens": 2048
+                    }
                 }
-            }
+            ]
         }
         mock_client.get.return_value = mock_response
         
@@ -241,7 +245,7 @@ class TestModelsTraitsAPIComprehensive:
     def test_get_traits_with_cache(self, mock_client):
         """Test traits retrieval with caching."""
         mock_response = MagicMock()
-        mock_response.json.return_value = {"data": {"model1": {"name": "Test Model"}}}
+        mock_response.json.return_value = {"data": [{"id": "model1", "name": "Test Model"}]}
         mock_client.get.return_value = mock_response
 
         api = ModelsTraitsAPI(mock_client)
@@ -258,7 +262,7 @@ class TestModelsTraitsAPIComprehensive:
     def test_get_traits_without_cache(self, mock_client):
         """Test traits retrieval without caching."""
         mock_response = MagicMock()
-        mock_response.json.return_value = {"data": {}}
+        mock_response.json.return_value = {"data": []}
         mock_client.get.return_value = mock_response
         
         api = ModelsTraitsAPI(mock_client)
@@ -279,19 +283,22 @@ class TestModelsTraitsAPIComprehensive:
         
         api = ModelsTraitsAPI(mock_client)
         
-        with pytest.raises(ModelNotFoundError, match="Invalid response format from models traits endpoint"):
+        with pytest.raises(ModelNotFoundError, match="Invalid response format from models endpoint"):
             api.get_traits()
 
     def test_get_model_traits(self, mock_client):
         """Test getting traits for a specific model."""
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "data": {
-                "llama-3.3-70b": {
-                    "capabilities": {"function_calling": True},
-                    "traits": {"speed": "high"}
+            "data": [
+                {
+                    "id": "llama-3.3-70b",
+                    "model_spec": {
+                        "capabilities": {"function_calling": True},
+                        "traits": {"speed": "high"}
+                    }
                 }
-            }
+            ]
         }
         mock_client.get.return_value = mock_response
         
@@ -306,7 +313,7 @@ class TestModelsTraitsAPIComprehensive:
     def test_get_model_traits_not_found(self, mock_client):
         """Test getting traits for a model that doesn't exist."""
         mock_response = MagicMock()
-        mock_response.json.return_value = {"data": {}}
+        mock_response.json.return_value = {"data": []}
         mock_client.get.return_value = mock_response
         
         api = ModelsTraitsAPI(mock_client)
@@ -318,12 +325,15 @@ class TestModelsTraitsAPIComprehensive:
         """Test getting capabilities for a specific model."""
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "data": {
-                "llama-3.3-70b": {
-                    "capabilities": {"function_calling": True, "streaming": True},
-                    "traits": {}
+            "data": [
+                {
+                    "id": "llama-3.3-70b",
+                    "model_spec": {
+                        "capabilities": {"function_calling": True, "streaming": True},
+                        "traits": []
+                    }
                 }
-            }
+            ]
         }
         mock_client.get.return_value = mock_response
         
@@ -336,12 +346,15 @@ class TestModelsTraitsAPIComprehensive:
         """Test getting traits dictionary for a specific model."""
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "data": {
-                "llama-3.3-70b": {
-                    "capabilities": {},
-                    "traits": {"speed": "high", "quality": "excellent"}
+            "data": [
+                {
+                    "id": "llama-3.3-70b",
+                    "model_spec": {
+                        "capabilities": {},
+                        "traits": {"speed": "high", "quality": "excellent"}
+                    }
                 }
-            }
+            ]
         }
         mock_client.get.return_value = mock_response
         
@@ -354,16 +367,22 @@ class TestModelsTraitsAPIComprehensive:
         """Test finding models by capability."""
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "data": {
-                "llama-3.3-70b": {
-                    "capabilities": {"function_calling": True, "streaming": True},
-                    "traits": {}
+            "data": [
+                {
+                    "id": "llama-3.3-70b",
+                    "model_spec": {
+                        "capabilities": {"function_calling": True, "streaming": True},
+                        "traits": []
+                    }
                 },
-                "llama-3.3-8b": {
-                    "capabilities": {"streaming": True},
-                    "traits": {}
+                {
+                    "id": "llama-3.3-8b",
+                    "model_spec": {
+                        "capabilities": {"streaming": True},
+                        "traits": []
+                    }
                 }
-            }
+            ]
         }
         mock_client.get.return_value = mock_response
         
@@ -376,16 +395,22 @@ class TestModelsTraitsAPIComprehensive:
         """Test finding models by trait."""
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "data": {
-                "llama-3.3-70b": {
-                    "capabilities": {},
-                    "traits": {"speed": "high", "quality": "excellent"}
+            "data": [
+                {
+                    "id": "llama-3.3-70b",
+                    "model_spec": {
+                        "capabilities": {},
+                        "traits": {"speed": "high", "quality": "excellent"}   
+                    }
                 },
-                "llama-3.3-8b": {
-                    "capabilities": {},
-                    "traits": {"speed": "very_high"}
+                {
+                    "id": "llama-3.3-8b",
+                    "model_spec": {
+                        "capabilities": {},
+                        "traits": {"speed": "very_high"}
+                    }
                 }
-            }
+            ]
         }
         mock_client.get.return_value = mock_response
         
@@ -398,16 +423,22 @@ class TestModelsTraitsAPIComprehensive:
         """Test getting models by type."""
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "data": {
-                "llama-3.3-70b": {
-                    "capabilities": {"type": "text"},
-                    "traits": {}
+            "data": [
+                {
+                    "id": "llama-3.3-70b",
+                    "model_spec": {
+                        "capabilities": {"type": "text"},
+                        "traits": {}
+                    }
                 },
-                "dall-e-3": {
-                    "capabilities": {"type": "image"},
-                    "traits": {}
+                {
+                    "id": "dall-e-3",
+                    "model_spec": {
+                        "capabilities": {"type": "image"},
+                        "traits": {}
+                    }
                 }
-            }
+            ]
         }
         mock_client.get.return_value = mock_response
         
@@ -420,16 +451,22 @@ class TestModelsTraitsAPIComprehensive:
         """Test getting best models for a task."""
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "data": {
-                "llama-3.3-70b": {
-                    "capabilities": {"function_calling": True, "streaming": True, "web_search": True},
-                    "traits": {}
+            "data": [
+                {
+                    "id": "llama-3.3-70b",
+                    "model_spec": {
+                        "capabilities": {"function_calling": True, "streaming": True, "web_search": True},
+                        "traits": {}
+                    }
                 },
-                "llama-3.3-8b": {
-                    "capabilities": {"streaming": True},
-                    "traits": {}
+                {
+                    "id": "llama-3.3-8b",
+                    "model_spec": {
+                        "capabilities": {"streaming": True},
+                        "traits": {}
+                    }
                 }
-            }
+            ]
         }
         mock_client.get.return_value = mock_response
         
@@ -481,7 +518,13 @@ class TestModelsCompatibilityAPIComprehensive:
     def test_get_mapping_with_cache(self, mock_client):
         """Test mapping retrieval with caching."""
         mock_response = MagicMock()
-        mock_response.json.return_value = {"data": {}}
+        mock_response.json.return_value = {
+            "data": {
+                "openai_to_venice": {},
+                "venice_to_openai": {},
+                "provider_mappings": {}
+            }
+        }
         mock_client.get.return_value = mock_response
         
         api = ModelsCompatibilityAPI(mock_client)
@@ -599,12 +642,15 @@ class TestModelRecommendationEngineComprehensive:
         """Test basic model recommendation."""
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "data": {
-                "llama-3.3-70b": {
-                    "capabilities": {"function_calling": True, "streaming": True, "web_search": True},
-                    "traits": {"speed": "high", "quality": "excellent", "cost_level": "high"}
+            "data": [
+                {
+                    "id": "llama-3.3-70b",
+                    "model_spec": {
+                        "capabilities": {"function_calling": True, "streaming": True, "web_search": True},
+                        "traits": {"speed": "high", "quality": "excellent", "cost_level": "high"}
+                    }
                 }
-            }
+            ]
         }
         mock_client.get.return_value = mock_response
         
