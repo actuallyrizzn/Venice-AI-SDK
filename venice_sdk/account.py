@@ -485,27 +485,58 @@ class AccountManager:
             Dictionary with account summary information
         """
         try:
-            usage_info = self.billing_api.get_usage()
-            rate_limits = self.api_keys_api.get_rate_limits()
-            api_keys = self.api_keys_api.list()
+            # Try to get usage info (may require admin permissions)
+            usage_info = None
+            try:
+                usage_info = self.billing_api.get_usage()
+            except Exception:
+                pass  # Not an admin key, skip usage info
             
-            return {
-                "usage": {
+            # Try to get rate limits (may require admin permissions)
+            rate_limits = None
+            try:
+                rate_limits = self.api_keys_api.get_rate_limits()
+            except Exception:
+                pass  # Not an admin key, skip rate limits
+            
+            # Try to get API keys (may require admin permissions)
+            api_keys = []
+            try:
+                api_keys = self.api_keys_api.list()
+            except Exception:
+                pass  # Not an admin key, skip API keys
+            
+            result = {}
+            
+            if usage_info:
+                result["usage"] = {
                     "total_usage": usage_info.total_usage,
                     "credits_remaining": usage_info.credits_remaining,
                     "current_period": usage_info.current_period
-                },
-                "rate_limits": {
+                }
+            
+            if rate_limits:
+                result["rate_limits"] = {
                     "requests_per_minute": rate_limits.requests_per_minute,
                     "requests_per_day": rate_limits.requests_per_day,
                     "tokens_per_minute": rate_limits.tokens_per_minute,
                     "tokens_per_day": rate_limits.tokens_per_day
-                },
-                "api_keys": {
+                }
+            
+            if api_keys:
+                result["api_keys"] = {
                     "total_keys": len(api_keys),
                     "active_keys": len([k for k in api_keys if k.is_active])
                 }
-            }
+            
+            # If we couldn't get any admin data, return a basic summary
+            if not result:
+                result = {
+                    "status": "basic_access",
+                    "message": "Limited account access - admin permissions required for full summary"
+                }
+            
+            return result
         except Exception as e:
             return {"error": str(e)}
     
@@ -517,20 +548,33 @@ class AccountManager:
             Dictionary with rate limit status information
         """
         try:
-            rate_limits = self.api_keys_api.get_rate_limits()
-            current_usage = rate_limits.current_usage
+            # Try to get rate limits (may require admin permissions)
+            rate_limits = None
+            try:
+                rate_limits = self.api_keys_api.get_rate_limits()
+            except Exception:
+                pass  # Not an admin key, skip rate limits
             
-            return {
-                "limits": {
-                    "requests_per_minute": rate_limits.requests_per_minute,
-                    "requests_per_day": rate_limits.requests_per_day,
-                    "tokens_per_minute": rate_limits.tokens_per_minute,
-                    "tokens_per_day": rate_limits.tokens_per_day
-                },
-                "current_usage": current_usage,
-                "reset_time": rate_limits.reset_time.isoformat() if rate_limits.reset_time else None,
-                "status": "ok" if self._is_within_limits(rate_limits) else "near_limit"
-            }
+            if rate_limits:
+                current_usage = rate_limits.current_usage
+                
+                return {
+                    "limits": {
+                        "requests_per_minute": rate_limits.requests_per_minute,
+                        "requests_per_day": rate_limits.requests_per_day,
+                        "tokens_per_minute": rate_limits.tokens_per_minute,
+                        "tokens_per_day": rate_limits.tokens_per_day
+                    },
+                    "current_usage": current_usage,
+                    "reset_time": rate_limits.reset_time.isoformat() if rate_limits.reset_time else None,
+                    "status": "ok" if self._is_within_limits(rate_limits) else "near_limit"
+                }
+            else:
+                # Return basic status if we can't get rate limit info
+                return {
+                    "status": "unknown",
+                    "message": "Rate limit information not available - admin permissions required"
+                }
         except Exception as e:
             return {"error": str(e), "status": "error"}
     

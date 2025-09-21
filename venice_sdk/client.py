@@ -176,13 +176,28 @@ class HTTPClient:
         for line in response.iter_lines():
             if not line:
                 continue
-
-            try:
-                data = json.loads(line.decode("utf-8"))
-                if "chunk" in data:
-                    yield data["chunk"]
-            except json.JSONDecodeError:
-                continue
+            
+            line_str = line.decode("utf-8")
+            
+            # Handle Server-Sent Events format
+            if line_str.startswith("data: "):
+                data_content = line_str[6:]  # Remove "data: " prefix
+                if data_content.strip() == "[DONE]":
+                    break
+                try:
+                    data = json.loads(data_content)
+                    # Yield the entire chunk as a string for SSE format
+                    yield line_str
+                except json.JSONDecodeError:
+                    continue
+            else:
+                # Handle other formats (legacy)
+                try:
+                    data = json.loads(line_str)
+                    if "chunk" in data:
+                        yield data["chunk"]
+                except json.JSONDecodeError:
+                    continue
     
     def get(self, endpoint: str, **kwargs) -> Response:
         """Make a GET request."""

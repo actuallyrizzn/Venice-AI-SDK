@@ -38,8 +38,13 @@ class TestHTTPClientLive:
         # Verify model structure
         model = data["data"][0]
         assert "id" in model
-        assert "name" in model
-        assert "capabilities" in model
+        assert "model_spec" in model
+        assert "object" in model
+        
+        # Check model_spec structure
+        model_spec = model["model_spec"]
+        assert "name" in model_spec
+        assert "capabilities" in model_spec
 
     def test_post_chat_completion(self):
         """Test POST request to chat completion endpoint."""
