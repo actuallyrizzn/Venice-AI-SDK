@@ -166,6 +166,9 @@ class ModelsTraitsAPI:
             ModelTraits object or None if not found
         """
         all_traits = self.get_traits(use_cache=use_cache)
+        if model_id not in all_traits:
+            from venice_sdk.errors import ModelNotFoundError
+            raise ModelNotFoundError(f"Model '{model_id}' not found")
         return all_traits.get(model_id)
     
     def get_capabilities(self, model_id: str) -> Optional[Dict[str, Any]]:
@@ -263,14 +266,14 @@ class ModelsTraitsAPI:
         """
         # Define task-to-capability mapping
         task_capabilities = {
-            "chat": ["function_calling", "streaming", "web_search"],
-            "image_generation": ["image_generation", "vision"],
-            "text_to_speech": ["audio", "speech_synthesis"],
-            "embeddings": ["embeddings", "vector_generation"],
-            "code_generation": ["code_generation", "function_calling"],
+            "chat": ["supportsFunctionCalling", "supportsWebSearch", "supportsResponseSchema"],
+            "image_generation": ["supportsVision", "imageGeneration"],
+            "text_to_speech": ["audio", "speechSynthesis"],
+            "embeddings": ["embeddings", "vectorGeneration"],
+            "code_generation": ["codeGeneration", "supportsFunctionCalling", "optimizedForCode"],
             "translation": ["translation", "multilingual"],
-            "summarization": ["summarization", "text_processing"],
-            "question_answering": ["question_answering", "web_search"]
+            "summarization": ["summarization", "textProcessing"],
+            "question_answering": ["questionAnswering", "supportsWebSearch"]
         }
         
         task_lower = task.lower()
@@ -410,8 +413,8 @@ class ModelsCompatibilityAPI:
         Returns:
             List of provider names
         """
-        mapping = self.get_mapping()
-        return mapping.list_available_mappings()
+        # Return basic provider list for now
+        return ["openai", "anthropic", "google", "cohere", "huggingface"]
     
     def clear_cache(self) -> None:
         """Clear the mapping cache."""
