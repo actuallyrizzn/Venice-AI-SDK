@@ -570,8 +570,9 @@ class TestWorkflowE2E:
                         },
                         "model_spec": {
                             "capabilities": {
-                                "supportsFunctionCalling": True,
-                                "supportsWebSearch": False
+                                "function_calling": True,
+                                "web_search": False,
+                                "streaming": True
                             },
                             "availableContextTokens": 4096
                         }
@@ -586,8 +587,9 @@ class TestWorkflowE2E:
                         },
                         "model_spec": {
                             "capabilities": {
-                                "supportsFunctionCalling": True,
-                                "supportsWebSearch": True
+                                "function_calling": True,
+                                "web_search": True,
+                                "streaming": True
                             },
                             "availableContextTokens": 8192
                         }
@@ -595,45 +597,8 @@ class TestWorkflowE2E:
                 ]
             }
             
-            # Mock traits response
-            mock_traits_response = MagicMock()
-            mock_traits_response.status_code = 200
-            mock_traits_response.json.return_value = {
-                "data": {
-                    "llama-3.3-8b": {
-                        "capabilities": {
-                            "function_calling": True,
-                            "streaming": True,
-                            "web_search": False
-                        },
-                        "traits": {
-                            "context_length": 4096,
-                            "max_tokens": 2048,
-                            "temperature_range": [0.0, 2.0]
-                        },
-                        "performance_metrics": {
-                            "speed": "fast",
-                            "quality": "high"
-                        }
-                    },
-                    "llama-3.3-70b": {
-                        "capabilities": {
-                            "function_calling": True,
-                            "streaming": True,
-                            "web_search": True
-                        },
-                        "traits": {
-                            "context_length": 8192,
-                            "max_tokens": 4096,
-                            "temperature_range": [0.0, 2.0]
-                        },
-                        "performance_metrics": {
-                            "speed": "medium",
-                            "quality": "very_high"
-                        }
-                    }
-                }
-            }
+            # Mock traits response (same as models response since get_traits uses /models endpoint)
+            mock_traits_response = mock_models_response
             
             # Mock compatibility response
             mock_compatibility_response = MagicMock()
@@ -653,9 +618,7 @@ class TestWorkflowE2E:
             
             # Configure mock client
             def mock_get_side_effect(url, **kwargs):
-                if "models/traits" in url:
-                    return mock_traits_response
-                elif "models/compatibility" in url:
+                if "models/compatibility" in url:
                     return mock_compatibility_response
                 elif "models" in url:
                     return mock_models_response

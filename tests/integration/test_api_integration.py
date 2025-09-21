@@ -331,28 +331,28 @@ class TestAPIIntegration:
     def test_models_advanced_integration(self):
         """Test integration between models advanced APIs."""
         with patch.object(self.client.http_client, 'get') as mock_get:
-            # Mock traits response
+            # Mock traits response (same as models response since get_traits uses /models endpoint)
             mock_traits_response = MagicMock()
             mock_traits_response.status_code = 200
             mock_traits_response.json.return_value = {
-                "data": {
-                    "llama-3.3-8b": {
-                        "capabilities": {
-                            "function_calling": True,
-                            "streaming": True,
-                            "web_search": False
-                        },
-                        "traits": {
-                            "context_length": 4096,
-                            "max_tokens": 2048,
-                            "temperature_range": [0.0, 2.0]
-                        },
-                        "performance_metrics": {
-                            "speed": "fast",
-                            "quality": "high"
+                "data": [
+                    {
+                        "id": "llama-3.3-8b",
+                        "model_spec": {
+                            "capabilities": {
+                                "function_calling": True,
+                                "streaming": True,
+                                "web_search": False
+                            },
+                            "traits": {
+                                "context_length": 4096,
+                                "max_tokens": 2048,
+                                "temperature_range": [0.0, 2.0]
+                            },
+                            "availableContextTokens": 4096
                         }
                     }
-                }
+                ]
             }
             
             # Mock compatibility response
@@ -372,10 +372,10 @@ class TestAPIIntegration:
             }
             
             def mock_get_side_effect(url, **kwargs):
-                if "traits" in url:
-                    return mock_traits_response
-                elif "compatibility" in url:
+                if "compatibility" in url:
                     return mock_compatibility_response
+                elif "models" in url:
+                    return mock_traits_response
                 return mock_traits_response
             
             mock_get.side_effect = mock_get_side_effect

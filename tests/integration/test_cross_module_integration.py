@@ -276,7 +276,7 @@ class TestCrossModuleIntegration:
                     return MagicMock()
                 
                 def mock_post_side_effect(url, **kwargs):
-                    if "image/generate" in url:
+                    if "images/generations" in url:
                         response = MagicMock()
                         response.status_code = 200
                         response.json.return_value = {

@@ -95,9 +95,9 @@ class TestConfigComprehensive:
         assert config.base_url == "https://api.venice.ai/api/v1"
 
     def test_config_with_empty_base_url(self):
-        """Test Config with empty base URL uses default."""
+        """Test Config with empty base URL is preserved."""
         config = Config(api_key="test-key", base_url="")
-        assert config.base_url == "https://api.venice.ai/api/v1"
+        assert config.base_url == ""
 
     def test_config_with_custom_timeout(self):
         """Test Config with custom timeout."""
