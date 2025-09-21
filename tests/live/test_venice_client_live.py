@@ -9,7 +9,29 @@ import os
 import time
 from venice_sdk.venice_client import VeniceClient, create_client
 from venice_sdk.config import Config
-from venice_sdk.errors import VeniceAPIError, RateLimitError, TimeoutError
+from venice_sdk.errors import VeniceAPIError, RateLimitError
+
+
+def handle_api_call(func, max_retries=3, retry_delay=1):
+    """Helper function to handle API calls with retries for common issues."""
+    for attempt in range(max_retries):
+        try:
+            return func()
+        except (RateLimitError, TimeoutError) as e:
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay * (2 ** attempt))  # Exponential backoff
+                continue
+            else:
+                pytest.skip(f"API call failed after {max_retries} attempts: {e}")
+        except VeniceAPIError as e:
+            if "rate limit" in str(e).lower() or "timeout" in str(e).lower():
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay * (2 ** attempt))
+                    continue
+                else:
+                    pytest.skip(f"API call failed due to rate limit/timeout: {e}")
+            else:
+                raise
 
 
 @pytest.mark.live
@@ -83,11 +105,14 @@ class TestVeniceClientLive:
             {"role": "user", "content": "Hello, how are you?"}
         ]
         
-        response = client.chat.complete(
-            messages=messages,
-            model="llama-3.3-70b",
-            max_tokens=50
-        )
+        def chat_call():
+            return client.chat.complete(
+                messages=messages,
+                model="llama-3.3-70b",
+                max_tokens=50
+            )
+        
+        response = handle_api_call(chat_call)
         
         assert response is not None
         assert "choices" in response
@@ -100,7 +125,10 @@ class TestVeniceClientLive:
         client = VeniceClient()
         
         # Test listing models
-        models = client.models.list()
+        def models_call():
+            return client.models.list()
+        
+        models = handle_api_call(models_call)
         
         assert isinstance(models, list)
         assert len(models) > 0
