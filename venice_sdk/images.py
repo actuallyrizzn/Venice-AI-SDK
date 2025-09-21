@@ -156,6 +156,18 @@ class ImageAPI:
         Returns:
             Single ImageGeneration or list of ImageGenerations
         """
+        # Validate input parameters
+        if not prompt or not prompt.strip():
+            raise ValueError("Prompt cannot be empty")
+        if n < 1 or n > 10:
+            raise ValueError("n must be between 1 and 10")
+        if size not in ["256x256", "512x512", "1024x1024", "1792x1024", "1024x1792"]:
+            raise ValueError(f"Invalid size: {size}")
+        if quality not in ["standard", "hd"]:
+            raise ValueError(f"Invalid quality: {quality}")
+        if response_format not in ["url", "b64_json"]:
+            raise ValueError(f"Invalid response_format: {response_format}")
+            
         data = {
             "model": model,
             "prompt": prompt,

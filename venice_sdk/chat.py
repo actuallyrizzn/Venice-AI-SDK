@@ -95,6 +95,17 @@ class ChatAPI:
             raise ValueError("Messages must be a non-empty list")
         if not 0 <= temperature <= 1:
             raise ValueError("Temperature must be between 0 and 1")
+        
+        # Validate message format
+        for i, message in enumerate(messages):
+            if not isinstance(message, dict):
+                raise ValueError(f"Message {i} must be a dictionary")
+            if "role" not in message:
+                raise ValueError(f"Message {i} must have a 'role' field")
+            if "content" not in message:
+                raise ValueError(f"Message {i} must have a 'content' field")
+            if message["role"] not in ["system", "user", "assistant"]:
+                raise ValueError(f"Message {i} has invalid role: {message['role']}")
 
         data = {
             "messages": messages,
