@@ -502,7 +502,7 @@ class TestConfigLive:
         config_str = str(config)
         
         assert "Config" in config_str
-        assert "test-key" in config_str
+        assert "***" in config_str  # API key should be masked
         assert "30" in config_str
 
     def test_config_repr(self):
@@ -511,5 +511,5 @@ class TestConfigLive:
         config_repr = repr(config)
         
         assert "Config" in config_repr
-        assert "test-key" in config_repr
+        assert "***" in config_repr  # API key should be masked
         assert "30" in config_repr

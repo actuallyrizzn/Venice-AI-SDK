@@ -6,9 +6,10 @@ These tests make real API calls to verify VeniceClient functionality.
 
 import pytest
 import os
+import time
 from venice_sdk.venice_client import VeniceClient, create_client
 from venice_sdk.config import Config
-from venice_sdk.errors import VeniceAPIError
+from venice_sdk.errors import VeniceAPIError, RateLimitError, TimeoutError
 
 
 @pytest.mark.live

@@ -351,16 +351,10 @@ class TestModelsAPILive:
 
     def test_models_api_error_handling(self):
         """Test error handling in models API."""
-        # Test with invalid client
-        from venice_sdk.client import HTTPClient
-        from venice_sdk.config import Config
-        
-        invalid_config = Config(api_key="invalid-key")
-        invalid_client = HTTPClient(invalid_config)
-        invalid_models_api = ModelsAPI(invalid_client)
-        
+        # Note: The models endpoint doesn't validate API keys, so we test with a different scenario
+        # Test with an invalid model ID instead
         with pytest.raises(VeniceAPIError):
-            invalid_models_api.list()
+            self.models_api.get("nonexistent-model-id")
 
     def test_models_api_performance(self):
         """Test models API performance."""
