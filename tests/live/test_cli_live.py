@@ -149,13 +149,16 @@ class TestCLILive:
                 
                 # Mock click.echo to capture output
                 with patch('venice_sdk.cli.click.echo') as mock_echo:
-                    auth(api_key)
+                    from click.testing import CliRunner
+                    runner = CliRunner()
+                    result = runner.invoke(auth, [api_key])
+                    assert result.exit_code == 0
                     
                     # Verify .env file still exists
                     assert env_file.exists()
                     
                     # Verify content
-                    content = env_file.read_text()
+                    content = env_file.read_text(encoding='utf-8')
                     assert f"VENICE_API_KEY={api_key}" in content
                     assert "EXISTING_VAR=existing_value" in content
                     
@@ -181,14 +184,17 @@ class TestCLILive:
                 
                 # Mock click.echo to capture output
                 with patch('venice_sdk.cli.click.echo') as mock_echo:
-                    auth(api_key)
+                    from click.testing import CliRunner
+                    runner = CliRunner()
+                    result = runner.invoke(auth, [api_key])
+                    assert result.exit_code == 0
                     
                     # Verify .env file was created
                     env_file = Path(".env")
                     assert env_file.exists()
                     
                     # Verify content
-                    content = env_file.read_text()
+                    content = env_file.read_text(encoding='utf-8')
                     assert f"VENICE_API_KEY={api_key}" in content
                     
                     # Verify click.echo was called
@@ -213,14 +219,17 @@ class TestCLILive:
                 
                 # Mock click.echo to capture output
                 with patch('venice_sdk.cli.click.echo') as mock_echo:
-                    auth(api_key)
+                    from click.testing import CliRunner
+                    runner = CliRunner()
+                    result = runner.invoke(auth, [api_key])
+                    assert result.exit_code == 0
                     
                     # Verify .env file was created
                     env_file = Path(".env")
                     assert env_file.exists()
                     
                     # Verify content
-                    content = env_file.read_text()
+                    content = env_file.read_text(encoding='utf-8')
                     assert f"VENICE_API_KEY={api_key}" in content
                     
                     # Verify click.echo was called
@@ -245,14 +254,17 @@ class TestCLILive:
                 
                 # Mock click.echo to capture output
                 with patch('venice_sdk.cli.click.echo') as mock_echo:
-                    auth(api_key)
+                    from click.testing import CliRunner
+                    runner = CliRunner()
+                    result = runner.invoke(auth, [api_key])
+                    assert result.exit_code == 0
                     
                     # Verify .env file was created
                     env_file = Path(".env")
                     assert env_file.exists()
                     
                     # Verify content
-                    content = env_file.read_text()
+                    content = env_file.read_text(encoding='utf-8')
                     assert f"VENICE_API_KEY={api_key}" in content
                     
                     # Verify click.echo was called
@@ -330,7 +342,10 @@ class TestCLILive:
             
             # Mock click.echo to capture output
             with patch('venice_sdk.cli.click.echo') as mock_echo:
-                status()
+                from click.testing import CliRunner
+                runner = CliRunner()
+                result = runner.invoke(status)
+                assert result.exit_code == 0
                 
                 # Verify click.echo was called with correct messages
                 calls = mock_echo.call_args_list
@@ -370,7 +385,10 @@ class TestCLILive:
             
             # Mock click.echo to capture output
             with patch('venice_sdk.cli.click.echo') as mock_echo:
-                status()
+                from click.testing import CliRunner
+                runner = CliRunner()
+                result = runner.invoke(status)
+                assert result.exit_code == 0
                 
                 # Verify click.echo was called with correct messages
                 calls = mock_echo.call_args_list
