@@ -46,3 +46,9 @@ Thumbs.db
 
 # Temporary files
 tmp/
+
+# Temporary test/debug scripts
+test_*.py
+check_*.py
+get_*.py
+debug_*.py
