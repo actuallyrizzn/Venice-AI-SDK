@@ -454,10 +454,10 @@ mkdocs serve
 
 ## License
 
-This project is dual-licensed under:
+This project is dual-licensed:
 
-- **GNU Affero General Public License v3.0 (AGPLv3)** - Strong copyleft protection, requires source code availability for network services
-- **Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA)** - Attribution required, derivative works must use same license
+- **Code/Software**: GNU Affero General Public License v3.0 (AGPLv3) - Strong copyleft protection, requires source code availability for network services
+- **Documentation/Examples**: Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA) - Attribution required, derivative works must use same license
 
 You may choose to use this work under either license, whichever better suits your needs.
 

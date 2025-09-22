@@ -326,8 +326,8 @@ We welcome contributions to the examples! Please:
 ## 📄 License
 
 These examples are provided under the same dual license as the main SDK:
-- GNU Affero General Public License v3.0
-- Creative Commons Attribution-ShareAlike 4.0 International
+- **Code/Software**: GNU Affero General Public License v3.0 (AGPLv3)
+- **Documentation/Examples**: Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA)
 
 ## 🎉 Happy Coding!
 

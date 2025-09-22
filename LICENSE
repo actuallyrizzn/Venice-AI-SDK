@@ -2,6 +2,9 @@ Dual License: GNU Affero General Public License v3.0 and Creative Commons Attrib
 
 This work is dual-licensed under the following two licenses:
 
+- **Code/Software**: GNU Affero General Public License v3.0 (AGPLv3)
+- **Documentation/Examples**: Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA)
+
 =======================================================================
 
 LICENSE 1: GNU AFFERO GENERAL PUBLIC LICENSE v3.0
@@ -454,13 +457,13 @@ USAGE INSTRUCTIONS
 
 You may choose to use this work under either license:
 
-1. GNU Affero General Public License v3.0 (AGPLv3) - Choose this if you want:
+1. **Code/Software**: GNU Affero General Public License v3.0 (AGPLv3) - Choose this if you want:
    - Strong copyleft protection
    - Source code must be made available when providing network services
    - Derivative works must also be licensed under AGPLv3
    - Commercial use allowed but with copyleft requirements
 
-2. Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA) - Choose this if you want:
+2. **Documentation/Examples**: Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA) - Choose this if you want:
    - Attribution required
    - Derivative works must be licensed under the same terms
    - Commercial use allowed

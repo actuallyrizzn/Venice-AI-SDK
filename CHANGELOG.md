@@ -43,7 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### License
 - **Dual License**: Changed from CC-BY-SA 4.0 to dual license (AGPLv3 + CC-BY-SA 4.0)
-- **Flexible Licensing**: Users can choose between AGPLv3 (strong copyleft) or CC-BY-SA (attribution required)
+- **Code/Software**: GNU Affero General Public License v3.0 (AGPLv3) - Strong copyleft protection
+- **Documentation/Examples**: Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA) - Attribution required
 
 ## [0.1.0] - 2024-03-20
 
