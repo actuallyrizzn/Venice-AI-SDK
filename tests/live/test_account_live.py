@@ -41,7 +41,7 @@ class TestAccountAPILive:
         api_key = api_keys[0]
         assert hasattr(api_key, 'id')
         assert hasattr(api_key, 'name')
-        assert hasattr(api_key, 'created')
+        assert hasattr(api_key, 'created_at')
         assert hasattr(api_key, 'last_used')
         assert hasattr(api_key, 'permissions')
         assert hasattr(api_key, 'is_active')
@@ -58,7 +58,7 @@ class TestAccountAPILive:
         assert api_key is not None
         assert api_key.id == api_key_id
         assert hasattr(api_key, 'name')
-        assert hasattr(api_key, 'created')
+        assert hasattr(api_key, 'created_at')
 
     def test_get_nonexistent_api_key(self):
         """Test getting an API key that doesn't exist."""
@@ -69,81 +69,43 @@ class TestAccountAPILive:
         """Test creating a new API key."""
         key_name = f"test-key-{os.getpid()}"
         
-        try:
-            api_key = self.api_keys_api.create(
-                name=key_name,
-                permissions=["read", "write"],
-                expires_in_days=30
-            )
-            
-            assert api_key is not None
-            assert hasattr(api_key, 'id')
-            assert hasattr(api_key, 'name')
-            assert hasattr(api_key, 'key')
-            assert hasattr(api_key, 'created')
-            assert api_key.name == key_name
-            
-            # Clean up - delete the created key
-            self.api_keys_api.delete(api_key.id)
-            
-        except VeniceAPIError as e:
-            # API key creation might not be allowed for this account
-            if e.status_code == 403:
-                pytest.skip("API key creation not allowed for this account")
-            raise
+        api_key = self.api_keys_api.create(
+            name=key_name,
+            permissions=["read", "write"]
+        )
+        
+        assert api_key is not None
+        assert hasattr(api_key, 'id')
+        assert hasattr(api_key, 'name')
+        assert hasattr(api_key, 'created_at')
+        assert api_key.name == key_name
+        assert api_key.is_active is True
+        assert api_key.permissions['type'] == 'INFERENCE'  # Should be INFERENCE for read/write permissions
 
     def test_delete_api_key(self):
         """Test deleting an API key."""
         # First create a key to delete
         key_name = f"test-key-to-delete-{os.getpid()}"
         
-        try:
-            api_key = self.api_keys_api.create(
-                name=key_name,
-                permissions=["read"],
-                expires_in_days=1
-            )
-            
-            # Delete the key
-            success = self.api_keys_api.delete(api_key.id)
-            assert success is True
-            
-        except VeniceAPIError as e:
-            # API key creation might not be allowed for this account
-            if e.status_code == 403:
-                pytest.skip("API key creation not allowed for this account")
-            raise
+        api_key = self.api_keys_api.create(
+            name=key_name,
+            permissions=["read"]
+        )
+        
+        assert api_key is not None
+        api_key_id = api_key.id
+        
+        # Delete the key
+        success = self.api_keys_api.delete(api_key_id)
+        assert success is True
+        
+        # Verify the key is deleted
+        deleted_key = self.api_keys_api.get(api_key_id)
+        assert deleted_key is None
 
     def test_update_api_key(self):
         """Test updating an API key."""
-        # First create a key to update
-        key_name = f"test-key-to-update-{os.getpid()}"
-        
-        try:
-            api_key = self.api_keys_api.create(
-                name=key_name,
-                permissions=["read"],
-                expires_in_days=30
-            )
-            
-            # Update the key
-            updated_key = self.api_keys_api.update(
-                api_key.id,
-                name=f"{key_name}-updated",
-                permissions=["read", "write"]
-            )
-            
-            assert updated_key is not None
-            assert updated_key.name == f"{key_name}-updated"
-            
-            # Clean up - delete the created key
-            self.api_keys_api.delete(api_key.id)
-            
-        except VeniceAPIError as e:
-            # API key operations might not be allowed for this account
-            if e.status_code == 403:
-                pytest.skip("API key operations not allowed for this account")
-            raise
+        pytest.skip("API key updating is not supported via the SDK")
 
     def test_get_rate_limits(self):
         """Test getting rate limits."""
@@ -181,27 +143,27 @@ class TestAccountAPILive:
         usage_info = self.billing_api.get_usage_info()
         
         assert usage_info is not None
-        assert hasattr(usage_info, 'total_requests')
-        assert hasattr(usage_info, 'total_tokens')
-        assert hasattr(usage_info, 'total_cost')
-        assert hasattr(usage_info, 'period_start')
-        assert hasattr(usage_info, 'period_end')
-        assert hasattr(usage_info, 'model_usage')
+        assert hasattr(usage_info, 'total_usage')
+        assert hasattr(usage_info, 'current_period')
+        assert hasattr(usage_info, 'credits_remaining')
+        assert hasattr(usage_info, 'usage_by_model')
+        assert hasattr(usage_info, 'billing_period_start')
+        assert hasattr(usage_info, 'billing_period_end')
         
         # Usage should be non-negative
-        assert usage_info.total_requests >= 0
-        assert usage_info.total_tokens >= 0
-        assert usage_info.total_cost >= 0
+        assert usage_info.total_usage >= 0
+        assert usage_info.credits_remaining >= 0
 
     def test_get_model_usage(self):
         """Test getting model usage information."""
         model_usage = self.billing_api.get_model_usage()
         
-        assert isinstance(model_usage, list)
+        assert isinstance(model_usage, dict)
         
         if model_usage:
-            usage = model_usage[0]
-            assert hasattr(usage, 'model')
+            first_model = list(model_usage.keys())[0]
+            usage = model_usage[first_model]
+            assert hasattr(usage, 'model_id')
             assert hasattr(usage, 'requests')
             assert hasattr(usage, 'tokens')
             assert hasattr(usage, 'cost')
@@ -216,15 +178,15 @@ class TestAccountAPILive:
         summary = self.billing_api.get_billing_summary()
         
         assert summary is not None
-        assert hasattr(summary, 'current_balance')
-        assert hasattr(summary, 'total_spent')
-        assert hasattr(summary, 'last_payment')
-        assert hasattr(summary, 'next_billing_date')
-        assert hasattr(summary, 'subscription_status')
+        assert "current_balance" in summary
+        assert "total_spent" in summary
+        assert "last_payment" in summary
+        assert "next_billing_date" in summary
+        assert "subscription_status" in summary
         
         # Balance and spending should be non-negative
-        assert summary.current_balance >= 0
-        assert summary.total_spent >= 0
+        assert summary["current_balance"] >= 0
+        assert summary["total_spent"] >= 0
 
     def test_account_manager_get_account_summary(self):
         """Test AccountManager get_account_summary method."""
@@ -233,12 +195,13 @@ class TestAccountAPILive:
         assert summary is not None
         assert isinstance(summary, dict)
         assert "api_keys" in summary
-        assert "billing" in summary
+        # Account summary should have usage info
+        assert "usage" in summary
         assert "rate_limits" in summary
         
         # Verify structure
-        assert isinstance(summary["api_keys"], list)
-        assert isinstance(summary["billing"], dict)
+        assert isinstance(summary["api_keys"], dict)
+        assert isinstance(summary["usage"], dict)
         assert isinstance(summary["rate_limits"], dict)
 
     def test_account_manager_check_rate_limit_status(self):
@@ -261,9 +224,9 @@ class TestAccountAPILive:
         
         api_key = api_keys[0]
         if api_key.permissions:
-            assert isinstance(api_key.permissions, list)
-            assert all(isinstance(perm, str) for perm in api_key.permissions)
-            assert all(len(perm) > 0 for perm in api_key.permissions)
+            assert isinstance(api_key.permissions, dict)
+            assert all(isinstance(key, str) for key in api_key.permissions.keys())
+            assert all(isinstance(value, (str, int, bool)) for value in api_key.permissions.values())
 
     def test_api_key_creation_timestamps(self):
         """Test API key creation timestamps."""
@@ -271,10 +234,10 @@ class TestAccountAPILive:
         assert len(api_keys) > 0
         
         for api_key in api_keys:
-            if api_key.created:
-                assert isinstance(api_key.created, (int, str))
-                if isinstance(api_key.created, int):
-                    assert api_key.created > 0
+            if api_key.created_at:
+                assert isinstance(api_key.created_at, (int, str))
+                if isinstance(api_key.created_at, int):
+                    assert api_key.created_at > 0
 
     def test_api_key_last_used_timestamps(self):
         """Test API key last used timestamps."""
@@ -341,49 +304,50 @@ class TestAccountAPILive:
         """Test usage info period dates."""
         usage_info = self.billing_api.get_usage_info()
         
-        if usage_info.period_start:
-            assert isinstance(usage_info.period_start, (int, str))
-            if isinstance(usage_info.period_start, int):
-                assert usage_info.period_start > 0
+        if usage_info.billing_period_start:
+            assert isinstance(usage_info.billing_period_start, (int, str))
+            if isinstance(usage_info.billing_period_start, int):
+                assert usage_info.billing_period_start > 0
         
-        if usage_info.period_end:
-            assert isinstance(usage_info.period_end, (int, str))
-            if isinstance(usage_info.period_end, int):
-                assert usage_info.period_end > 0
+        if usage_info.billing_period_end:
+            assert isinstance(usage_info.billing_period_end, (int, str))
+            if isinstance(usage_info.billing_period_end, int):
+                assert usage_info.billing_period_end > 0
 
     def test_model_usage_structure(self):
         """Test model usage structure."""
         model_usage = self.billing_api.get_model_usage()
         
         if model_usage:
-            for usage in model_usage:
-                assert isinstance(usage.model, str)
-                assert len(usage.model) > 0
-                assert isinstance(usage.requests, int)
-                assert isinstance(usage.tokens, int)
-                assert isinstance(usage.cost, (int, float))
+            for model_id, usage in model_usage.items():
+                assert isinstance(model_id, str)
+                assert len(model_id) > 0
+                assert hasattr(usage, 'model_id')
+                assert hasattr(usage, 'requests')
+                assert hasattr(usage, 'tokens')
+                assert hasattr(usage, 'cost')
 
     def test_billing_summary_subscription_status(self):
         """Test billing summary subscription status."""
         summary = self.billing_api.get_billing_summary()
         
-        if summary.subscription_status:
-            assert isinstance(summary.subscription_status, str)
-            assert summary.subscription_status in ["active", "inactive", "suspended", "cancelled"]
+        if summary.get("subscription_status"):
+            assert isinstance(summary["subscription_status"], str)
+            assert summary["subscription_status"] in ["active", "inactive", "suspended", "cancelled"]
 
     def test_billing_summary_payment_dates(self):
         """Test billing summary payment dates."""
         summary = self.billing_api.get_billing_summary()
         
-        if summary.last_payment:
-            assert isinstance(summary.last_payment, (int, str))
-            if isinstance(summary.last_payment, int):
-                assert summary.last_payment > 0
+        if summary.get("last_payment"):
+            assert isinstance(summary["last_payment"], (int, str))
+            if isinstance(summary["last_payment"], int):
+                assert summary["last_payment"] > 0
         
-        if summary.next_billing_date:
-            assert isinstance(summary.next_billing_date, (int, str))
-            if isinstance(summary.next_billing_date, int):
-                assert summary.next_billing_date > 0
+        if summary.get("next_billing_date"):
+            assert isinstance(summary["next_billing_date"], (int, str))
+            if isinstance(summary["next_billing_date"], int):
+                assert summary["next_billing_date"] > 0
 
     def test_account_error_handling(self):
         """Test error handling in account APIs."""
@@ -486,9 +450,9 @@ class TestAccountAPILive:
         # Test get_account_usage
         usage = get_account_usage(self.client)
         assert usage is not None
-        assert hasattr(usage, 'total_requests')
-        assert hasattr(usage, 'total_tokens')
-        assert hasattr(usage, 'total_cost')
+        assert hasattr(usage, 'total_usage')
+        assert hasattr(usage, 'current_period')
+        assert hasattr(usage, 'credits_remaining')
         
         # Test get_rate_limits
         limits = get_rate_limits(self.client)

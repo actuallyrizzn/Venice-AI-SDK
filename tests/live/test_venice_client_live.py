@@ -213,7 +213,7 @@ class TestVeniceClientLive:
             api_key = api_keys[0]
             assert hasattr(api_key, 'id')
             assert hasattr(api_key, 'name')
-            assert hasattr(api_key, 'created')
+            assert hasattr(api_key, 'created_at')
             assert hasattr(api_key, 'last_used')
             assert hasattr(api_key, 'permissions')
             assert hasattr(api_key, 'is_active')

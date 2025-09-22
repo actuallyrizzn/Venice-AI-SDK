@@ -209,4 +209,8 @@ class HTTPClient:
     
     def stream(self, endpoint: str, data: Optional[Dict[str, Any]] = None, **kwargs) -> Generator[str, None, None]:
         """Make a streaming request."""
-        return self._make_request("POST", endpoint, data=data, stream=True, **kwargs) 
+        return self._make_request("POST", endpoint, data=data, stream=True, **kwargs)
+    
+    def delete(self, endpoint: str, **kwargs) -> Response:
+        """Make a DELETE request."""
+        return self._make_request("DELETE", endpoint, **kwargs) 

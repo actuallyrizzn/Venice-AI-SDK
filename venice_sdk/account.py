@@ -124,18 +124,22 @@ class APIKeysAPI:
         try:
             response = self.client.get(f"/api_keys/{key_id}")
             result = response.json()
-            
+
             if "data" not in result:
                 return None
                 
             return APIKey(
                 id=result["data"]["id"],
-                name=result["data"]["name"],
-                created=result["data"]["created"],
-                last_used=result["data"].get("last_used"),
-                permissions=result["data"].get("permissions", []),
+                name=result["data"].get("description", "Unknown"),
+                created_at=result["data"].get("createdAt"),
+                last_used=result["data"].get("lastUsedAt"),
+                permissions={"type": result["data"].get("apiKeyType")},
                 is_active=result["data"].get("is_active", True)
             )
+        except VeniceAPIError as e:
+            if "not found" in str(e).lower():
+                return None
+            raise
         except APIKeyError:
             return None
     
@@ -144,16 +148,41 @@ class APIKeysAPI:
         Create a new API key.
         
         Args:
-            name: Name for the API key
-            permissions: Optional list of permissions
-            expires_in_days: Optional expiration in days
+            name: Name for the API key (used as description)
+            permissions: Optional list of permissions (not used by API)
+            expires_in_days: Optional expiration in days (not used by API)
             
         Returns:
             New APIKey object
         """
-        # The Venice AI API doesn't support creating API keys via the SDK
-        # This is typically done through the web interface
-        raise APIKeyError("API key creation is not supported via the SDK. Please use the Venice AI web interface.")
+        try:
+            # Map permissions to API key type
+            api_key_type = "ADMIN" if permissions and "admin" in [p.lower() for p in permissions] else "INFERENCE"
+            
+            data = {
+                "apiKeyType": api_key_type,
+                "description": name
+            }
+            
+            response = self.client.post("/api_keys", data=data)
+            result = response.json()
+            
+            if "data" not in result:
+                raise APIKeyError("Invalid response format from API key creation endpoint")
+            
+            api_key_data = result["data"]
+            return APIKey(
+                id=api_key_data["id"],
+                name=api_key_data.get("description", name),
+                description=api_key_data.get("description"),
+                created_at=api_key_data.get("createdAt"),
+                last_used=api_key_data.get("lastUsedAt"),
+                permissions={"type": api_key_data.get("apiKeyType")},
+                is_active=True,
+                rate_limits=api_key_data.get("consumptionLimit")
+            )
+        except Exception as e:
+            raise APIKeyError(f"Failed to create API key: {e}")
     
     def delete(self, key_id: str) -> bool:
         """
@@ -165,9 +194,12 @@ class APIKeysAPI:
         Returns:
             True if successful, False otherwise
         """
-        # The Venice AI API doesn't support deleting API keys via the SDK
-        # This is typically done through the web interface
-        raise APIKeyError("API key deletion is not supported via the SDK. Please use the Venice AI web interface.")
+        try:
+            response = self.client.delete("/api_keys", params={"id": key_id})
+            result = response.json()
+            return result.get("success", False)
+        except Exception as e:
+            raise APIKeyError(f"Failed to delete API key: {e}")
     
     def update(self, key_id: str, name: Optional[str] = None, permissions: Optional[List[str]] = None) -> Optional[APIKey]:
         """
