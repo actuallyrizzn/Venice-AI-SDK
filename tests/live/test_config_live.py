@@ -221,10 +221,19 @@ class TestConfigLive:
             env_file = Path(env_file_path)
             env_file.rename(env_dir / ".env")
             
-            # Remove API key from environment
+            # Store original environment variables
             original_api_key = os.environ.get("VENICE_API_KEY")
-            if "VENICE_API_KEY" in os.environ:
-                del os.environ["VENICE_API_KEY"]
+            original_base_url = os.environ.get("VENICE_BASE_URL")
+            original_default_model = os.environ.get("VENICE_DEFAULT_MODEL")
+            original_timeout = os.environ.get("VENICE_TIMEOUT")
+            original_max_retries = os.environ.get("VENICE_MAX_RETRIES")
+            original_retry_delay = os.environ.get("VENICE_RETRY_DELAY")
+            
+            # Clear environment variables
+            for key in ["VENICE_API_KEY", "VENICE_BASE_URL", "VENICE_DEFAULT_MODEL", 
+                       "VENICE_TIMEOUT", "VENICE_MAX_RETRIES", "VENICE_RETRY_DELAY"]:
+                if key in os.environ:
+                    del os.environ[key]
             
             # Force reload environment variables from .env file
             from dotenv import load_dotenv
@@ -243,14 +252,28 @@ class TestConfigLive:
             # Restore original working directory
             os.chdir(original_cwd)
             
-            # Restore original environment variable
+            # Restore original environment variables
             if original_api_key is not None:
                 os.environ["VENICE_API_KEY"] = original_api_key
+            if original_base_url is not None:
+                os.environ["VENICE_BASE_URL"] = original_base_url
+            if original_default_model is not None:
+                os.environ["VENICE_DEFAULT_MODEL"] = original_default_model
+            if original_timeout is not None:
+                os.environ["VENICE_TIMEOUT"] = original_timeout
+            if original_max_retries is not None:
+                os.environ["VENICE_MAX_RETRIES"] = original_max_retries
+            if original_retry_delay is not None:
+                os.environ["VENICE_RETRY_DELAY"] = original_retry_delay
             
             # Clean up .env file
             env_file_path = env_dir / ".env"
             if env_file_path.exists():
                 os.unlink(env_file_path)
+            
+            # Force reload the real .env file to restore proper environment
+            from dotenv import load_dotenv
+            load_dotenv(override=True)
 
     def test_load_config_with_invalid_timeout(self):
         """Test load_config with invalid timeout value."""

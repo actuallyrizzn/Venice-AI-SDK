@@ -232,17 +232,16 @@ class TestVeniceClientLive:
             usage_info = client.billing.get_usage()
             
             assert usage_info is not None
-            assert hasattr(usage_info, 'total_requests')
-            assert hasattr(usage_info, 'total_tokens')
-            assert hasattr(usage_info, 'total_cost')
-            assert hasattr(usage_info, 'period_start')
-            assert hasattr(usage_info, 'period_end')
-            assert hasattr(usage_info, 'model_usage')
+            assert hasattr(usage_info, 'total_usage')
+            assert hasattr(usage_info, 'current_period')
+            assert hasattr(usage_info, 'credits_remaining')
+            assert hasattr(usage_info, 'usage_by_model')
+            assert hasattr(usage_info, 'billing_period_start')
+            assert hasattr(usage_info, 'billing_period_end')
             
             # Usage should be non-negative
-            assert usage_info.total_requests >= 0
-            assert usage_info.total_tokens >= 0
-            assert usage_info.total_cost >= 0
+            assert usage_info.total_usage >= 0
+            assert usage_info.credits_remaining >= 0
         except Exception as e:
             if "Admin API key required" in str(e):
                 pytest.skip("Admin API key required for account functionality test")
