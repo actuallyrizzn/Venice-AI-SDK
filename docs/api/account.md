@@ -175,11 +175,12 @@ billing = client.billing  # BillingAPI instance
 
 #### Methods
 
-##### `get_usage() -> UsageInfo`
+##### `get_usage(currency=None, start_date=None, end_date=None, limit=200, page=1, sort_order="desc") -> UsageInfo`
 
-Get current account usage information.
+Get current account usage information with pagination support.
 
 ```python
+# Basic usage
 usage = billing.get_usage()
 print(f"Total usage: {usage.total_usage}")
 print(f"Credits remaining: {usage.credits_remaining}")
@@ -188,10 +189,57 @@ print(f"Current period: {usage.current_period}")
 # Usage by model
 for model, model_usage in usage.usage_by_model.items():
     print(f"{model}: {model_usage['requests']} requests, {model_usage['cost']} cost")
+
+# With pagination parameters
+from datetime import datetime, timedelta
+
+end_date = datetime.now()
+start_date = end_date - timedelta(days=30)
+
+usage = billing.get_usage(
+    currency="USD",
+    start_date=start_date,
+    end_date=end_date,
+    limit=50,
+    page=2,
+    sort_order="asc"
+)
+
+# Access pagination info
+if usage.pagination:
+    print(f"Page {usage.pagination['page']} of {usage.pagination['totalPages']}")
+    print(f"Total records: {usage.pagination['total']}")
+```
+
+**Parameters:**
+- `currency` (Optional[str]): Filter by currency (USD, VCU, DIEM)
+- `start_date` (Optional[datetime]): Start date for filtering records (ISO 8601)
+- `end_date` (Optional[datetime]): End date for filtering records (ISO 8601)
+- `limit` (int): Number of items per page (0-500, default 200)
+- `page` (int): Page number for pagination (default 1)
+- `sort_order` (str): Sort order for createdAt field (asc/desc, default desc)
+
+**Returns:**
+- `UsageInfo` - Current usage information with optional pagination data
+
+##### `get_pagination_info() -> Dict[str, Any]`
+
+Get pagination information for the last usage request.
+
+```python
+# Get usage first
+usage = billing.get_usage(limit=50, page=2)
+
+# Then get pagination info
+pagination = billing.get_pagination_info()
+print(f"Current page: {pagination['page']}")
+print(f"Total pages: {pagination['totalPages']}")
+print(f"Total records: {pagination['total']}")
+print(f"Items per page: {pagination['limit']}")
 ```
 
 **Returns:**
-- `UsageInfo` - Current usage information
+- `Dict[str, Any]` - Pagination metadata including limit, page, total, totalPages
 
 ##### `get_usage_by_model() -> Dict[str, ModelUsage]`
 

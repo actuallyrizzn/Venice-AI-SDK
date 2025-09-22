@@ -114,7 +114,9 @@ def step_4_first_chat():
                 {"role": "user", "content": "Hello! Can you tell me a short joke?"}
             ],
             model="llama-3.3-70b",
-            max_tokens=100
+            temperature=0.7,
+            max_completion_tokens=100,
+            frequency_penalty=0.1
         )
         
         print("✅ Chat completion successful!")
@@ -253,7 +255,9 @@ def step_8_streaming():
         for chunk in client.chat.complete_stream(
             messages=messages,
             model="llama-3.3-70b",
-            max_tokens=200
+            temperature=0.8,
+            max_completion_tokens=200,
+            stream_options={"include_usage": True}
         ):
             if chunk.startswith("data: "):
                 data_content = chunk[6:].strip()

@@ -157,8 +157,8 @@ class AIAssistant:
         ]
     
     def chat(self, user_input: str, model: str = "llama-3.3-70b", 
-             use_functions: bool = True) -> str:
-        """Process a chat message and return response."""
+             use_functions: bool = True, **advanced_params) -> str:
+        """Process a chat message and return response with advanced parameter support."""
         # Add user message
         self.add_message("user", user_input)
         
@@ -180,19 +180,28 @@ class AIAssistant:
             }
             messages.insert(0, system_message)
             
+            # Set default advanced parameters if not provided
+            default_params = {
+                "temperature": 0.7,
+                "max_completion_tokens": 1000,
+                "frequency_penalty": 0.1,
+                "presence_penalty": 0.1
+            }
+            default_params.update(advanced_params)
+            
             # Make API call
             if use_functions:
                 response = self.client.chat.complete(
                     messages=messages,
                     model=model,
                     tools=self.functions,
-                    temperature=0.7
+                    **default_params
                 )
             else:
                 response = self.client.chat.complete(
                     messages=messages,
                     model=model,
-                    temperature=0.7
+                    **default_params
                 )
             
             # Process response

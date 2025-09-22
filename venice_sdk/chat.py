@@ -69,6 +69,21 @@ class ChatAPI:
         stream: bool = False,
         tools: Optional[List[Dict[str, Any]]] = None,
         venice_parameters: Optional[Dict[str, Any]] = None,
+        # Additional parameters from Swagger spec
+        frequency_penalty: Optional[float] = None,
+        logprobs: Optional[bool] = None,
+        top_logprobs: Optional[int] = None,
+        max_completion_tokens: Optional[int] = None,
+        max_temp: Optional[float] = None,
+        min_p: Optional[float] = None,
+        min_temp: Optional[float] = None,
+        n: int = 1,
+        presence_penalty: Optional[float] = None,
+        repetition_penalty: Optional[float] = None,
+        seed: Optional[int] = None,
+        stop: Optional[Union[str, List[str]]] = None,
+        stop_token_ids: Optional[List[int]] = None,
+        stream_options: Optional[Dict[str, Any]] = None,
         **kwargs: Any
     ) -> Union[Dict, Generator[str, None, None]]:
         """
@@ -77,24 +92,58 @@ class ChatAPI:
         Args:
             messages: List of messages in the conversation
             model: Model to use for completion
-            temperature: Sampling temperature (0-1)
+            temperature: Sampling temperature (0-2)
             stream: Whether to stream the response
             tools: Optional list of tools for function calling
             venice_parameters: Optional Venice-specific parameters (e.g., include_venice_system_prompt)
-            **kwargs: Additional optional parameters to pass through (e.g., stop, max_tokens, n)
+            frequency_penalty: Number between -2.0 and 2.0. Positive values penalize new tokens based on frequency
+            logprobs: Whether to include log probabilities in the response
+            top_logprobs: Number of highest probability tokens to return for each token position
+            max_completion_tokens: Upper bound for tokens that can be generated
+            max_temp: Maximum temperature value for dynamic temperature scaling (0-2)
+            min_p: Minimum probability threshold for token selection (0-1)
+            min_temp: Minimum temperature value for dynamic temperature scaling (0-2)
+            n: Number of chat completion choices to generate (default 1)
+            presence_penalty: Number between -2.0 and 2.0. Positive values penalize tokens based on presence
+            repetition_penalty: Parameter for repetition penalty. 1.0 means no penalty, >1.0 discourages repetition
+            seed: Random seed for reproducible responses
+            stop: Up to 4 sequences where the API will stop generating
+            stop_token_ids: Array of token IDs where the API will stop generating
+            stream_options: Options for streaming (e.g., include_usage)
+            **kwargs: Additional optional parameters to pass through
 
         Returns:
             If stream=False, returns the complete response as a dictionary
             If stream=True, returns a generator yielding response chunks as strings
 
         Raises:
-            ValueError: If messages is empty or temperature is invalid
+            ValueError: If messages is empty or parameters are invalid
             VeniceAPIError: If the API request fails
         """
         if not messages:
             raise ValueError("Messages must be a non-empty list")
-        if not 0 <= temperature <= 1:
-            raise ValueError("Temperature must be between 0 and 1")
+        if not 0 <= temperature <= 2:
+            raise ValueError("Temperature must be between 0 and 2")
+        
+        # Validate parameter ranges
+        if frequency_penalty is not None and not -2 <= frequency_penalty <= 2:
+            raise ValueError("Frequency penalty must be between -2.0 and 2.0")
+        if presence_penalty is not None and not -2 <= presence_penalty <= 2:
+            raise ValueError("Presence penalty must be between -2.0 and 2.0")
+        if repetition_penalty is not None and repetition_penalty < 0:
+            raise ValueError("Repetition penalty must be >= 0")
+        if max_temp is not None and not 0 <= max_temp <= 2:
+            raise ValueError("Max temperature must be between 0 and 2")
+        if min_temp is not None and not 0 <= min_temp <= 2:
+            raise ValueError("Min temperature must be between 0 and 2")
+        if min_p is not None and not 0 <= min_p <= 1:
+            raise ValueError("Min p must be between 0 and 1")
+        if top_logprobs is not None and top_logprobs < 0:
+            raise ValueError("Top logprobs must be >= 0")
+        if seed is not None and seed < 0:
+            raise ValueError("Seed must be >= 0")
+        if n < 1:
+            raise ValueError("n must be >= 1")
         
         # Validate message format
         for i, message in enumerate(messages):
@@ -111,13 +160,34 @@ class ChatAPI:
             "messages": messages,
             "model": model,
             "temperature": temperature,
-            "stream": stream
+            "stream": stream,
+            "n": n
         }
-        if tools:
-            data["tools"] = tools
-        if venice_parameters:
-            data["venice_parameters"] = venice_parameters
-        # Allow additional optional parameters (e.g., stop, max_tokens, n, etc.)
+        
+        # Add optional parameters if provided
+        optional_params = {
+            "tools": tools,
+            "venice_parameters": venice_parameters,
+            "frequency_penalty": frequency_penalty,
+            "logprobs": logprobs,
+            "top_logprobs": top_logprobs,
+            "max_completion_tokens": max_completion_tokens,
+            "max_temp": max_temp,
+            "min_p": min_p,
+            "min_temp": min_temp,
+            "presence_penalty": presence_penalty,
+            "repetition_penalty": repetition_penalty,
+            "seed": seed,
+            "stop": stop,
+            "stop_token_ids": stop_token_ids,
+            "stream_options": stream_options
+        }
+        
+        for key, value in optional_params.items():
+            if value is not None:
+                data[key] = value
+        
+        # Allow additional optional parameters (e.g., max_tokens, etc.)
         if kwargs:
             data.update(kwargs)
 

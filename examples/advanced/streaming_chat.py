@@ -149,7 +149,11 @@ def function_calling_streaming_example():
             messages=messages,
             model="llama-3.3-70b",
             tools=tools,
-            temperature=0.3
+            temperature=0.8,
+            frequency_penalty=0.1,
+            presence_penalty=0.1,
+            max_completion_tokens=1000,
+            stream_options={"include_usage": True}
         ):
             if chunk.startswith("data: "):
                 data_content = chunk[6:].strip()

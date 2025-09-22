@@ -13,7 +13,8 @@ examples/
 ├── advanced/                   # Advanced examples
 │   ├── streaming_chat.py       # Advanced streaming chat
 │   ├── image_processing_pipeline.py  # Image processing pipeline
-│   └── ai_assistant.py         # Complete AI assistant
+│   ├── ai_assistant.py         # Complete AI assistant
+│   └── advanced_parameters.py  # Advanced parameter demonstrations
 ├── tutorials/                  # Step-by-step tutorials
 │   ├── getting_started.py      # Getting started tutorial
 │   └── function_calling.py     # Function calling tutorial
@@ -54,6 +55,15 @@ audio.save("hello.mp3")
 ```
 
 ## 📚 Examples by Category
+
+### 🎯 Advanced Parameters
+```python
+# Demonstrate all advanced parameters from Swagger spec
+from examples.advanced.advanced_parameters import main
+
+# Run comprehensive parameter demonstrations
+main()
+```
 
 ### 🤖 Basic Examples
 

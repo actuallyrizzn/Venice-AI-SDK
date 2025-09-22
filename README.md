@@ -68,7 +68,9 @@ response = client.chat.complete(
     messages=[
         {"role": "user", "content": "Hello! What can you help me with?"}
     ],
-    model="llama-3.3-70b"
+    model="llama-3.3-70b",
+    temperature=0.7,
+    max_completion_tokens=500
 )
 print(response.choices[0].message.content)
 
@@ -102,6 +104,26 @@ for char in characters[:3]:
 # Check account usage
 usage = client.billing.get_usage()
 print(f"Credits remaining: {usage.credits_remaining}")
+
+# Advanced usage with pagination
+from datetime import datetime, timedelta
+
+end_date = datetime.now()
+start_date = end_date - timedelta(days=30)
+
+usage = client.billing.get_usage(
+    currency="USD",
+    start_date=start_date,
+    end_date=end_date,
+    limit=50,
+    page=1,
+    sort_order="desc"
+)
+
+# Access pagination info
+if usage.pagination:
+    print(f"Page {usage.pagination['page']} of {usage.pagination['totalPages']}")
+    print(f"Total records: {usage.pagination['total']}")
 ```
 
 ## 📚 Examples
@@ -294,6 +316,34 @@ venice auth your-api-key-here
 venice status
 ```
 
+### Advanced Chat Parameters
+
+```python
+# Advanced parameter control
+response = client.chat.complete(
+    messages=[{"role": "user", "content": "Write a creative story"}],
+    model="llama-3.3-70b",
+    temperature=1.2,
+    frequency_penalty=0.3,
+    presence_penalty=-0.1,
+    repetition_penalty=1.1,
+    max_completion_tokens=500,
+    n=3,  # Generate 3 different responses
+    seed=42,  # For reproducible results
+    stop=["END", "STOP"]  # Stop sequences
+)
+
+# Dynamic temperature scaling
+response = client.chat.complete(
+    messages=[{"role": "user", "content": "Write a poem"}],
+    model="llama-3.3-70b",
+    min_temp=0.5,
+    max_temp=1.5,
+    logprobs=True,
+    top_logprobs=3
+)
+```
+
 ### Streaming Chat
 
 ```python
@@ -308,7 +358,8 @@ for chunk in client.chat.complete_stream(
 response = client.chat.complete(
     messages=[{"role": "user", "content": "Hello!"}],
     model="llama-3.3-70b",
-    stream=True
+    stream=True,
+    stream_options={"include_usage": True}
 )
 
 for chunk in response:

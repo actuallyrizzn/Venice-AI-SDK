@@ -74,6 +74,7 @@ class UsageInfo:
     usage_by_model: Dict[str, Dict[str, int]]
     billing_period_start: Optional[datetime] = None
     billing_period_end: Optional[datetime] = None
+    pagination: Optional[Dict[str, Any]] = None
 
 
 @dataclass
@@ -421,20 +422,52 @@ class BillingAPI:
     def __init__(self, client: HTTPClient):
         self.client = client
     
-    def get_usage(self) -> UsageInfo:
+    def get_usage(
+        self,
+        currency: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        limit: int = 200,
+        page: int = 1,
+        sort_order: str = "desc"
+    ) -> UsageInfo:
         """
         Get current account usage information.
+        
+        Args:
+            currency: Filter by currency (USD, VCU, DIEM)
+            start_date: Start date for filtering records (ISO 8601)
+            end_date: End date for filtering records (ISO 8601)
+            limit: Number of items per page (0-500, default 200)
+            page: Page number for pagination (default 1)
+            sort_order: Sort order for createdAt field (asc/desc, default desc)
         
         Returns:
             UsageInfo object with usage details
         """
-        response = self.client.get("/billing/usage")
+        params = {}
+        
+        if currency:
+            params["currency"] = currency
+        if start_date:
+            params["startDate"] = start_date.isoformat()
+        if end_date:
+            params["endDate"] = end_date.isoformat()
+        if limit != 200:
+            params["limit"] = limit
+        if page != 1:
+            params["page"] = page
+        if sort_order != "desc":
+            params["sortOrder"] = sort_order
+        
+        response = self.client.get("/billing/usage", params=params)
         result = response.json()
         
         if "data" not in result:
             raise BillingError("Invalid response format from billing endpoint")
         
         data = result["data"]
+        pagination = result.get("pagination", {})
         
         # Parse usage data from array of usage entries
         total_usage = 0
@@ -464,7 +497,8 @@ class BillingAPI:
             credits_remaining=0,  # Not available in this endpoint
             usage_by_model=usage_by_model,
             billing_period_start=None,  # Not available in API response
-            billing_period_end=None  # Not available in API response
+            billing_period_end=None,  # Not available in API response
+            pagination=pagination
         )
     
     def get_usage_by_model(self) -> Dict[str, ModelUsage]:
@@ -497,6 +531,16 @@ class BillingAPI:
         """
         usage_info = self.get_usage()
         return usage_info.credits_remaining
+    
+    def get_pagination_info(self) -> Dict[str, Any]:
+        """
+        Get pagination information for the last usage request.
+        
+        Returns:
+            Dictionary with pagination details (limit, page, total, totalPages)
+        """
+        usage_info = self.get_usage()
+        return usage_info.pagination or {}
     
     def get_total_usage(self) -> int:
         """

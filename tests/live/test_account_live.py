@@ -154,6 +154,63 @@ class TestAccountAPILive:
         assert usage_info.total_usage >= 0
         assert usage_info.credits_remaining >= 0
 
+    def test_get_usage_with_pagination(self):
+        """Test getting usage information with pagination parameters."""
+        from datetime import datetime, timedelta
+        
+        # Test with pagination parameters
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=30)
+        
+        usage_info = self.billing_api.get_usage(
+            currency="USD",
+            start_date=start_date,
+            end_date=end_date,
+            limit=50,
+            page=1,
+            sort_order="desc"
+        )
+        
+        assert usage_info is not None
+        assert hasattr(usage_info, 'total_usage')
+        assert hasattr(usage_info, 'pagination')
+        
+        # Check pagination info if available
+        if usage_info.pagination:
+            assert isinstance(usage_info.pagination, dict)
+            assert 'limit' in usage_info.pagination
+            assert 'page' in usage_info.pagination
+            assert 'total' in usage_info.pagination
+            assert 'totalPages' in usage_info.pagination
+
+    def test_get_usage_with_currency_filter(self):
+        """Test getting usage information with currency filter."""
+        # Test with different currencies
+        for currency in ["USD", "VCU", "DIEM"]:
+            try:
+                usage_info = self.billing_api.get_usage(currency=currency)
+                assert usage_info is not None
+                assert hasattr(usage_info, 'total_usage')
+            except VeniceAPIError as e:
+                # Some currencies might not be available
+                if "not found" in str(e).lower():
+                    continue
+                raise
+
+    def test_get_pagination_info(self):
+        """Test getting pagination information."""
+        usage_info = self.billing_api.get_usage()
+        pagination_info = self.billing_api.get_pagination_info()
+        
+        assert isinstance(pagination_info, dict)
+        
+        # If pagination info is available, check structure
+        if pagination_info:
+            assert 'limit' in pagination_info
+            assert 'page' in pagination_info
+            assert 'total' in pagination_info
+            assert 'totalPages' in pagination_info
+
     def test_get_model_usage(self):
         """Test getting model usage information."""
         model_usage = self.billing_api.get_model_usage()

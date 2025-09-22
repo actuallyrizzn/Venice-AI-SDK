@@ -50,7 +50,10 @@ def basic_function_calling():
         response = client.chat.complete(
             messages=messages,
             model="llama-3.3-70b",
-            tools=tools
+            tools=tools,
+            temperature=0.7,
+            max_completion_tokens=500,
+            frequency_penalty=0.1
         )
         
         print("Response:", response.choices[0].message.content)
@@ -144,7 +147,10 @@ def multiple_functions_example():
             response = client.chat.complete(
                 messages=[{"role": "user", "content": query}],
                 model="llama-3.3-70b",
-                tools=tools
+                tools=tools,
+            temperature=0.7,
+            max_completion_tokens=500,
+            frequency_penalty=0.1
             )
             
             print("Response:", response.choices[0].message.content)
@@ -266,7 +272,10 @@ def function_calling_with_execution():
         response = client.chat.complete(
             messages=messages,
             model="llama-3.3-70b",
-            tools=tools
+            tools=tools,
+            temperature=0.7,
+            max_completion_tokens=500,
+            frequency_penalty=0.1
         )
         
         print("Initial response:", response.choices[0].message.content)
@@ -300,7 +309,10 @@ def function_calling_with_execution():
                     final_response = client.chat.complete(
                         messages=messages,
                         model="llama-3.3-70b",
-                        tools=tools
+                        tools=tools,
+            temperature=0.7,
+            max_completion_tokens=500,
+            frequency_penalty=0.1
                     )
                     
                     print(f"Final response: {final_response.choices[0].message.content}")
@@ -348,7 +360,11 @@ def streaming_with_functions():
         for chunk in client.chat.complete_stream(
             messages=messages,
             model="llama-3.3-70b",
-            tools=tools
+            tools=tools,
+            temperature=0.7,
+            max_completion_tokens=500,
+            frequency_penalty=0.1,
+            stream_options={"include_usage": True}
         ):
             if chunk.startswith("data: "):
                 data_content = chunk[6:].strip()
@@ -469,7 +485,10 @@ def advanced_function_patterns():
             response = client.chat.complete(
                 messages=[{"role": "user", "content": query}],
                 model="llama-3.3-70b",
-                tools=tools
+                tools=tools,
+            temperature=0.7,
+            max_completion_tokens=500,
+            frequency_penalty=0.1
             )
             
             print("Response:", response.choices[0].message.content)
@@ -535,7 +554,10 @@ def error_handling_in_functions():
             response = client.chat.complete(
                 messages=[{"role": "user", "content": query}],
                 model="llama-3.3-70b",
-                tools=tools
+                tools=tools,
+            temperature=0.7,
+            max_completion_tokens=500,
+            frequency_penalty=0.1
             )
             
             print("Response:", response.choices[0].message.content)

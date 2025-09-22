@@ -594,6 +594,128 @@ class TestBillingAPIComprehensive:
         with pytest.raises(BillingError, match="Invalid response format from billing endpoint"):
             api.get_usage()
 
+    def test_get_usage_with_pagination_params(self, mock_client):
+        """Test usage retrieval with pagination parameters."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "data": [
+                {
+                    "timestamp": "2023-01-01T12:00:00Z",
+                    "sku": "llama-3.3-70b-llm-output-mtoken",
+                    "pricePerUnitUsd": 2,
+                    "units": 0.5,
+                    "amount": -1.0,
+                    "currency": "USD",
+                    "notes": "API Inference"
+                }
+            ],
+            "pagination": {
+                "limit": 100,
+                "page": 2,
+                "total": 1000,
+                "totalPages": 10
+            }
+        }
+        mock_client.get.return_value = mock_response
+        
+        api = BillingAPI(mock_client)
+        usage_info = api.get_usage(
+            currency="USD",
+            start_date=datetime(2024, 1, 1),
+            end_date=datetime(2024, 12, 31),
+            limit=100,
+            page=2,
+            sort_order="asc"
+        )
+        
+        # Verify the request was made with pagination parameters
+        mock_client.get.assert_called_once()
+        call_args = mock_client.get.call_args
+        params = call_args[1]['params']
+        
+        assert params['currency'] == "USD"
+        assert params['startDate'] == "2024-01-01T00:00:00"
+        assert params['endDate'] == "2024-12-31T00:00:00"
+        assert params['limit'] == 100
+        assert params['page'] == 2
+        assert params['sortOrder'] == "asc"
+        
+        assert isinstance(usage_info, UsageInfo)
+        assert usage_info.pagination is not None
+        assert usage_info.pagination['limit'] == 100
+        assert usage_info.pagination['page'] == 2
+        assert usage_info.pagination['total'] == 1000
+        assert usage_info.pagination['totalPages'] == 10
+
+    def test_get_usage_with_default_pagination(self, mock_client):
+        """Test usage retrieval with default pagination values."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "data": [
+                {
+                    "timestamp": "2023-01-01T12:00:00Z",
+                    "sku": "llama-3.3-70b-llm-output-mtoken",
+                    "pricePerUnitUsd": 2,
+                    "units": 0.5,
+                    "amount": -1.0,
+                    "currency": "VCU",
+                    "notes": "API Inference"
+                }
+            ]
+        }
+        mock_client.get.return_value = mock_response
+        
+        api = BillingAPI(mock_client)
+        usage_info = api.get_usage()
+        
+        # Verify the request was made without pagination parameters (using defaults)
+        mock_client.get.assert_called_once()
+        call_args = mock_client.get.call_args
+        params = call_args[1].get('params', {})
+        
+        # Should not have pagination params when using defaults
+        assert 'currency' not in params
+        assert 'startDate' not in params
+        assert 'endDate' not in params
+        assert 'limit' not in params
+        assert 'page' not in params
+        assert 'sortOrder' not in params
+        
+        assert isinstance(usage_info, UsageInfo)
+
+    def test_get_pagination_info(self, mock_client):
+        """Test getting pagination information."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "data": [
+                {
+                    "timestamp": "2023-01-01T12:00:00Z",
+                    "sku": "llama-3.3-70b-llm-output-mtoken",
+                    "pricePerUnitUsd": 2,
+                    "units": 0.5,
+                    "amount": -1.0,
+                    "currency": "VCU",
+                    "notes": "API Inference"
+                }
+            ],
+            "pagination": {
+                "limit": 200,
+                "page": 1,
+                "total": 500,
+                "totalPages": 3
+            }
+        }
+        mock_client.get.return_value = mock_response
+        
+        api = BillingAPI(mock_client)
+        pagination_info = api.get_pagination_info()
+        
+        assert isinstance(pagination_info, dict)
+        assert pagination_info['limit'] == 200
+        assert pagination_info['page'] == 1
+        assert pagination_info['total'] == 500
+        assert pagination_info['totalPages'] == 3
+
     def test_get_usage_by_model(self, mock_client):
         """Test usage by model retrieval."""
         mock_response = MagicMock()

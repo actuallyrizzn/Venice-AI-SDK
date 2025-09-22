@@ -216,6 +216,109 @@ class TestChatAPILive:
         
         content_short = response_short["choices"][0]["message"]["content"]
         assert len(content_short) <= 200  # Should be relatively short (accounting for reasoning models)
+
+    def test_complete_with_new_parameters(self):
+        """Test chat completion with new parameters from Swagger spec."""
+        messages = [
+            {"role": "user", "content": "Tell me a short story about a robot."}
+        ]
+        
+        response = self.chat_api.complete(
+            messages=messages,
+            model=self.default_model,
+            temperature=1.2,
+            frequency_penalty=0.3,
+            presence_penalty=-0.1,
+            repetition_penalty=1.1,
+            max_completion_tokens=200,
+            n=1,
+            seed=42
+        )
+        
+        assert response is not None
+        assert "choices" in response
+        assert len(response["choices"]) > 0
+        assert "message" in response["choices"][0]
+        assert "content" in response["choices"][0]["message"]
+
+    def test_complete_with_stop_sequences(self):
+        """Test chat completion with stop sequences."""
+        messages = [
+            {"role": "user", "content": "Count from 1 to 10."}
+        ]
+        
+        response = self.chat_api.complete(
+            messages=messages,
+            model=self.default_model,
+            stop=["5", "6"],
+            max_tokens=100
+        )
+        
+        assert response is not None
+        assert "choices" in response
+        assert len(response["choices"]) > 0
+        content = response["choices"][0]["message"]["content"]
+        # Should stop before reaching 5 or 6
+        assert "5" not in content or "6" not in content
+
+    def test_complete_with_dynamic_temperature(self):
+        """Test chat completion with dynamic temperature scaling."""
+        messages = [
+            {"role": "user", "content": "Write a creative poem."}
+        ]
+        
+        response = self.chat_api.complete(
+            messages=messages,
+            model=self.default_model,
+            min_temp=0.5,
+            max_temp=1.5,
+            max_tokens=150
+        )
+        
+        assert response is not None
+        assert "choices" in response
+        assert len(response["choices"]) > 0
+        assert "message" in response["choices"][0]
+        assert "content" in response["choices"][0]["message"]
+
+    def test_complete_with_multiple_choices(self):
+        """Test chat completion with multiple choices."""
+        messages = [
+            {"role": "user", "content": "What is the capital of France?"}
+        ]
+        
+        response = self.chat_api.complete(
+            messages=messages,
+            model=self.default_model,
+            n=3,
+            max_tokens=50
+        )
+        
+        assert response is not None
+        assert "choices" in response
+        assert len(response["choices"]) == 3
+        for choice in response["choices"]:
+            assert "message" in choice
+            assert "content" in choice["message"]
+
+    def test_complete_with_streaming_options(self):
+        """Test chat completion with streaming options."""
+        messages = [
+            {"role": "user", "content": "Explain quantum computing briefly."}
+        ]
+        
+        response = self.chat_api.complete(
+            messages=messages,
+            model=self.default_model,
+            stream=True,
+            stream_options={"include_usage": True},
+            max_tokens=200
+        )
+        
+        # Should return a generator
+        assert hasattr(response, '__iter__')
+        chunks = list(response)
+        assert len(chunks) > 0
         
         # Test with larger max_tokens
         response_long = self.chat_api.complete(

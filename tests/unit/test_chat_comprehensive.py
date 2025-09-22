@@ -42,6 +42,49 @@ class TestChatAPIComprehensive:
             # The mock streaming response should return some chunks
             assert len(chunks) >= 0  # Allow empty for now
 
+    def test_complete_with_new_parameters(self, chat_api, mock_chat_response):
+        """Test chat completion with all new parameters from Swagger spec."""
+        with patch.object(chat_api.client, 'post', return_value=mock_chat_response):
+            response = chat_api.complete(
+                messages=[{"role": "user", "content": "Hello"}],
+                model="llama-3.3-70b",
+                temperature=1.5,
+                frequency_penalty=0.5,
+                presence_penalty=-0.3,
+                repetition_penalty=1.2,
+                logprobs=True,
+                top_logprobs=3,
+                max_completion_tokens=1000,
+                max_temp=1.8,
+                min_p=0.1,
+                min_temp=0.2,
+                n=2,
+                seed=42,
+                stop=["END", "STOP"],
+                stop_token_ids=[151643, 151645],
+                stream_options={"include_usage": True}
+            )
+            
+            # Verify the request was made with all parameters
+            chat_api.client.post.assert_called_once()
+            call_args = chat_api.client.post.call_args
+            data = call_args[1]['data']
+            
+            assert data['frequency_penalty'] == 0.5
+            assert data['presence_penalty'] == -0.3
+            assert data['repetition_penalty'] == 1.2
+            assert data['logprobs'] == True
+            assert data['top_logprobs'] == 3
+            assert data['max_completion_tokens'] == 1000
+            assert data['max_temp'] == 1.8
+            assert data['min_p'] == 0.1
+            assert data['min_temp'] == 0.2
+            assert data['n'] == 2
+            assert data['seed'] == 42
+            assert data['stop'] == ["END", "STOP"]
+            assert data['stop_token_ids'] == [151643, 151645]
+            assert data['stream_options'] == {"include_usage": True}
+
     def test_complete_with_tools(self, chat_api, mock_chat_response):
         """Test chat completion with tools."""
         with patch.object(chat_api.client, 'post', return_value=mock_chat_response):
@@ -101,11 +144,92 @@ class TestChatAPIComprehensive:
 
     def test_complete_invalid_temperature(self, chat_api):
         """Test chat completion with invalid temperature."""
-        with pytest.raises(ValueError, match="Temperature must be between 0 and 1"):
+        with pytest.raises(ValueError, match="Temperature must be between 0 and 2"):
             chat_api.complete(
                 messages=[{"role": "user", "content": "Hello"}],
                 model="llama-3.3-70b",
                 temperature=3.0
+            )
+
+    def test_complete_invalid_frequency_penalty(self, chat_api):
+        """Test chat completion with invalid frequency penalty."""
+        with pytest.raises(ValueError, match="Frequency penalty must be between -2.0 and 2.0"):
+            chat_api.complete(
+                messages=[{"role": "user", "content": "Hello"}],
+                model="llama-3.3-70b",
+                frequency_penalty=3.0
+            )
+
+    def test_complete_invalid_presence_penalty(self, chat_api):
+        """Test chat completion with invalid presence penalty."""
+        with pytest.raises(ValueError, match="Presence penalty must be between -2.0 and 2.0"):
+            chat_api.complete(
+                messages=[{"role": "user", "content": "Hello"}],
+                model="llama-3.3-70b",
+                presence_penalty=-3.0
+            )
+
+    def test_complete_invalid_repetition_penalty(self, chat_api):
+        """Test chat completion with invalid repetition penalty."""
+        with pytest.raises(ValueError, match="Repetition penalty must be >= 0"):
+            chat_api.complete(
+                messages=[{"role": "user", "content": "Hello"}],
+                model="llama-3.3-70b",
+                repetition_penalty=-1.0
+            )
+
+    def test_complete_invalid_max_temp(self, chat_api):
+        """Test chat completion with invalid max temperature."""
+        with pytest.raises(ValueError, match="Max temperature must be between 0 and 2"):
+            chat_api.complete(
+                messages=[{"role": "user", "content": "Hello"}],
+                model="llama-3.3-70b",
+                max_temp=3.0
+            )
+
+    def test_complete_invalid_min_temp(self, chat_api):
+        """Test chat completion with invalid min temperature."""
+        with pytest.raises(ValueError, match="Min temperature must be between 0 and 2"):
+            chat_api.complete(
+                messages=[{"role": "user", "content": "Hello"}],
+                model="llama-3.3-70b",
+                min_temp=-1.0
+            )
+
+    def test_complete_invalid_min_p(self, chat_api):
+        """Test chat completion with invalid min p."""
+        with pytest.raises(ValueError, match="Min p must be between 0 and 1"):
+            chat_api.complete(
+                messages=[{"role": "user", "content": "Hello"}],
+                model="llama-3.3-70b",
+                min_p=2.0
+            )
+
+    def test_complete_invalid_top_logprobs(self, chat_api):
+        """Test chat completion with invalid top logprobs."""
+        with pytest.raises(ValueError, match="Top logprobs must be >= 0"):
+            chat_api.complete(
+                messages=[{"role": "user", "content": "Hello"}],
+                model="llama-3.3-70b",
+                top_logprobs=-1
+            )
+
+    def test_complete_invalid_seed(self, chat_api):
+        """Test chat completion with invalid seed."""
+        with pytest.raises(ValueError, match="Seed must be >= 0"):
+            chat_api.complete(
+                messages=[{"role": "user", "content": "Hello"}],
+                model="llama-3.3-70b",
+                seed=-1
+            )
+
+    def test_complete_invalid_n(self, chat_api):
+        """Test chat completion with invalid n."""
+        with pytest.raises(ValueError, match="n must be >= 1"):
+            chat_api.complete(
+                messages=[{"role": "user", "content": "Hello"}],
+                model="llama-3.3-70b",
+                n=0
             )
 
     def test_complete_api_error(self, chat_api):
@@ -283,7 +407,7 @@ class TestChatAPIComprehensive:
     def test_complete_boundary_temperature(self, chat_api):
         """Test chat completion with boundary temperature values."""
         # Test temperature just below minimum
-        with pytest.raises(ValueError, match="Temperature must be between 0 and 1"):
+        with pytest.raises(ValueError, match="Temperature must be between 0 and 2"):
             chat_api.complete(
                 messages=[{"role": "user", "content": "Hello"}],
                 model="llama-3.3-70b",
@@ -291,11 +415,11 @@ class TestChatAPIComprehensive:
             )
         
         # Test temperature just above maximum
-        with pytest.raises(ValueError, match="Temperature must be between 0 and 1"):
+        with pytest.raises(ValueError, match="Temperature must be between 0 and 2"):
             chat_api.complete(
                 messages=[{"role": "user", "content": "Hello"}],
                 model="llama-3.3-70b",
-                temperature=1.1
+                temperature=2.1
             )
 
     def test_complete_message_validation(self, chat_api):
