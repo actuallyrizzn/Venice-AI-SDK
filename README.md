@@ -5,6 +5,7 @@ A comprehensive Python SDK for the Venice AI API, providing complete access to a
 
 [![PyPI version](https://badge.fury.io/py/venice-sdk.svg)](https://badge.fury.io/py/venice-sdk)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: AGPLv3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![License: CC BY-SA 4.0](https://img.shields.io/badge/License-CC%20BY--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-sa/4.0/)
 [![Tests](https://img.shields.io/badge/tests-350%2B%20passing-brightgreen.svg)](https://github.com/venice-ai/venice-sdk)
 
@@ -453,7 +454,12 @@ mkdocs serve
 
 ## License
 
-CC-BY-SA
+This project is dual-licensed under:
+
+- **GNU Affero General Public License v3.0 (AGPLv3)** - Strong copyleft protection, requires source code availability for network services
+- **Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA)** - Attribution required, derivative works must use same license
+
+You may choose to use this work under either license, whichever better suits your needs.
 
 ## Contributing
 

@@ -4,14 +4,15 @@ version = "0.1.0"
 description = "A Python SDK for the Venice AI API"
 readme = "README.md"
 requires-python = ">=3.8"
-license = "CC-BY-SA-4.0"
+license = {text = "Dual License: GNU Affero General Public License v3.0 and Creative Commons Attribution-ShareAlike 4.0 International"}
 authors = [
     { name = "Mark Rizzn Hopkins", email = "guesswho@rizzn.com" }
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    # Removed invalid Trove classifier to satisfy hatchling metadata validation
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "License :: Other/Proprietary License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",

@@ -1,6 +1,29 @@
-Creative Commons Attribution-ShareAlike 4.0 International
+Dual License: GNU Affero General Public License v3.0 and Creative Commons Attribution-ShareAlike 4.0 International
+
+This work is dual-licensed under the following two licenses:
 
 =======================================================================
+
+LICENSE 1: GNU AFFERO GENERAL PUBLIC LICENSE v3.0
+
+Copyright (C) 2025 Venice AI
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+=======================================================================
+
+LICENSE 2: CREATIVE COMMONS ATTRIBUTION-SHAREALIKE 4.0 INTERNATIONAL
 
 Creative Commons Corporation ("Creative Commons") is not a law firm and
 does not provide legal services or legal advice. Distribution of
@@ -192,8 +215,8 @@ Section 2 -- Scope.
                any additional or different terms or conditions on, or
                apply any Effective Technological Measures to, the
                Licensed Material if doing so restricts exercise of the
-               Licensed Rights by any recipient of the Licensed
-               Material.
+               Licensed Rights by any recipient of the
+               Licensed Material.
 
        6. No endorsement. Nothing in this Public License constitutes or
           may be construed as permission to assert or imply that You
@@ -423,4 +446,25 @@ other arrangements, understandings, or agreements concerning use of
 licensed material. For the avoidance of doubt, this paragraph does not
 form part of the public licenses.
 
-Creative Commons may be contacted at creativecommons.org. 
+Creative Commons may be contacted at creativecommons.org.
+
+=======================================================================
+
+USAGE INSTRUCTIONS
+
+You may choose to use this work under either license:
+
+1. GNU Affero General Public License v3.0 (AGPLv3) - Choose this if you want:
+   - Strong copyleft protection
+   - Source code must be made available when providing network services
+   - Derivative works must also be licensed under AGPLv3
+   - Commercial use allowed but with copyleft requirements
+
+2. Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA) - Choose this if you want:
+   - Attribution required
+   - Derivative works must be licensed under the same terms
+   - Commercial use allowed
+   - More permissive than AGPLv3 for many use cases
+
+You are free to choose whichever license better suits your needs. Both licenses
+are compatible and you may switch between them as needed for your specific use case.
