@@ -1,16 +1,26 @@
 [project]
 name = "venice-sdk"
-version = "0.1.0"
-description = "A Python SDK for the Venice AI API"
+version = "0.2.0"
+description = "Comprehensive Python SDK for Venice AI - Advanced LLM, Image Generation, Audio Synthesis, and AI Assistant APIs with Full Swagger Specification Support"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "Dual License: GNU Affero General Public License v3.0 and Creative Commons Attribution-ShareAlike 4.0 International"}
 authors = [
     { name = "Mark Rizzn Hopkins", email = "guesswho@rizzn.com" }
 ]
+keywords = [
+    "venice-ai", "ai", "llm", "chatgpt", "openai", "artificial-intelligence", "machine-learning",
+    "text-generation", "image-generation", "audio-synthesis", "text-to-speech", "embeddings",
+    "vector-search", "semantic-search", "function-calling", "streaming", "api-client", "sdk",
+    "python", "ai-assistant", "chatbot", "dall-e", "whisper", "gpt", "llama", "claude",
+    "swagger", "openapi", "rest-api", "http-client", "async", "pagination", "rate-limiting",
+    "error-handling", "type-hints", "documentation", "examples", "tutorials", "production-ready"
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: End Users/Desktop",
     "License :: OSI Approved :: GNU Affero General Public License v3",
     "License :: Other/Proprietary License",
     "Programming Language :: Python :: 3",
@@ -18,8 +28,21 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence"
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Topic :: Text Processing :: Linguistic",
+    "Topic :: Communications :: Chat",
+    "Topic :: Office/Business",
+    "Topic :: Education",
+    "Topic :: Games/Entertainment",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+    "Environment :: Web Environment"
 ]
 dependencies = [
     "requests>=2.31.0",
@@ -30,11 +53,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/venice-sdk"
-Documentation = "https://venice-sdk.readthedocs.io"
-Repository = "https://github.com/yourusername/venice-sdk.git"
-Issues = "https://github.com/yourusername/venice-sdk/issues"
-Changelog = "https://github.com/yourusername/venice-sdk/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/venice-ai/venice-sdk"
+Documentation = "https://github.com/venice-ai/venice-sdk#readme"
+Repository = "https://github.com/venice-ai/venice-sdk.git"
+Issues = "https://github.com/venice-ai/venice-sdk/issues"
+Changelog = "https://github.com/venice-ai/venice-sdk/blob/main/CHANGELOG.md"
 
 [project.scripts]
 venice = "venice_sdk.cli:main"
