@@ -1,9 +1,11 @@
 Dual License: GNU Affero General Public License v3.0 and Creative Commons Attribution-ShareAlike 4.0 International
 
-This work is dual-licensed under the following two licenses:
+This work uses a dual license structure:
 
 - **Code/Software**: GNU Affero General Public License v3.0 (AGPLv3)
 - **Documentation/Examples**: Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA)
+
+The Python SDK code is licensed under AGPLv3, while all documentation and examples are licensed under CC-BY-SA 4.0.
 
 =======================================================================
 
@@ -455,19 +457,21 @@ Creative Commons may be contacted at creativecommons.org.
 
 USAGE INSTRUCTIONS
 
-You may choose to use this work under either license:
+This dual license structure means:
 
-1. **Code/Software**: GNU Affero General Public License v3.0 (AGPLv3) - Choose this if you want:
+1. **Code/Software**: GNU Affero General Public License v3.0 (AGPLv3) - Applies to:
+   - All Python source code in the SDK
    - Strong copyleft protection
    - Source code must be made available when providing network services
    - Derivative works must also be licensed under AGPLv3
    - Commercial use allowed but with copyleft requirements
 
-2. **Documentation/Examples**: Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA) - Choose this if you want:
+2. **Documentation/Examples**: Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA) - Applies to:
+   - All documentation files
+   - All example code and tutorials
    - Attribution required
    - Derivative works must be licensed under the same terms
    - Commercial use allowed
    - More permissive than AGPLv3 for many use cases
 
-You are free to choose whichever license better suits your needs. Both licenses
-are compatible and you may switch between them as needed for your specific use case.
+The license that applies depends on what part of the project you are using or modifying.

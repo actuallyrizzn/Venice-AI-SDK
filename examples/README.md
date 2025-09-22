@@ -325,9 +325,11 @@ We welcome contributions to the examples! Please:
 
 ## 📄 License
 
-These examples are provided under the same dual license as the main SDK:
+These examples are provided under the same dual license structure as the main SDK:
 - **Code/Software**: GNU Affero General Public License v3.0 (AGPLv3)
 - **Documentation/Examples**: Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA)
+
+The Python SDK code is licensed under AGPLv3, while all documentation and examples are licensed under CC-BY-SA 4.0.
 
 ## 🎉 Happy Coding!
 

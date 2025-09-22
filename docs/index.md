@@ -141,12 +141,12 @@ The Venice AI Python SDK is designed to be:
 
 ## 📖 License
 
-This project is dual-licensed:
+This project uses a dual license structure:
 
 - **Code/Software**: GNU Affero General Public License v3.0 (AGPLv3) - Strong copyleft protection, requires source code availability for network services
 - **Documentation/Examples**: Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA) - Attribution required, derivative works must use same license
 
-You may choose to use this work under either license, whichever better suits your needs.
+The Python SDK code is licensed under AGPLv3, while all documentation and examples are licensed under CC-BY-SA 4.0.
 
 ## 🤝 Contributing
 
