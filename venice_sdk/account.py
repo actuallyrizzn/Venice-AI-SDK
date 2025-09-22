@@ -151,26 +151,9 @@ class APIKeysAPI:
         Returns:
             New APIKey object
         """
-        data = {"name": name}
-        if permissions:
-            data["permissions"] = permissions
-        if expires_in_days:
-            data["expires_in_days"] = expires_in_days
-            
-        response = self.client.post("/api_keys", data=data)
-        result = response.json()
-        
-        if "data" not in result:
-            raise APIKeyError("Invalid response format from API key creation")
-            
-        return APIKey(
-            id=result["data"]["id"],
-            name=result["data"]["name"],
-            created=result["data"]["created"],
-            last_used=result["data"].get("last_used"),
-            permissions=result["data"].get("permissions", []),
-            is_active=result["data"].get("is_active", True)
-        )
+        # The Venice AI API doesn't support creating API keys via the SDK
+        # This is typically done through the web interface
+        raise APIKeyError("API key creation is not supported via the SDK. Please use the Venice AI web interface.")
     
     def delete(self, key_id: str) -> bool:
         """
@@ -182,11 +165,9 @@ class APIKeysAPI:
         Returns:
             True if successful, False otherwise
         """
-        try:
-            response = self.client.delete(f"/api_keys/{key_id}")
-            return response.status_code == 200
-        except APIKeyError:
-            return False
+        # The Venice AI API doesn't support deleting API keys via the SDK
+        # This is typically done through the web interface
+        raise APIKeyError("API key deletion is not supported via the SDK. Please use the Venice AI web interface.")
     
     def update(self, key_id: str, name: Optional[str] = None, permissions: Optional[List[str]] = None) -> Optional[APIKey]:
         """
@@ -200,29 +181,9 @@ class APIKeysAPI:
         Returns:
             Updated APIKey object if successful, None otherwise
         """
-        try:
-            data = {}
-            if name is not None:
-                data["name"] = name
-            if permissions is not None:
-                data["permissions"] = permissions
-                
-            response = self.client.put(f"/api_keys/{key_id}", data=data)
-            result = response.json()
-            
-            if "data" not in result:
-                return None
-                
-            return APIKey(
-                id=result["data"]["id"],
-                name=result["data"]["name"],
-                created=result["data"]["created"],
-                last_used=result["data"].get("last_used"),
-                permissions=result["data"].get("permissions", []),
-                is_active=result["data"].get("is_active", True)
-            )
-        except APIKeyError:
-            return None
+        # The Venice AI API doesn't support updating API keys via the SDK
+        # This is typically done through the web interface
+        raise APIKeyError("API key updating is not supported via the SDK. Please use the Venice AI web interface.")
     
     def generate_web3_key(
         self,
@@ -288,16 +249,48 @@ class APIKeysAPI:
             raise APIKeyError("Invalid response format from rate limits endpoint")
         
         data = result["data"]
+        
+        # Parse rate limits from the API response
+        # The API returns rateLimits as an array of objects with apiModelId and rateLimits
+        rate_limits_data = data.get("rateLimits", [])
+        
+        # Parse rate limits from the API response structure
+        requests_per_minute = 0
+        requests_per_hour = 0
+        requests_per_day = 0
+        tokens_per_minute = 0
+        tokens_per_hour = 0
+        tokens_per_day = 0
+        
+        if rate_limits_data and len(rate_limits_data) > 0:
+            # Use the first model's rate limits
+            first_model = rate_limits_data[0]
+            if isinstance(first_model, dict) and "rateLimits" in first_model:
+                rate_limits = first_model["rateLimits"]
+                for limit in rate_limits:
+                    limit_type = limit.get("type", "")
+                    amount = limit.get("amount", 0)
+                    
+                    if limit_type == "RPM":
+                        requests_per_minute = amount
+                    elif limit_type == "RPD":
+                        requests_per_day = amount
+                        requests_per_hour = amount // 24  # Estimate hourly from daily
+                    elif limit_type == "TPM":
+                        tokens_per_minute = amount
+                        tokens_per_hour = amount * 60  # Estimate hourly from minute
+                        tokens_per_day = amount * 60 * 24  # Estimate daily from minute
+        
         return RateLimits(
-            requests_per_minute=data.get("requests_per_minute", 0),
-            requests_per_hour=data.get("requests_per_hour", 0),
-            requests_per_day=data.get("requests_per_day", 0),
-            tokens_per_minute=data.get("tokens_per_minute", 0),
-            tokens_per_hour=data.get("tokens_per_hour", 0),
-            tokens_per_day=data.get("tokens_per_day", 0),
-            current_usage=data.get("current_usage", {}),
-            reset_time=self._parse_datetime(data.get("reset_time")),
-            error_rate_limit=data.get("error_rate_limit")
+            requests_per_minute=requests_per_minute,
+            requests_per_hour=requests_per_hour,
+            requests_per_day=requests_per_day,
+            tokens_per_minute=tokens_per_minute,
+            tokens_per_hour=tokens_per_hour,
+            tokens_per_day=tokens_per_day,
+            current_usage={},  # Not available in current API response
+            reset_time=self._parse_datetime(data.get("nextEpochBegins")),
+            error_rate_limit=None
         )
     
     def get_rate_limits_log(
@@ -346,28 +339,32 @@ class APIKeysAPI:
         
         return logs
     
+    def get_rate_limit_logs(self, limit: Optional[int] = None) -> List[RateLimitLog]:
+        """Alias for get_rate_limits_log() for backward compatibility."""
+        return self.get_rate_limits_log(limit)
+    
     def _parse_api_key(self, data: Dict[str, Any]) -> APIKey:
         """Parse API key data from response."""
         return APIKey(
             id=data["id"],
-            name=data["name"],
+            name=data.get("description", "Unknown"),  # API uses description as name
             description=data.get("description"),
-            created_at=data.get("created_at"),
-            last_used=data.get("last_used"),
-            is_active=data.get("is_active", True),
-            permissions=data.get("permissions"),
-            rate_limits=data.get("rate_limits")
+            created_at=data.get("createdAt"),
+            last_used=data.get("lastUsedAt"),
+            is_active=True,  # Assume active if returned
+            permissions={"type": data.get("apiKeyType")},  # Store API key type as permission
+            rate_limits=data.get("consumptionLimits")
         )
     
     def _parse_rate_limit_log(self, data: Dict[str, Any]) -> RateLimitLog:
         """Parse rate limit log entry from response."""
         return RateLimitLog(
             timestamp=self._parse_datetime(data["timestamp"]),
-            endpoint=data["endpoint"],
-            status_code=data["status_code"],
-            response_time=data["response_time"],
-            tokens_used=data.get("tokens_used", 0),
-            error_type=data.get("error_type")
+            endpoint=f"model:{data.get('modelId', 'unknown')}",  # Use modelId as endpoint
+            status_code=429,  # Rate limit exceeded
+            response_time=0.0,  # Not available in API response
+            tokens_used=0,  # Not available in API response
+            error_type=data.get("rateLimitType")
         )
     
     def _parse_datetime(self, dt_str: Optional[str]) -> Optional[datetime]:
@@ -406,13 +403,36 @@ class BillingAPI:
             raise BillingError("Invalid response format from billing endpoint")
         
         data = result["data"]
+        
+        # Parse usage data from array of usage entries
+        total_usage = 0
+        usage_by_model = {}
+        
+        for entry in data:
+            amount = entry.get("amount", 0)
+            total_usage += abs(amount)  # Use absolute value for total usage
+            
+            sku = entry.get("sku", "unknown")
+            if sku not in usage_by_model:
+                usage_by_model[sku] = {
+                    "requests": 0,
+                    "tokens": 0,
+                    "cost": 0.0
+                }
+            
+            usage_by_model[sku]["cost"] += abs(amount)
+            # Estimate tokens from units if available
+            units = entry.get("units", 0)
+            usage_by_model[sku]["tokens"] += int(units * 1000)  # Convert to token estimate
+            usage_by_model[sku]["requests"] += 1
+        
         return UsageInfo(
-            total_usage=data.get("total_usage", 0),
-            current_period=data.get("current_period", ""),
-            credits_remaining=data.get("credits_remaining", 0),
-            usage_by_model=data.get("usage_by_model", {}),
-            billing_period_start=self._parse_datetime(data.get("billing_period_start")),
-            billing_period_end=self._parse_datetime(data.get("billing_period_end"))
+            total_usage=int(total_usage * 1000),  # Convert to integer
+            current_period="current",  # Not available in API response
+            credits_remaining=0,  # Not available in this endpoint
+            usage_by_model=usage_by_model,
+            billing_period_start=None,  # Not available in API response
+            billing_period_end=None  # Not available in API response
         )
     
     def get_usage_by_model(self) -> Dict[str, ModelUsage]:
@@ -455,6 +475,40 @@ class BillingAPI:
         """
         usage_info = self.get_usage()
         return usage_info.total_usage
+    
+    def get_usage_info(self) -> UsageInfo:
+        """Alias for get_usage() for backward compatibility."""
+        return self.get_usage()
+    
+    def get_model_usage(self) -> Dict[str, ModelUsage]:
+        """Alias for get_usage_by_model() for backward compatibility."""
+        return self.get_usage_by_model()
+    
+    def get_billing_summary(self) -> Dict[str, Any]:
+        """
+        Get a comprehensive billing summary.
+        
+        Returns:
+            Dictionary with billing summary information
+        """
+        try:
+            response = self.client.get("/billing/summary")
+            result = response.json()
+            
+            if "data" not in result:
+                raise BillingError("Invalid response format from billing summary endpoint")
+            
+            return result["data"]
+        except Exception as e:
+            # Fallback to basic usage info if billing summary is not available
+            usage_info = self.get_usage()
+            return {
+                "current_balance": 0,  # Not available
+                "total_spent": usage_info.total_usage,
+                "last_payment": None,  # Not available
+                "next_billing_date": None,  # Not available
+                "subscription_status": "active"  # Assume active
+            }
     
     def _parse_datetime(self, dt_str: Optional[str]) -> Optional[datetime]:
         """Parse datetime string to datetime object."""

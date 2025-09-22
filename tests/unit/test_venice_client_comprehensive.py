@@ -76,11 +76,14 @@ class TestVeniceClientComprehensive:
                     mock_rate_limits.tokens_per_day = 100000
                     mock_api_keys.get_rate_limits.return_value = mock_rate_limits
                     
-                    mock_api_keys.list.return_value = []
-                    
+                    # Mock API keys to return some data
+                    mock_api_key = MagicMock()
+                    mock_api_key.is_active = True
+                    mock_api_keys.list.return_value = [mock_api_key]
+
                     client = VeniceClient(config=mock_config)
                     result = client.get_account_summary()
-                    
+
                     # Check that the result has the expected structure
                     assert "usage" in result
                     assert "rate_limits" in result

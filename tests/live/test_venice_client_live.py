@@ -245,7 +245,7 @@ class TestVeniceClientLive:
             assert usage_info.total_cost >= 0
         except Exception as e:
             if "Admin API key required" in str(e):
-                pytest.skip("Admin API key required for billing functionality test")
+                pytest.skip("Admin API key required for account functionality test")
             else:
                 raise
 
@@ -512,7 +512,7 @@ class TestVeniceClientLive:
             assert len(api_keys) > 0
         except Exception as e:
             if "Admin API key required" in str(e):
-                pytest.skip("Admin API key required for API integration test")
+                pytest.skip("Admin API key required for account functionality test")
             else:
                 raise
         
@@ -521,7 +521,7 @@ class TestVeniceClientLive:
             assert usage_info is not None
         except Exception as e:
             if "Admin API key required" in str(e):
-                pytest.skip("Admin API key required for API integration test")
+                pytest.skip("Admin API key required for account functionality test")
             else:
                 raise
         

@@ -470,18 +470,17 @@ class TestWorkflowE2E:
             mock_billing_response = MagicMock()
             mock_billing_response.status_code = 200
             mock_billing_response.json.return_value = {
-                "data": {
-                    "total_usage": 1000,
-                    "current_period": "2024-01",
-                    "credits_remaining": 5000,
-                    "usage_by_model": {
-                        "llama-3.3-8b": {
-                            "requests": 500,
-                            "tokens": 25000,
-                            "cost": 12.75
-                        }
+                "data": [
+                    {
+                        "timestamp": "2025-09-22T00:56:03.201Z",
+                        "sku": "llama-3.3-8b-llm-output-mtoken",
+                        "pricePerUnitUsd": 2,
+                        "units": 0.5,
+                        "amount": -1.0,
+                        "currency": "VCU",
+                        "notes": "API Inference"
                     }
-                }
+                ]
             }
             
             # Mock rate limits response
@@ -489,16 +488,25 @@ class TestWorkflowE2E:
             mock_limits_response.status_code = 200
             mock_limits_response.json.return_value = {
                 "data": {
-                    "requests_per_minute": 60,
-                    "requests_per_hour": 1000,
-                    "requests_per_day": 10000,
-                    "tokens_per_minute": 10000,
-                    "tokens_per_hour": 100000,
-                    "tokens_per_day": 1000000,
-                    "current_usage": {
-                        "requests_per_minute": 10,
-                        "tokens_per_minute": 1000
-                    }
+                    "rateLimits": [
+                        {
+                            "apiModelId": "test-model",
+                            "rateLimits": [
+                                {
+                                    "amount": 60,
+                                    "type": "RPM"
+                                },
+                                {
+                                    "amount": 10000,
+                                    "type": "RPD"
+                                },
+                                {
+                                    "amount": 10000,
+                                    "type": "TPM"
+                                }
+                            ]
+                        }
+                    ]
                 }
             }
             
@@ -533,7 +541,7 @@ class TestWorkflowE2E:
             usage_info = client.billing.get_usage()
             assert usage_info is not None
             assert usage_info.total_usage == 1000
-            assert usage_info.credits_remaining == 5000
+            assert usage_info.credits_remaining == 0  # Not available in current API response
             
             # 4. Get account summary
             summary = client.get_account_summary()

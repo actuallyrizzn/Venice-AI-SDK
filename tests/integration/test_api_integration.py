@@ -292,19 +292,17 @@ class TestAPIIntegration:
             mock_billing_response = MagicMock()
             mock_billing_response.status_code = 200
             mock_billing_response.json.return_value = {
-                "data": {
-                    "total_usage": 1000,
-                    "current_period": "2024-01",
-                    "credits_remaining": 5000,
-                    "usage_by_model": {
-                        "llama-3.3-8b": {
-                            "requests": 500,
-                            "tokens": 25000
-                        }
-                    },
-                    "billing_period_start": "2024-01-01T00:00:00Z",
-                    "billing_period_end": "2024-01-31T23:59:59Z"
-                }
+                "data": [
+                    {
+                        "timestamp": "2024-01-01T12:00:00Z",
+                        "sku": "llama-3.3-8b-llm-output-mtoken",
+                        "pricePerUnitUsd": 2,
+                        "units": 0.5,
+                        "amount": -1.0,
+                        "currency": "VCU",
+                        "notes": "API Inference"
+                    }
+                ]
             }
             
             def mock_get_side_effect(url, **kwargs):
@@ -325,8 +323,8 @@ class TestAPIIntegration:
             # 2. Get billing information
             usage_info = self.client.billing.get_usage()
             assert usage_info is not None
-            assert usage_info.total_usage == 1000
-            assert usage_info.credits_remaining == 5000
+            assert usage_info.total_usage == 1000  # Calculated from amount * 1000
+            assert usage_info.credits_remaining == 0  # Not available in API response
 
     def test_models_advanced_integration(self):
         """Test integration between models advanced APIs."""

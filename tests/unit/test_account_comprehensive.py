@@ -295,18 +295,16 @@ class TestAPIKeysAPIComprehensive:
             "data": [
                 {
                     "id": "key-1",
-                    "name": "Key 1",
-                    "description": "First key",
-                    "created_at": "2023-01-01T00:00:00Z",
-                    "last_used": "2023-01-02T00:00:00Z",
-                    "is_active": True,
-                    "permissions": {"read": True},
-                    "rate_limits": {"requests_per_minute": 100}
+                    "description": "Key 1",
+                    "createdAt": "2023-01-01T00:00:00Z",
+                    "lastUsedAt": "2023-01-02T00:00:00Z",
+                    "apiKeyType": "ADMIN",
+                    "consumptionLimits": {"requests_per_minute": 100}
                 },
                 {
                     "id": "key-2",
-                    "name": "Key 2",
-                    "is_active": False
+                    "description": "Key 2",
+                    "apiKeyType": "INFERENCE"
                 }
             ]
         }
@@ -318,10 +316,10 @@ class TestAPIKeysAPIComprehensive:
         assert len(keys) == 2
         assert isinstance(keys[0], APIKey)
         assert keys[0].id == "key-1"
-        assert keys[0].name == "Key 1"
+        assert keys[0].name == "Key 1"  # description becomes name
         assert keys[0].is_active is True
         assert keys[1].id == "key-2"
-        assert keys[1].is_active is False
+        assert keys[1].is_active is True  # Default to True
 
     def test_list_invalid_response(self, mock_client):
         """Test API keys listing with invalid response format."""
@@ -403,13 +401,25 @@ class TestAPIKeysAPIComprehensive:
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "data": {
-                "requests_per_minute": 100,
-                "requests_per_day": 10000,
-                "tokens_per_minute": 50000,
-                "tokens_per_day": 5000000,
-                "current_usage": {"requests_per_minute": 50},
-                "reset_time": "2023-01-01T12:00:00Z",
-                "error_rate_limit": 10
+                "rateLimits": [
+                    {
+                        "apiModelId": "test-model",
+                        "rateLimits": [
+                            {
+                                "amount": 100,
+                                "type": "RPM"
+                            },
+                            {
+                                "amount": 10000,
+                                "type": "RPD"
+                            },
+                            {
+                                "amount": 50000,
+                                "type": "TPM"
+                            }
+                        ]
+                    }
+                ]
             }
         }
         mock_client.get.return_value = mock_response
@@ -421,9 +431,10 @@ class TestAPIKeysAPIComprehensive:
         assert rate_limits.requests_per_minute == 100
         assert rate_limits.requests_per_day == 10000
         assert rate_limits.tokens_per_minute == 50000
-        assert rate_limits.tokens_per_day == 5000000
-        assert rate_limits.current_usage == {"requests_per_minute": 50}
-        assert rate_limits.error_rate_limit == 10
+        assert rate_limits.tokens_per_hour == 50000 * 60  # Calculated from TPM
+        assert rate_limits.tokens_per_day == 50000 * 60 * 24  # Calculated from TPM
+        assert rate_limits.current_usage == {}  # Not available in API response
+        assert rate_limits.error_rate_limit is None  # Not available in API response
 
     def test_get_rate_limits_invalid_response(self, mock_client):
         """Test rate limits retrieval with invalid response format."""
@@ -443,19 +454,13 @@ class TestAPIKeysAPIComprehensive:
             "data": [
                 {
                     "timestamp": "2023-01-01T12:00:00Z",
-                    "endpoint": "/api/chat/completions",
-                    "status_code": 200,
-                    "response_time": 1.5,
-                    "tokens_used": 100,
-                    "error_type": None
+                    "modelId": "test-model",
+                    "rateLimitType": "RPM"
                 },
                 {
                     "timestamp": "2023-01-01T12:01:00Z",
-                    "endpoint": "/api/chat/completions",
-                    "status_code": 429,
-                    "response_time": 0.1,
-                    "tokens_used": 0,
-                    "error_type": "rate_limit_exceeded"
+                    "modelId": "test-model",
+                    "rateLimitType": "RPD"
                 }
             ]
         }
@@ -466,10 +471,10 @@ class TestAPIKeysAPIComprehensive:
         
         assert len(logs) == 2
         assert isinstance(logs[0], RateLimitLog)
-        assert logs[0].endpoint == "/api/chat/completions"
-        assert logs[0].status_code == 200
+        assert logs[0].endpoint == "model:test-model"  # Uses modelId
+        assert logs[0].status_code == 429  # Rate limit exceeded
         assert logs[1].status_code == 429
-        assert logs[1].error_type == "rate_limit_exceeded"
+        assert logs[1].error_type == "RPD"  # rateLimitType
 
     def test_get_rate_limits_log_with_params(self, mock_client):
         """Test rate limits log retrieval with parameters."""
@@ -552,16 +557,17 @@ class TestBillingAPIComprehensive:
         """Test successful usage retrieval."""
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "data": {
-                "total_usage": 1000,
-                "current_period": "2023-01",
-                "credits_remaining": 5000,
-                "usage_by_model": {
-                    "llama-3.3-70b": {"requests": 500, "tokens": 100000, "cost": 10.0}
-                },
-                "billing_period_start": "2023-01-01T00:00:00Z",
-                "billing_period_end": "2023-01-31T23:59:59Z"
-            }
+            "data": [
+                {
+                    "timestamp": "2023-01-01T12:00:00Z",
+                    "sku": "llama-3.3-70b-llm-output-mtoken",
+                    "pricePerUnitUsd": 2,
+                    "units": 0.5,
+                    "amount": -1.0,
+                    "currency": "VCU",
+                    "notes": "API Inference"
+                }
+            ]
         }
         mock_client.get.return_value = mock_response
         
@@ -569,12 +575,13 @@ class TestBillingAPIComprehensive:
         usage = api.get_usage()
         
         assert isinstance(usage, UsageInfo)
-        assert usage.total_usage == 1000
-        assert usage.current_period == "2023-01"
-        assert usage.credits_remaining == 5000
-        assert usage.usage_by_model == {
-            "llama-3.3-70b": {"requests": 500, "tokens": 100000, "cost": 10.0}
-        }
+        assert usage.total_usage == 1000  # Calculated from amount * 1000
+        assert usage.current_period == "current"  # Default value
+        assert usage.credits_remaining == 0  # Not available in API response
+        assert "llama-3.3-70b-llm-output-mtoken" in usage.usage_by_model
+        model_usage = usage.usage_by_model["llama-3.3-70b-llm-output-mtoken"]
+        assert model_usage["requests"] == 1
+        assert model_usage["cost"] == 1.0
 
     def test_get_usage_invalid_response(self, mock_client):
         """Test usage retrieval with invalid response format."""
@@ -591,25 +598,26 @@ class TestBillingAPIComprehensive:
         """Test usage by model retrieval."""
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "data": {
-                "total_usage": 1000,
-                "current_period": "2023-01",
-                "credits_remaining": 5000,
-                "usage_by_model": {
-                    "llama-3.3-70b": {
-                        "requests": 500,
-                        "tokens": 100000,
-                        "cost": 10.0,
-                        "last_used": "2023-01-15T12:00:00Z"
-                    },
-                    "gpt-4": {
-                        "requests": 300,
-                        "tokens": 50000,
-                        "cost": 15.0,
-                        "last_used": "2023-01-14T10:00:00Z"
-                    }
+            "data": [
+                {
+                    "timestamp": "2023-01-01T12:00:00Z",
+                    "sku": "llama-3.3-70b-llm-output-mtoken",
+                    "pricePerUnitUsd": 2,
+                    "units": 0.5,
+                    "amount": -1.0,
+                    "currency": "VCU",
+                    "notes": "API Inference"
+                },
+                {
+                    "timestamp": "2023-01-01T12:01:00Z",
+                    "sku": "gpt-4-llm-output-mtoken",
+                    "pricePerUnitUsd": 3,
+                    "units": 0.3,
+                    "amount": -0.9,
+                    "currency": "VCU",
+                    "notes": "API Inference"
                 }
-            }
+            ]
         }
         mock_client.get.return_value = mock_response
         
@@ -617,51 +625,61 @@ class TestBillingAPIComprehensive:
         model_usage = api.get_usage_by_model()
         
         assert len(model_usage) == 2
-        assert "llama-3.3-70b" in model_usage
-        assert "gpt-4" in model_usage
+        assert "llama-3.3-70b-llm-output-mtoken" in model_usage
+        assert "gpt-4-llm-output-mtoken" in model_usage
         
-        llama_usage = model_usage["llama-3.3-70b"]
+        llama_usage = model_usage["llama-3.3-70b-llm-output-mtoken"]
         assert isinstance(llama_usage, ModelUsage)
-        assert llama_usage.model_id == "llama-3.3-70b"
-        assert llama_usage.requests == 500
-        assert llama_usage.tokens == 100000
-        assert llama_usage.cost == 10.0
+        assert llama_usage.model_id == "llama-3.3-70b-llm-output-mtoken"
+        assert llama_usage.requests == 1
+        assert llama_usage.tokens == 500  # Calculated from units * 1000
+        assert llama_usage.cost == 1.0
 
     def test_get_credits_remaining(self, mock_client):
         """Test credits remaining retrieval."""
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "data": {
-                "total_usage": 1000,
-                "current_period": "2023-01",
-                "credits_remaining": 5000,
-                "usage_by_model": {}
-            }
+            "data": [
+                {
+                    "timestamp": "2023-01-01T12:00:00Z",
+                    "sku": "test-model-llm-output-mtoken",
+                    "pricePerUnitUsd": 2,
+                    "units": 0.5,
+                    "amount": -1.0,
+                    "currency": "VCU",
+                    "notes": "API Inference"
+                }
+            ]
         }
         mock_client.get.return_value = mock_response
         
         api = BillingAPI(mock_client)
         credits = api.get_credits_remaining()
         
-        assert credits == 5000
+        assert credits == 0  # Not available in API response
 
     def test_get_total_usage(self, mock_client):
         """Test total usage retrieval."""
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "data": {
-                "total_usage": 1000,
-                "current_period": "2023-01",
-                "credits_remaining": 5000,
-                "usage_by_model": {}
-            }
+            "data": [
+                {
+                    "timestamp": "2023-01-01T12:00:00Z",
+                    "sku": "test-model-llm-output-mtoken",
+                    "pricePerUnitUsd": 2,
+                    "units": 0.5,
+                    "amount": -1.0,
+                    "currency": "VCU",
+                    "notes": "API Inference"
+                }
+            ]
         }
         mock_client.get.return_value = mock_response
         
         api = BillingAPI(mock_client)
         total_usage = api.get_total_usage()
         
-        assert total_usage == 1000
+        assert total_usage == 1000  # Calculated from amount * 1000
 
 
 class TestAccountManagerComprehensive:
@@ -814,12 +832,17 @@ class TestConvenienceFunctionsComprehensive:
         """Test get_account_usage with provided client."""
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "data": {
-                "total_usage": 1000,
-                "current_period": "2023-01",
-                "credits_remaining": 5000,
-                "usage_by_model": {}
-            }
+            "data": [
+                {
+                    "timestamp": "2023-01-01T12:00:00Z",
+                    "sku": "test-model-llm-output-mtoken",
+                    "pricePerUnitUsd": 2,
+                    "units": 0.5,
+                    "amount": -1.0,
+                    "currency": "VCU",
+                    "notes": "API Inference"
+                }
+            ]
         }
         mock_client.get.return_value = mock_response
         
@@ -840,12 +863,17 @@ class TestConvenienceFunctionsComprehensive:
                 
                 mock_response = MagicMock()
                 mock_response.json.return_value = {
-                    "data": {
-                        "total_usage": 1000,
-                        "current_period": "2023-01",
-                        "credits_remaining": 5000,
-                        "usage_by_model": {}
-                    }
+                    "data": [
+                        {
+                            "timestamp": "2023-01-01T12:00:00Z",
+                            "sku": "test-model-llm-output-mtoken",
+                            "pricePerUnitUsd": 2,
+                            "units": 0.5,
+                            "amount": -1.0,
+                            "currency": "VCU",
+                            "notes": "API Inference"
+                        }
+                    ]
                 }
                 mock_client.get.return_value = mock_response
                 
@@ -859,11 +887,25 @@ class TestConvenienceFunctionsComprehensive:
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "data": {
-                "requests_per_minute": 100,
-                "requests_per_day": 10000,
-                "tokens_per_minute": 50000,
-                "tokens_per_day": 5000000,
-                "current_usage": {}
+                "rateLimits": [
+                    {
+                        "apiModelId": "test-model",
+                        "rateLimits": [
+                            {
+                                "amount": 100,
+                                "type": "RPM"
+                            },
+                            {
+                                "amount": 10000,
+                                "type": "RPD"
+                            },
+                            {
+                                "amount": 50000,
+                                "type": "TPM"
+                            }
+                        ]
+                    }
+                ]
             }
         }
         mock_client.get.return_value = mock_response

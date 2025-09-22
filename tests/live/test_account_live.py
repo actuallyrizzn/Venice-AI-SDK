@@ -19,7 +19,6 @@ class TestAccountAPILive:
     @pytest.fixture(autouse=True)
     def setup(self):
         """Set up test environment."""
-        pytest.skip("Admin API key required - skipping admin-only tests")
         
         self.api_key = os.getenv("VENICE_API_KEY")
         if not self.api_key:

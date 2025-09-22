@@ -455,14 +455,14 @@ class TestModelsTraitsAPIComprehensive:
                 {
                     "id": "llama-3.3-70b",
                     "model_spec": {
-                        "capabilities": {"function_calling": True, "streaming": True, "web_search": True},
+                        "capabilities": {"supportsFunctionCalling": True, "supportsLogProbs": True, "supportsWebSearch": True},
                         "traits": {}
                     }
                 },
                 {
                     "id": "llama-3.3-8b",
                     "model_spec": {
-                        "capabilities": {"streaming": True},
+                        "capabilities": {"supportsLogProbs": True},
                         "traits": {}
                     }
                 }
@@ -646,7 +646,7 @@ class TestModelRecommendationEngineComprehensive:
                 {
                     "id": "llama-3.3-70b",
                     "model_spec": {
-                        "capabilities": {"function_calling": True, "streaming": True, "web_search": True},
+                        "capabilities": {"supportsFunctionCalling": True, "supportsLogProbs": True, "supportsWebSearch": True},
                         "traits": {"speed": "high", "quality": "excellent", "cost_level": "high"}
                     }
                 }
@@ -673,7 +673,7 @@ class TestModelRecommendationEngineComprehensive:
                 {
                     "id": "llama-3.3-70b",
                     "model_spec": {
-                        "capabilities": {"function_calling": True, "streaming": True},
+                        "capabilities": {"supportsFunctionCalling": True, "supportsLogProbs": True},
                         "traits": {"speed": "high", "quality": "excellent"}
                     }
                 }

@@ -30,13 +30,13 @@ class ImageGeneration:
     
     def save(self, path: Union[str, Path]) -> Path:
         """Save the image to a file."""
+        import base64
         path = Path(path)
         
         if self.url:
             # Check if it's a data URL
             if self.url.startswith('data:'):
                 # Extract base64 data from data URL
-                import base64
                 header, data = self.url.split(',', 1)
                 image_data = base64.b64decode(data)
                 path.write_bytes(image_data)
@@ -87,13 +87,13 @@ class ImageEditResult:
     
     def save(self, path: Union[str, Path]) -> Path:
         """Save the edited image to a file."""
+        import base64
         path = Path(path)
         
         if self.url:
             # Check if it's a data URL
             if self.url.startswith('data:'):
                 # Extract base64 data from data URL
-                import base64
                 header, data = self.url.split(',', 1)
                 image_data = base64.b64decode(data)
                 path.write_bytes(image_data)
@@ -121,13 +121,13 @@ class ImageUpscaleResult:
     
     def save(self, path: Union[str, Path]) -> Path:
         """Save the upscaled image to a file."""
+        import base64
         path = Path(path)
         
         if self.url:
             # Check if it's a data URL
             if self.url.startswith('data:'):
                 # Extract base64 data from data URL
-                import base64
                 header, data = self.url.split(',', 1)
                 image_data = base64.b64decode(data)
                 path.write_bytes(image_data)
