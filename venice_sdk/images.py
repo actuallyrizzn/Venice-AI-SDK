@@ -18,6 +18,7 @@ from urllib.parse import urlparse
 from .client import HTTPClient
 from .errors import VeniceAPIError, ImageGenerationError
 from .config import load_config
+from .endpoints import ImageEndpoints
 
 
 @dataclass
@@ -218,7 +219,7 @@ class ImageAPI:
         if user:
             data["user"] = user
         
-        response = self.client.post("/images/generations", data=data)
+        response = self.client.post(ImageEndpoints.GENERATIONS, data=data)
         result = response.json()
         
         if "data" not in result:
@@ -354,7 +355,7 @@ class ImageEditAPI:
         if user:
             data["user"] = user
         
-        response = self.client.post("/image/edit", data=data)
+        response = self.client.post(ImageEndpoints.EDIT, data=data)
         result = response.json()
         
         if "data" not in result:
@@ -426,7 +427,7 @@ class ImageUpscaleAPI:
             **kwargs
         }
         
-        response = self.client.post("/image/upscale", data=data)
+        response = self.client.post(ImageEndpoints.UPSCALE, data=data)
         result = response.json()
         
         if "data" not in result or not result["data"]:
@@ -453,7 +454,7 @@ class ImageStylesAPI:
         Returns:
             List of ImageStyle objects
         """
-        response = self.client.get("/image/styles")
+        response = self.client.get(ImageEndpoints.STYLES)
         result = response.json()
         
         if "data" not in result:
