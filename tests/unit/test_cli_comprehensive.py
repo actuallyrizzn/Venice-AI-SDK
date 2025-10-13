@@ -208,8 +208,9 @@ class TestCliComprehensive:
             result = runner.invoke(status)
             
             assert result.exit_code == 0
-            assert "✅ API key is set" in result.output
-            assert "Key: sk-1...cdef" in result.output
+            assert "[OK] API key is set" in result.output
+            assert "Key: sk-..." in result.output
+            assert "[WARNING] Note: Never share this output" in result.output
 
     def test_status_command_without_api_key(self):
         """Test status command when no API key is present."""
@@ -219,7 +220,7 @@ class TestCliComprehensive:
             result = runner.invoke(status)
             
             assert result.exit_code == 0
-            assert "❌ No API key is set" in result.output
+            assert "[ERROR] No API key is set" in result.output
             assert "Use 'venice auth <your-api-key>' to set your API key" in result.output
 
     def test_status_command_with_short_api_key(self):
@@ -230,8 +231,8 @@ class TestCliComprehensive:
             result = runner.invoke(status)
             
             assert result.exit_code == 0
-            assert "✅ API key is set" in result.output
-            assert "Key: sk...sk" in result.output
+            assert "[OK] API key is set" in result.output
+            assert "Key: ***..." in result.output
 
     def test_status_command_with_very_short_api_key(self):
         """Test status command with single character API key."""
@@ -241,8 +242,8 @@ class TestCliComprehensive:
             result = runner.invoke(status)
             
             assert result.exit_code == 0
-            assert "✅ API key is set" in result.output
-            assert "Key: s...s" in result.output
+            assert "[OK] API key is set" in result.output
+            assert "Key: ***..." in result.output
 
     def test_status_command_with_empty_api_key(self):
         """Test status command with empty API key."""
@@ -252,7 +253,7 @@ class TestCliComprehensive:
             result = runner.invoke(status)
             
             assert result.exit_code == 0
-            assert "❌ No API key is set" in result.output
+            assert "[ERROR] No API key is set" in result.output
 
     def test_status_command_with_whitespace_api_key(self):
         """Test status command with whitespace-only API key."""
@@ -262,8 +263,8 @@ class TestCliComprehensive:
             result = runner.invoke(status)
             
             assert result.exit_code == 0
-            assert "✅ API key is set" in result.output
-            assert "Key:    ...   " in result.output
+            assert "[OK] API key is set" in result.output
+            assert "Key:    ..." in result.output
 
     def test_main_function(self):
         """Test main function calls cli."""
@@ -386,7 +387,5 @@ class TestCliComprehensive:
             result = runner.invoke(status)
             
             assert result.exit_code == 0
-            assert "✅ API key is set" in result.output
-            # Should show first 4 and last 4 characters
-            expected_masked = f"{long_key[:4]}...{long_key[-4:]}"
-            assert f"Key: {expected_masked}" in result.output
+            assert "[OK] API key is set" in result.output
+            assert "Key: sk-..." in result.output

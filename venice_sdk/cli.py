@@ -63,12 +63,13 @@ def status():
     api_key = get_api_key()
     
     if api_key:
-        click.echo("✅ API key is set")
-        # Show first 4 and last 4 characters of the key
-        masked_key = f"{api_key[:4]}...{api_key[-4:]}"
-        click.echo(f"Key: {masked_key}")
+        click.echo("[OK] API key is set")
+        # Show only key type for security (e.g., "sk-...", "pk-...")
+        key_type = api_key[:3] if len(api_key) >= 3 else "***"
+        click.echo(f"Key: {key_type}...")
+        click.echo("[WARNING] Note: Never share this output as it may contain sensitive information")
     else:
-        click.echo("❌ No API key is set")
+        click.echo("[ERROR] No API key is set")
         click.echo("Use 'venice auth <your-api-key>' to set your API key")
 
 def main():
