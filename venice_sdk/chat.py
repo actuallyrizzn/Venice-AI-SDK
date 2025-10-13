@@ -243,7 +243,7 @@ class ChatAPI:
         Args:
             messages: List of messages in the conversation
             model: Model to use for completion
-            temperature: Sampling temperature (0-1)
+            temperature: Sampling temperature (0-2)
             tools: Optional list of tools for function calling
             venice_parameters: Optional Venice-specific parameters
             **kwargs: Additional optional parameters
@@ -322,7 +322,7 @@ def chat_complete(
     Args:
         messages: List of messages in the conversation
         model: Model to use for completion
-        temperature: Sampling temperature (0-1)
+        temperature: Sampling temperature (0-2)
         stream: Whether to stream the response
         tools: Optional list of tools to use
         client: Optional HTTPClient instance. If not provided, a new one will be created.
