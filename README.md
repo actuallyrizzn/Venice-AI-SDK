@@ -7,7 +7,7 @@ A comprehensive Python SDK for the Venice AI API, providing complete access to a
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: AGPLv3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![License: CC BY-SA 4.0](https://img.shields.io/badge/License-CC%20BY--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-sa/4.0/)
-[![Tests](https://img.shields.io/badge/tests-350%2B%20passing-brightgreen.svg)](https://github.com/venice-ai/venice-sdk)
+[![Tests](https://img.shields.io/badge/tests-1069%20passing-brightgreen.svg)](https://github.com/venice-ai/venice-sdk)
 
 ## ✨ Features
 
@@ -44,7 +44,7 @@ A comprehensive Python SDK for the Venice AI API, providing complete access to a
 - ⚡ **Error Handling** - Comprehensive error handling with retries
 - 📝 **Type Safety** - Full type hints and documentation
 - 🔄 **OpenAI Compatibility** - Drop-in replacement for OpenAI SDK
-- ✅ **Robust Testing** - 350+ tests with 90%+ pass rate
+- ✅ **Robust Testing** - 1069 tests with 100% pass rate
 
 ## Installation
 
@@ -421,7 +421,7 @@ except VeniceAPIError as e:
 - **📊 Enhanced Billing**: Comprehensive usage tracking and rate limiting
 - **🌊 Improved Streaming**: Better Server-Sent Events (SSE) support for real-time responses
 - **🖼️ Image Enhancements**: Data URL support and improved file handling
-- **✅ Robust Testing**: 350+ tests with 90%+ pass rate
+- **✅ Robust Testing**: 1069 tests with 100% pass rate
 - **🛡️ Better Error Handling**: More descriptive error messages and validation
 
 ### API Response Alignment
@@ -487,8 +487,8 @@ The SDK can be configured in several ways:
 ### Test Coverage
 
 The SDK includes a comprehensive test suite with:
-- **350+ tests** covering all functionality
-- **90%+ pass rate** with robust error handling
+- **1069 tests** covering all functionality
+- **100% pass rate** with robust error handling
 - **Live API tests** for real-world validation
 - **Unit tests** for isolated component testing
 - **Integration tests** for cross-module functionality

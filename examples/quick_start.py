@@ -24,9 +24,9 @@ def main():
     print("\n1. Using environment variable (VENICE_API_KEY):")
     try:
         client = VeniceClient()  # Will load from VENICE_API_KEY env var
-        print("✓ Client created successfully")
+        print("[OK] Client created successfully")
     except Exception as e:
-        print(f"✗ Failed: {e}")
+        print(f"[ERROR] Failed: {e}")
         print("Make sure to set VENICE_API_KEY environment variable")
         return
     
@@ -36,9 +36,9 @@ def main():
     if api_key:
         try:
             client = create_client(api_key=api_key)
-            print("✓ Client created with explicit API key")
+            print("[OK] Client created with explicit API key")
         except Exception as e:
-            print(f"✗ Failed: {e}")
+            print(f"[ERROR] Failed: {e}")
             return
     else:
         print("No API key available for explicit creation")
@@ -75,7 +75,7 @@ def main():
     except Exception as e:
         print(f"Failed to get account info: {e}")
     
-    print("\n✓ Quick start completed!")
+    print("\n[OK] Quick start completed!")
 
 
 if __name__ == "__main__":
