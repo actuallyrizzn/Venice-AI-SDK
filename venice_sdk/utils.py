@@ -6,18 +6,62 @@ from typing import List, Optional, Union
 import tiktoken
 
 
-def count_tokens(text: str) -> int:
+def count_tokens(
+    text: str, 
+    encoder: Optional[str] = None,
+    model: Optional[str] = None
+) -> int:
     """
     Count the number of tokens in a text string.
     
     Args:
         text: The text to count tokens for
+        encoder: Specific encoder to use (e.g., "cl100k_base", "p50k_base")
+        model: Model name to auto-detect encoder
         
     Returns:
         Number of tokens in the text
     """
-    encoder = tiktoken.get_encoding("cl100k_base")  # Default encoding for most Venice models
-    return len(encoder.encode(text))
+    if encoder is None:
+        if model is not None:
+            encoder = _get_encoder_for_model(model)
+        else:
+            encoder = "cl100k_base"  # Default fallback
+    
+    try:
+        encoder_obj = tiktoken.get_encoding(encoder)
+        return len(encoder_obj.encode(text))
+    except KeyError:
+        # Fallback to default encoder if invalid encoder specified
+        encoder_obj = tiktoken.get_encoding("cl100k_base")
+        return len(encoder_obj.encode(text))
+
+
+def _get_encoder_for_model(model: str) -> str:
+    """
+    Get the appropriate encoder for a given model.
+    
+    Args:
+        model: Model name to get encoder for
+        
+    Returns:
+        Encoder name for the model
+    """
+    if model is None:
+        return "cl100k_base"
+    
+    model_lower = model.lower()
+    
+    # OpenAI GPT models
+    if "gpt-4" in model_lower or "gpt-3.5" in model_lower:
+        return "cl100k_base"
+    elif "text-davinci" in model_lower:
+        return "p50k_base"
+    elif "text-curie" in model_lower or "text-babbage" in model_lower or "text-ada" in model_lower:
+        return "r50k_base"
+    
+    # Default fallback for Venice models and unknown models
+    return "cl100k_base"
 
 
 def validate_stop_sequences(stop: Optional[Union[str, List[str]]] = None) -> Optional[List[str]]:

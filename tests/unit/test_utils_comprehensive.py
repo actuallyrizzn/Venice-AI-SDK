@@ -6,6 +6,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from venice_sdk.utils import (
     count_tokens,
+    _get_encoder_for_model,
     validate_stop_sequences,
     format_messages,
     format_tools
@@ -91,6 +92,147 @@ class TestCountTokens:
             # The function will raise the exception, not return 0
             with pytest.raises(Exception, match="Encoding error"):
                 count_tokens("Hello world")
+
+    def test_count_tokens_with_custom_encoder(self):
+        """Test counting tokens with custom encoder."""
+        with patch("venice_sdk.utils.tiktoken.get_encoding") as mock_get_encoding:
+            mock_encoding = MagicMock()
+            mock_encoding.encode.return_value = [1, 2, 3, 4]
+            mock_get_encoding.return_value = mock_encoding
+            
+            result = count_tokens("Hello world", encoder="p50k_base")
+            assert result == 4
+            mock_get_encoding.assert_called_once_with("p50k_base")
+            mock_encoding.encode.assert_called_once_with("Hello world")
+
+    def test_count_tokens_with_model_detection(self):
+        """Test counting tokens with model-based encoder detection."""
+        with patch("venice_sdk.utils.tiktoken.get_encoding") as mock_get_encoding:
+            mock_encoding = MagicMock()
+            mock_encoding.encode.return_value = [1, 2, 3]
+            mock_get_encoding.return_value = mock_encoding
+            
+            result = count_tokens("Hello world", model="gpt-4")
+            assert result == 3
+            mock_get_encoding.assert_called_once_with("cl100k_base")
+            mock_encoding.encode.assert_called_once_with("Hello world")
+
+    def test_count_tokens_with_model_detection_text_davinci(self):
+        """Test counting tokens with text-davinci model detection."""
+        with patch("venice_sdk.utils.tiktoken.get_encoding") as mock_get_encoding:
+            mock_encoding = MagicMock()
+            mock_encoding.encode.return_value = [1, 2, 3, 4, 5]
+            mock_get_encoding.return_value = mock_encoding
+            
+            result = count_tokens("Hello world", model="text-davinci-003")
+            assert result == 5
+            mock_get_encoding.assert_called_once_with("p50k_base")
+            mock_encoding.encode.assert_called_once_with("Hello world")
+
+    def test_count_tokens_with_model_detection_text_curie(self):
+        """Test counting tokens with text-curie model detection."""
+        with patch("venice_sdk.utils.tiktoken.get_encoding") as mock_get_encoding:
+            mock_encoding = MagicMock()
+            mock_encoding.encode.return_value = [1, 2, 3, 4]
+            mock_get_encoding.return_value = mock_encoding
+            
+            result = count_tokens("Hello world", model="text-curie-001")
+            assert result == 4
+            mock_get_encoding.assert_called_once_with("r50k_base")
+            mock_encoding.encode.assert_called_once_with("Hello world")
+
+    def test_count_tokens_with_invalid_encoder_fallback(self):
+        """Test counting tokens with invalid encoder falls back to default."""
+        with patch("venice_sdk.utils.tiktoken.get_encoding") as mock_get_encoding:
+            # First call fails, second call succeeds
+            mock_get_encoding.side_effect = [
+                KeyError("Invalid encoder"),
+                MagicMock(encode=MagicMock(return_value=[1, 2, 3]))
+            ]
+            
+            result = count_tokens("Hello world", encoder="invalid_encoder")
+            assert result == 3
+            assert mock_get_encoding.call_count == 2
+            mock_get_encoding.assert_any_call("invalid_encoder")
+            mock_get_encoding.assert_any_call("cl100k_base")
+
+    def test_count_tokens_with_unknown_model_fallback(self):
+        """Test counting tokens with unknown model falls back to default."""
+        with patch("venice_sdk.utils.tiktoken.get_encoding") as mock_get_encoding:
+            mock_encoding = MagicMock()
+            mock_encoding.encode.return_value = [1, 2, 3]
+            mock_get_encoding.return_value = mock_encoding
+            
+            result = count_tokens("Hello world", model="unknown-model")
+            assert result == 3
+            mock_get_encoding.assert_called_once_with("cl100k_base")
+            mock_encoding.encode.assert_called_once_with("Hello world")
+
+    def test_count_tokens_backward_compatibility(self):
+        """Test that existing usage still works (backward compatibility)."""
+        with patch("venice_sdk.utils.tiktoken.get_encoding") as mock_get_encoding:
+            mock_encoding = MagicMock()
+            mock_encoding.encode.return_value = [1, 2, 3, 4, 5]
+            mock_get_encoding.return_value = mock_encoding
+            
+            # Original usage pattern should still work
+            result = count_tokens("Hello world")
+            assert result == 5
+            mock_get_encoding.assert_called_once_with("cl100k_base")
+            mock_encoding.encode.assert_called_once_with("Hello world")
+
+
+class TestGetEncoderForModel:
+    """Test _get_encoder_for_model function."""
+
+    def test_get_encoder_for_gpt4_model(self):
+        """Test encoder detection for GPT-4 models."""
+        assert _get_encoder_for_model("gpt-4") == "cl100k_base"
+        assert _get_encoder_for_model("gpt-4-turbo") == "cl100k_base"
+        assert _get_encoder_for_model("gpt-4-32k") == "cl100k_base"
+
+    def test_get_encoder_for_gpt35_model(self):
+        """Test encoder detection for GPT-3.5 models."""
+        assert _get_encoder_for_model("gpt-3.5-turbo") == "cl100k_base"
+        assert _get_encoder_for_model("gpt-3.5-turbo-16k") == "cl100k_base"
+
+    def test_get_encoder_for_text_davinci_model(self):
+        """Test encoder detection for text-davinci models."""
+        assert _get_encoder_for_model("text-davinci-003") == "p50k_base"
+        assert _get_encoder_for_model("text-davinci-002") == "p50k_base"
+        assert _get_encoder_for_model("text-davinci-001") == "p50k_base"
+
+    def test_get_encoder_for_text_curie_model(self):
+        """Test encoder detection for text-curie models."""
+        assert _get_encoder_for_model("text-curie-001") == "r50k_base"
+
+    def test_get_encoder_for_text_babbage_model(self):
+        """Test encoder detection for text-babbage models."""
+        assert _get_encoder_for_model("text-babbage-001") == "r50k_base"
+
+    def test_get_encoder_for_text_ada_model(self):
+        """Test encoder detection for text-ada models."""
+        assert _get_encoder_for_model("text-ada-001") == "r50k_base"
+
+    def test_get_encoder_for_case_insensitive(self):
+        """Test encoder detection is case insensitive."""
+        assert _get_encoder_for_model("GPT-4") == "cl100k_base"
+        assert _get_encoder_for_model("TEXT-DAVINCI-003") == "p50k_base"
+        assert _get_encoder_for_model("Text-Curie-001") == "r50k_base"
+
+    def test_get_encoder_for_unknown_model(self):
+        """Test encoder detection for unknown models falls back to default."""
+        assert _get_encoder_for_model("unknown-model") == "cl100k_base"
+        assert _get_encoder_for_model("llama-3.3-70b") == "cl100k_base"
+        assert _get_encoder_for_model("claude-3") == "cl100k_base"
+
+    def test_get_encoder_for_empty_model(self):
+        """Test encoder detection for empty model name."""
+        assert _get_encoder_for_model("") == "cl100k_base"
+
+    def test_get_encoder_for_none_model(self):
+        """Test encoder detection for None model."""
+        assert _get_encoder_for_model(None) == "cl100k_base"
 
 
 class TestValidateStopSequences:
