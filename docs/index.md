@@ -6,7 +6,7 @@ A comprehensive Python SDK for the Venice AI API, providing complete access to a
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: AGPLv3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![License: CC BY-SA 4.0](https://img.shields.io/badge/License-CC%20BY--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-sa/4.0/)
-[![Tests](https://img.shields.io/badge/tests-350%2B%20passing-brightgreen.svg)](https://github.com/venice-ai/venice-sdk)
+[![Tests](https://img.shields.io/badge/tests-1069%20passing-brightgreen.svg)](https://github.com/venice-ai/venice-sdk)
 
 ## ✨ Features
 

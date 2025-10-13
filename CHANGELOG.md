@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2025-01-22
+
+### Added
+- **Token Counting Encoder Override**: Added optional `encoder` and `model` parameters to `count_tokens()` function for flexible token counting
+- **Centralized Endpoint Constants**: Created `venice_sdk/endpoints.py` module for consistent API endpoint management
+- **Enhanced Error Handling**: Improved fallback mechanisms for invalid encoders in token counting
+
+### Changed
+- **Image Endpoint Consistency**: Standardized all image API endpoints to use `/images/` prefix for consistency
+- **Temperature Documentation**: Updated all temperature range documentation to consistently show 0-2 range
+- **Test Statistics**: Updated README with accurate test count (1069 tests) and pass rate (100%)
+
+### Fixed
+- **Unicode Compatibility**: Fixed Unicode characters in examples for Windows console compatibility
+- **Documentation Accuracy**: Corrected misleading test statistics and claims in README
+- **Cross-Platform Support**: Improved example compatibility across different operating systems
+
 ## [0.2.0] - 2025-01-22
 
 ### Added

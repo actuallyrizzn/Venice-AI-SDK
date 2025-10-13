@@ -1,6 +1,6 @@
 [project]
 name = "venice-sdk"
-version = "0.2.0"
+version = "0.2.1"
 description = "Comprehensive Python SDK for Venice AI - Advanced LLM, Image Generation, Audio Synthesis, and AI Assistant APIs with Full Swagger Specification Support"
 readme = "README.md"
 requires-python = ">=3.8"
