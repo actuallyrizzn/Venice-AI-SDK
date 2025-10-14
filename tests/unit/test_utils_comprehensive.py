@@ -18,7 +18,7 @@ class TestCountTokens:
 
     def test_count_tokens_with_text(self):
         """Test counting tokens with text."""
-        with patch("venice_sdk.utils.tiktoken.get_encoding") as mock_get_encoding:
+        with patch("venice_sdk.utils._get_cached_encoder") as mock_get_encoding:
             mock_encoding = MagicMock()
             mock_encoding.encode.return_value = [1, 2, 3, 4, 5]
             mock_get_encoding.return_value = mock_encoding
@@ -29,7 +29,7 @@ class TestCountTokens:
 
     def test_count_tokens_with_messages(self):
         """Test counting tokens with messages - this function only accepts strings."""
-        with patch("venice_sdk.utils.tiktoken.get_encoding") as mock_get_encoding:
+        with patch("venice_sdk.utils._get_cached_encoder") as mock_get_encoding:
             mock_encoding = MagicMock()
             mock_encoding.encode.return_value = [1, 2, 3]
             mock_get_encoding.return_value = mock_encoding
@@ -41,7 +41,7 @@ class TestCountTokens:
 
     def test_count_tokens_with_empty_text(self):
         """Test counting tokens with empty text."""
-        with patch("venice_sdk.utils.tiktoken.get_encoding") as mock_get_encoding:
+        with patch("venice_sdk.utils._get_cached_encoder") as mock_get_encoding:
             mock_encoding = MagicMock()
             mock_encoding.encode.return_value = []
             mock_get_encoding.return_value = mock_encoding
@@ -51,7 +51,7 @@ class TestCountTokens:
 
     def test_count_tokens_with_empty_messages(self):
         """Test counting tokens with empty messages - this function only accepts strings."""
-        with patch("venice_sdk.utils.tiktoken.get_encoding") as mock_get_encoding:
+        with patch("venice_sdk.utils._get_cached_encoder") as mock_get_encoding:
             mock_encoding = MagicMock()
             mock_encoding.encode.return_value = []
             mock_get_encoding.return_value = mock_encoding
@@ -62,7 +62,7 @@ class TestCountTokens:
 
     def test_count_tokens_with_none(self):
         """Test counting tokens with None - this function only accepts strings."""
-        with patch("venice_sdk.utils.tiktoken.get_encoding") as mock_get_encoding:
+        with patch("venice_sdk.utils._get_cached_encoder") as mock_get_encoding:
             mock_encoding = MagicMock()
             mock_encoding.encode.return_value = []
             mock_get_encoding.return_value = mock_encoding
@@ -73,7 +73,7 @@ class TestCountTokens:
 
     def test_count_tokens_with_invalid_input(self):
         """Test counting tokens with invalid input - this function only accepts strings."""
-        with patch("venice_sdk.utils.tiktoken.get_encoding") as mock_get_encoding:
+        with patch("venice_sdk.utils._get_cached_encoder") as mock_get_encoding:
             mock_encoding = MagicMock()
             mock_encoding.encode.return_value = []
             mock_get_encoding.return_value = mock_encoding
@@ -84,7 +84,7 @@ class TestCountTokens:
 
     def test_count_tokens_with_encoding_error(self):
         """Test counting tokens with encoding error."""
-        with patch("venice_sdk.utils.tiktoken.get_encoding") as mock_get_encoding:
+        with patch("venice_sdk.utils._get_cached_encoder") as mock_get_encoding:
             mock_encoding = MagicMock()
             mock_encoding.encode.side_effect = Exception("Encoding error")
             mock_get_encoding.return_value = mock_encoding
@@ -95,7 +95,7 @@ class TestCountTokens:
 
     def test_count_tokens_with_custom_encoder(self):
         """Test counting tokens with custom encoder."""
-        with patch("venice_sdk.utils.tiktoken.get_encoding") as mock_get_encoding:
+        with patch("venice_sdk.utils._get_cached_encoder") as mock_get_encoding:
             mock_encoding = MagicMock()
             mock_encoding.encode.return_value = [1, 2, 3, 4]
             mock_get_encoding.return_value = mock_encoding
@@ -107,7 +107,7 @@ class TestCountTokens:
 
     def test_count_tokens_with_model_detection(self):
         """Test counting tokens with model-based encoder detection."""
-        with patch("venice_sdk.utils.tiktoken.get_encoding") as mock_get_encoding:
+        with patch("venice_sdk.utils._get_cached_encoder") as mock_get_encoding:
             mock_encoding = MagicMock()
             mock_encoding.encode.return_value = [1, 2, 3]
             mock_get_encoding.return_value = mock_encoding
@@ -119,7 +119,7 @@ class TestCountTokens:
 
     def test_count_tokens_with_model_detection_text_davinci(self):
         """Test counting tokens with text-davinci model detection."""
-        with patch("venice_sdk.utils.tiktoken.get_encoding") as mock_get_encoding:
+        with patch("venice_sdk.utils._get_cached_encoder") as mock_get_encoding:
             mock_encoding = MagicMock()
             mock_encoding.encode.return_value = [1, 2, 3, 4, 5]
             mock_get_encoding.return_value = mock_encoding
@@ -131,7 +131,7 @@ class TestCountTokens:
 
     def test_count_tokens_with_model_detection_text_curie(self):
         """Test counting tokens with text-curie model detection."""
-        with patch("venice_sdk.utils.tiktoken.get_encoding") as mock_get_encoding:
+        with patch("venice_sdk.utils._get_cached_encoder") as mock_get_encoding:
             mock_encoding = MagicMock()
             mock_encoding.encode.return_value = [1, 2, 3, 4]
             mock_get_encoding.return_value = mock_encoding
@@ -143,7 +143,7 @@ class TestCountTokens:
 
     def test_count_tokens_with_invalid_encoder_fallback(self):
         """Test counting tokens with invalid encoder falls back to default."""
-        with patch("venice_sdk.utils.tiktoken.get_encoding") as mock_get_encoding:
+        with patch("venice_sdk.utils._get_cached_encoder") as mock_get_encoding:
             # First call fails, second call succeeds
             mock_get_encoding.side_effect = [
                 KeyError("Invalid encoder"),
@@ -158,7 +158,7 @@ class TestCountTokens:
 
     def test_count_tokens_with_unknown_model_fallback(self):
         """Test counting tokens with unknown model falls back to default."""
-        with patch("venice_sdk.utils.tiktoken.get_encoding") as mock_get_encoding:
+        with patch("venice_sdk.utils._get_cached_encoder") as mock_get_encoding:
             mock_encoding = MagicMock()
             mock_encoding.encode.return_value = [1, 2, 3]
             mock_get_encoding.return_value = mock_encoding
@@ -170,7 +170,7 @@ class TestCountTokens:
 
     def test_count_tokens_backward_compatibility(self):
         """Test that existing usage still works (backward compatibility)."""
-        with patch("venice_sdk.utils.tiktoken.get_encoding") as mock_get_encoding:
+        with patch("venice_sdk.utils._get_cached_encoder") as mock_get_encoding:
             mock_encoding = MagicMock()
             mock_encoding.encode.return_value = [1, 2, 3, 4, 5]
             mock_get_encoding.return_value = mock_encoding

@@ -3,7 +3,22 @@ Utility functions for the Venice SDK.
 """
 
 from typing import List, Optional, Union
+from functools import lru_cache
 import tiktoken
+
+
+@lru_cache(maxsize=10)
+def _get_cached_encoder(encoder_name: str):
+    """
+    Get a cached tiktoken encoder to avoid repeated creation overhead.
+    
+    Args:
+        encoder_name: Name of the encoder (e.g., "cl100k_base", "p50k_base")
+        
+    Returns:
+        Cached tiktoken encoder object
+    """
+    return tiktoken.get_encoding(encoder_name)
 
 
 def count_tokens(
@@ -29,11 +44,11 @@ def count_tokens(
             encoder = "cl100k_base"  # Default fallback
     
     try:
-        encoder_obj = tiktoken.get_encoding(encoder)
+        encoder_obj = _get_cached_encoder(encoder)
         return len(encoder_obj.encode(text))
     except KeyError:
         # Fallback to default encoder if invalid encoder specified
-        encoder_obj = tiktoken.get_encoding("cl100k_base")
+        encoder_obj = _get_cached_encoder("cl100k_base")
         return len(encoder_obj.encode(text))
 
 
