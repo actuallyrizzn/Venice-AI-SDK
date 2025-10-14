@@ -7,6 +7,7 @@ This module provides vector embedding generation and similarity calculation capa
 from __future__ import annotations
 
 import math
+import random
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 
@@ -361,7 +362,6 @@ class EmbeddingClustering:
             return list(range(len(embeddings)))
         
         # Initialize centroids randomly
-        import random
         centroids = random.sample(embeddings, k)
         assignments = [0] * len(embeddings)
         

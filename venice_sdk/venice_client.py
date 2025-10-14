@@ -77,7 +77,6 @@ class VeniceClient:
         Returns:
             Dictionary with account summary information
         """
-        from .account import AccountManager
         manager = AccountManager(self.api_keys, self.billing)
         return manager.get_account_summary()
     
@@ -88,7 +87,6 @@ class VeniceClient:
         Returns:
             Dictionary with rate limit status information
         """
-        from .account import AccountManager
         manager = AccountManager(self.api_keys, self.billing)
         return manager.check_rate_limit_status()
     

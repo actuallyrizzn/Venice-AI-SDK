@@ -31,7 +31,6 @@ class ImageGeneration:
     
     def save(self, path: Union[str, Path]) -> Path:
         """Save the image to a file."""
-        import base64
         path = Path(path)
         
         if self.url:
@@ -43,7 +42,6 @@ class ImageGeneration:
                 path.write_bytes(image_data)
             else:
                 # Download from HTTP URL
-                import requests
                 response = requests.get(self.url)
                 response.raise_for_status()
                 path.write_bytes(response.content)
@@ -58,7 +56,6 @@ class ImageGeneration:
     
     def get_image_data(self) -> bytes:
         """Get the raw image data as bytes."""
-        import base64
         
         if self.url:
             # Check if it's a data URL
@@ -68,7 +65,6 @@ class ImageGeneration:
                 return base64.b64decode(data)
             else:
                 # Download from HTTP URL
-                import requests
                 response = requests.get(self.url)
                 response.raise_for_status()
                 return response.content
@@ -88,7 +84,6 @@ class ImageEditResult:
     
     def save(self, path: Union[str, Path]) -> Path:
         """Save the edited image to a file."""
-        import base64
         path = Path(path)
         
         if self.url:
@@ -100,7 +95,6 @@ class ImageEditResult:
                 path.write_bytes(image_data)
             else:
                 # Download from HTTP URL
-                import requests
                 response = requests.get(self.url)
                 response.raise_for_status()
                 path.write_bytes(response.content)
@@ -122,7 +116,6 @@ class ImageUpscaleResult:
     
     def save(self, path: Union[str, Path]) -> Path:
         """Save the upscaled image to a file."""
-        import base64
         path = Path(path)
         
         if self.url:
@@ -134,7 +127,6 @@ class ImageUpscaleResult:
                 path.write_bytes(image_data)
             else:
                 # Download from HTTP URL
-                import requests
                 response = requests.get(self.url)
                 response.raise_for_status()
                 path.write_bytes(response.content)
@@ -294,7 +286,6 @@ class ImageEditAPI:
         if isinstance(image, str):
             if image.startswith(('http://', 'https://')):
                 # Download from URL
-                import requests
                 response = requests.get(image)
                 response.raise_for_status()
                 image_data = response.content
