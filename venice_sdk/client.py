@@ -134,7 +134,7 @@ class HTTPClient:
                     raise VeniceConnectionError(f"Request failed after {self.config.max_retries} attempts: {str(e)}")
                 time.sleep(2 ** attempt)  # Exponential backoff
     
-    def _handle_streaming_response(self, response: Response) -> Generator[str, None, None]:
+    def _handle_streaming_response(self, response: Response) -> Generator[Dict[str, Any], None, None]:
         """
         Handle streaming responses from the API.
         
@@ -142,7 +142,7 @@ class HTTPClient:
             response: Response object
             
         Yields:
-            Chunks of the response
+            Parsed JSON chunks as dictionaries
             
         Raises:
             VeniceAPIError: If the request fails
@@ -186,8 +186,8 @@ class HTTPClient:
                     break
                 try:
                     data = json.loads(data_content)
-                    # Yield the entire chunk as a string for SSE format
-                    yield line_str
+                    # Yield the parsed JSON data as a dict
+                    yield data
                 except json.JSONDecodeError:
                     continue
             else:
@@ -196,6 +196,8 @@ class HTTPClient:
                     data = json.loads(line_str)
                     if "chunk" in data:
                         yield data["chunk"]
+                    else:
+                        yield data
                 except json.JSONDecodeError:
                     continue
     
@@ -207,7 +209,7 @@ class HTTPClient:
         """Make a POST request."""
         return self._make_request("POST", endpoint, data=data, **kwargs)
     
-    def stream(self, endpoint: str, data: Optional[Dict[str, Any]] = None, **kwargs) -> Generator[str, None, None]:
+    def stream(self, endpoint: str, data: Optional[Dict[str, Any]] = None, **kwargs) -> Generator[Dict[str, Any], None, None]:
         """Make a streaming request."""
         return self._make_request("POST", endpoint, data=data, stream=True, **kwargs)
     
