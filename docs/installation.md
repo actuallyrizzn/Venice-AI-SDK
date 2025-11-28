@@ -41,6 +41,16 @@ pip install -e ".[docs]"
 pip install -e ".[all]"
 ```
 
+## Dependency version policy
+
+To guarantee reproducible installs, every dependency listed in `pyproject.toml` now has both a minimum and an upper bound. We only permit automatic upgrades within the major versions that we test in CI. For example:
+
+- Runtime: `requests>=2.31.0,<3.0.0`, `python-dotenv>=1.0.0,<2.0.0`, `tiktoken>=0.5.0,<1.0.0`, `psutil>=5.9.0,<6.0.0`, `typing-extensions>=4.5.0,<5.0.0`
+- Dev tooling: `pytest>=7.0.0,<8.0.0`, `pytest-cov>=4.0.0,<5.0.0`, `black>=23.0.0,<24.0.0`, `ruff>=0.1.0,<1.0.0`, `mypy>=1.0.0,<2.0.0`
+- Documentation/publishing: `mkdocs>=1.4.0,<2.0.0`, `mkdocs-material>=9.0.0,<10.0.0`, `twine>=4.0.0,<5.0.0`, `build>=0.10.0,<2.0.0`
+
+When upstreams release a new major series, we deliberately test against it before expanding the upper bound. This keeps local and CI environments in sync and prevents silent breaking changes from surprise dependency bumps.
+
 ## Verifying the Installation
 
 You can verify that the SDK is installed correctly by running:

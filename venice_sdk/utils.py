@@ -8,7 +8,7 @@ import tiktoken
 
 
 @lru_cache(maxsize=10)
-def _get_cached_encoder(encoder_name: str):
+def _get_cached_encoder(encoder_name: str) -> tiktoken.Encoding:
     """
     Get a cached tiktoken encoder to avoid repeated creation overhead.
     

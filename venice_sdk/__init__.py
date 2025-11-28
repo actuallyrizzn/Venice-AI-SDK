@@ -4,6 +4,8 @@ Venice SDK for Python.
 This module provides a comprehensive Python interface to the Venice AI API.
 """
 
+import logging
+
 from .client import HTTPClient
 from .venice_client import VeniceClient, create_client
 from .config import Config, load_config
@@ -102,6 +104,11 @@ from .embeddings import (
     calculate_similarity,
     generate_embeddings,
 )
+from .logging_config import setup_logging
+
+_root_logger = logging.getLogger("venice_sdk")
+if not any(isinstance(handler, logging.NullHandler) for handler in _root_logger.handlers):
+    _root_logger.addHandler(logging.NullHandler())
 
 __version__ = "0.2.1"
 
@@ -207,4 +214,7 @@ __all__ = [
     "generate_embedding",
     "calculate_similarity",
     "generate_embeddings",
+
+    # Logging
+    "setup_logging",
 ] 

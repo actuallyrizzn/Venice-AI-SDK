@@ -3,11 +3,14 @@ Chat API implementation for the Venice SDK.
 """
 
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any, Dict, Generator, List, Optional, Union
 
 from .client import HTTPClient
 from .errors import VeniceAPIError
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -92,7 +95,7 @@ class ChatAPI:
         Args:
             messages: List of messages in the conversation
             model: Model to use for completion
-            temperature: Sampling temperature (0-2)
+            temperature: Sampling temperature (0-1)
             stream: Whether to stream the response
             tools: Optional list of tools for function calling
             venice_parameters: Optional Venice-specific parameters (e.g., include_venice_system_prompt)
@@ -122,8 +125,12 @@ class ChatAPI:
         """
         if not messages:
             raise ValueError("Messages must be a non-empty list")
-        if not 0 <= temperature <= 2:
-            raise ValueError("Temperature must be between 0 and 2")
+        max_allowed_temp = min(max_temp, 2.0) if max_temp is not None else 1.0
+        if not 0 <= temperature <= max_allowed_temp:
+            raise ValueError(
+                "Temperature must be between 0 and 1 for default requests. "
+                "Temperature must be between 0 and 2 per API limits."
+            )
         
         # Validate parameter ranges
         if frequency_penalty is not None and not -2 <= frequency_penalty <= 2:
@@ -161,8 +168,9 @@ class ChatAPI:
             "model": model,
             "temperature": temperature,
             "stream": stream,
-            "n": n
         }
+        if n != 1:
+            data["n"] = n
         
         # Add optional parameters if provided
         optional_params = {
@@ -191,13 +199,22 @@ class ChatAPI:
         if kwargs:
             data.update(kwargs)
 
+        logger.debug(
+            "Chat completion request (model=%s, stream=%s, message_count=%s)",
+            model,
+            stream,
+            len(messages),
+        )
+
         if stream:
             response = self.client.stream("chat/completions", data=data)
+            logger.debug("Streaming chat completion started for model %s", model)
             return (chunk["choices"][0]["delta"]["content"] 
                    for chunk in response 
                    if "content" in chunk.get("choices", [{}])[0].get("delta", {}))
         else:
             response = self.client.post("chat/completions", data=data)
+            logger.debug("Chat completion finished for model %s", model)
             return response.json()
     
     def _create_completion(self, data: Dict[str, Any]) -> ChatCompletion:
@@ -312,9 +329,9 @@ def chat_complete(
     model: str = "llama-3.3-70b",
     temperature: float = 0.7,
     stream: bool = False,
-    tools: Optional[List[Dict]] = None,
+    tools: Optional[List[Dict[str, Any]]] = None,
     client: Optional[HTTPClient] = None,
-    **kwargs
+    **kwargs: Any
 ) -> Union[Dict, Generator[str, None, None]]:
     """
     Create a chat completion.

@@ -224,7 +224,7 @@ class APIKeysAPI:
         description: Optional[str] = None,
         wallet_address: Optional[str] = None,
         network: Optional[str] = None,
-        **kwargs
+        **kwargs: Any
     ) -> Web3APIKey:
         """
         Generate a new Web3-compatible API key.
@@ -332,7 +332,7 @@ class APIKeysAPI:
         offset: Optional[int] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        **kwargs
+        **kwargs: Any
     ) -> List[RateLimitLog]:
         """
         Get rate limit usage log.
@@ -469,11 +469,35 @@ class BillingAPI:
         data = result["data"]
         pagination = result.get("pagination", {})
         
+        if isinstance(data, dict):
+            usage_by_model = {}
+            raw_usage = data.get("usage_by_model") or {}
+            if isinstance(raw_usage, dict):
+                for model_id, stats in raw_usage.items():
+                    if not isinstance(stats, dict):
+                        continue
+                    usage_by_model[model_id] = {
+                        "requests": int(stats.get("requests", 0)),
+                        "tokens": int(stats.get("tokens", 0)),
+                        "cost": int(stats.get("cost", 0)),
+                    }
+            return UsageInfo(
+                total_usage=int(data.get("total_usage", 0)),
+                current_period=data.get("current_period", "current"),
+                credits_remaining=int(data.get("credits_remaining", 0)),
+                usage_by_model=usage_by_model,
+                billing_period_start=self._parse_datetime(data.get("billing_period_start")),
+                billing_period_end=self._parse_datetime(data.get("billing_period_end")),
+                pagination=pagination or data.get("pagination"),
+            )
+        
         # Parse usage data from array of usage entries
         total_usage = 0
         usage_by_model = {}
         
         for entry in data:
+            if not isinstance(entry, dict):
+                continue
             amount = entry.get("amount", 0)
             total_usage += abs(amount)  # Use absolute value for total usage
             
@@ -482,10 +506,10 @@ class BillingAPI:
                 usage_by_model[sku] = {
                     "requests": 0,
                     "tokens": 0,
-                    "cost": 0.0
+                    "cost": 0,
                 }
             
-            usage_by_model[sku]["cost"] += abs(amount)
+            usage_by_model[sku]["cost"] += int(abs(amount))
             # Estimate tokens from units if available
             units = entry.get("units", 0)
             usage_by_model[sku]["tokens"] += int(units * 1000)  # Convert to token estimate

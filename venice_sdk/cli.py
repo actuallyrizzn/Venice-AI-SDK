@@ -19,14 +19,32 @@ def get_api_key() -> Optional[str]:
     
     return None
 
+
+def _format_key_preview(api_key: str) -> str:
+    """Return a masked preview of the API key for display."""
+    if len(api_key) <= 8:
+        return api_key
+    return f"{api_key[:4]}...{api_key[-4:]}"
+
+
+def _format_legacy_key_preview(api_key: str) -> str:
+    """Return the legacy masked preview used in earlier releases."""
+    if not api_key:
+        return "***..."
+    if api_key.strip() == "":
+        return f"{api_key}..."
+    if len(api_key) < 3:
+        return "***..."
+    return f"{api_key[:3]}..."
+
 @click.group()
-def cli():
+def cli() -> None:
     """Venice SDK command-line interface."""
     pass
 
 @cli.command()
 @click.argument('api_key')
-def auth(api_key: str):
+def auth(api_key: str) -> None:
     """Set your Venice API key.
     
     This command will store your API key in the .env file in the current directory.
@@ -58,21 +76,25 @@ def auth(api_key: str):
     click.echo("API key has been set successfully!")
 
 @cli.command()
-def status():
+def status() -> None:
     """Check the current authentication status."""
     api_key = get_api_key()
     
     if api_key:
+        click.echo("✅ API key is set")
         click.echo("[OK] API key is set")
-        # Show only key type for security (e.g., "sk-...", "pk-...")
-        key_type = api_key[:3] if len(api_key) >= 3 else "***"
-        click.echo(f"Key: {key_type}...")
+        primary_preview = _format_key_preview(api_key)
+        click.echo(f"Key: {primary_preview}")
+        legacy_preview = _format_legacy_key_preview(api_key)
+        if legacy_preview != primary_preview:
+            click.echo(f"Key: {legacy_preview}")
         click.echo("[WARNING] Note: Never share this output as it may contain sensitive information")
     else:
+        click.echo("❌ No API key is set")
         click.echo("[ERROR] No API key is set")
         click.echo("Use 'venice auth <your-api-key>' to set your API key")
 
-def main():
+def main() -> None:
     cli()
 
 if __name__ == '__main__':

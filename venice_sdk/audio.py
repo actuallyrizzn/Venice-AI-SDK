@@ -115,7 +115,7 @@ class AudioAPI:
         response_format: str = "mp3",
         speed: float = 1.0,
         user: Optional[str] = None,
-        **kwargs
+        **kwargs: Any
     ) -> AudioResult:
         """
         Convert text to speech.
@@ -174,7 +174,7 @@ class AudioAPI:
         voice: str = "af_alloy",
         response_format: str = "mp3",
         speed: float = 1.0,
-        **kwargs
+        **kwargs: Any
     ) -> Path:
         """
         Convert text to speech and save to file.
@@ -211,7 +211,7 @@ class AudioAPI:
         response_format: str = "mp3",
         speed: float = 1.0,
         chunk_size: int = 1024,
-        **kwargs
+        **kwargs: Any
     ) -> Generator[bytes, None, None]:
         """
         Convert text to speech with streaming response.
@@ -311,7 +311,7 @@ class AudioBatchProcessor:
         output_dir: Union[str, Path],
         voice: str = "af_alloy",
         response_format: str = "mp3",
-        **kwargs
+        **kwargs: Any
     ) -> List[Path]:
         """
         Process multiple texts to speech and save to files.
@@ -361,7 +361,7 @@ class AudioBatchProcessor:
 def text_to_speech(
     text: str,
     client: Optional[HTTPClient] = None,
-    **kwargs
+    **kwargs: Any
 ) -> AudioResult:
     """Convenience function to convert text to speech."""
     if client is None:
@@ -378,7 +378,7 @@ def text_to_speech_file(
     text: str,
     output_path: Union[str, Path],
     client: Optional[HTTPClient] = None,
-    **kwargs
+    **kwargs: Any
 ) -> Path:
     """Convenience function to convert text to speech and save to file."""
     if client is None:

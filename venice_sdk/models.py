@@ -26,6 +26,7 @@ class Model:
     type: str
     capabilities: ModelCapabilities
     description: str
+    display_name: Optional[str] = None
 
 
 logger = logging.getLogger(__name__)
@@ -176,9 +177,11 @@ def _build_model_from_data(model_data: Dict[str, Any]) -> Model:
         or "No description available"
     )
     
+    raw_name = model_data.get("name")
+
     return Model(
         id=model_id,
-        name=model_data.get("name") or model_id,  # default to ID for backward compatibility
+        name=model_id,
         type=model_type,
         capabilities=ModelCapabilities(
             supports_function_calling=supports_function_calling,
@@ -186,6 +189,7 @@ def _build_model_from_data(model_data: Dict[str, Any]) -> Model:
             available_context_tokens=available_context_tokens,
         ),
         description=description,
+        display_name=raw_name or model_id,
     )
 
 

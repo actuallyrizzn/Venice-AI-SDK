@@ -229,21 +229,17 @@ def fallback_chat(messages, primary_model="llama-3.3-70b", fallback_model="llama
 
 **✅ Do:**
 ```python
-import logging
 import json
-from datetime import datetime
+import logging
+from venice_sdk.logging_config import setup_logging
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Configure logging once for the SDK (uses venice_sdk.logging_config)
+setup_logging(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def log_api_call(endpoint, model, tokens_used, duration, success=True):
     """Log API calls with structured data."""
     log_data = {
-        "timestamp": datetime.utcnow().isoformat(),
         "endpoint": endpoint,
         "model": model,
         "tokens_used": tokens_used,
@@ -269,6 +265,8 @@ except Exception as e:
     log_api_call("chat/completions", model, 0, duration, False)
     raise
 ```
+
+Tip: pass `structured=True` to `setup_logging()` if you prefer newline-delimited JSON output for easier ingestion in log pipelines.
 
 ### Usage Tracking
 

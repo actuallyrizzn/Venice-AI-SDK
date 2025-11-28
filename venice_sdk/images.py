@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import requests
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,6 +20,8 @@ from .client import HTTPClient
 from .errors import VeniceAPIError, ImageGenerationError
 from .config import load_config
 from .endpoints import ImageEndpoints
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -165,7 +168,7 @@ class ImageAPI:
         style: Optional[str] = None,
         response_format: str = "url",
         user: Optional[str] = None,
-        **kwargs
+        **kwargs: Any
     ) -> Union[ImageGeneration, List[ImageGeneration]]:
         """
         Generate images from text prompts.
@@ -211,6 +214,13 @@ class ImageAPI:
         if user:
             data["user"] = user
         
+        logger.debug(
+            "Image generation request (model=%s, n=%s, size=%s, format=%s)",
+            model,
+            n,
+            size,
+            response_format,
+        )
         response = self.client.post(ImageEndpoints.GENERATIONS, data=data)
         result = response.json()
         
@@ -226,6 +236,7 @@ class ImageAPI:
                 created=result.get("created")
             ))
         
+        logger.debug("Image generation produced %s image(s)", len(images))
         return images[0] if len(images) == 1 else images
     
     def generate_batch(
@@ -236,7 +247,7 @@ class ImageAPI:
         quality: str = "standard",
         style: Optional[str] = None,
         response_format: str = "url",
-        **kwargs
+        **kwargs: Any
     ) -> List[ImageGeneration]:
         """
         Generate images for multiple prompts.
@@ -311,7 +322,7 @@ class ImageEditAPI:
         size: Optional[str] = None,
         response_format: str = "url",
         user: Optional[str] = None,
-        **kwargs
+        **kwargs: Any
     ) -> Union[ImageEditResult, List[ImageEditResult]]:
         """
         Edit an existing image using text prompts.
@@ -346,6 +357,12 @@ class ImageEditAPI:
         if user:
             data["user"] = user
         
+        logger.debug(
+            "Image edit request (model=%s, mask=%s, response_format=%s)",
+            model,
+            mask is not None,
+            response_format,
+        )
         response = self.client.post(ImageEndpoints.EDIT, data=data)
         result = response.json()
         
@@ -361,6 +378,7 @@ class ImageEditAPI:
                 created=result.get("created")
             ))
         
+        logger.debug("Image edit produced %s image(s)", len(images))
         return images[0] if len(images) == 1 else images
 
 
@@ -395,7 +413,7 @@ class ImageUpscaleAPI:
         model: str = "upscaler-v1",
         scale: int = 2,
         response_format: str = "url",
-        **kwargs
+        **kwargs: Any
     ) -> ImageUpscaleResult:
         """
         Upscale an image to higher resolution.
@@ -418,6 +436,12 @@ class ImageUpscaleAPI:
             **kwargs
         }
         
+        logger.debug(
+            "Image upscale request (model=%s, scale=%s, response_format=%s)",
+            model,
+            scale,
+            response_format,
+        )
         response = self.client.post(ImageEndpoints.UPSCALE, data=data)
         result = response.json()
         
@@ -425,6 +449,7 @@ class ImageUpscaleAPI:
             raise ImageGenerationError("Invalid response format from image upscale API")
         
         item = result["data"][0]  # Upscale typically returns single image
+        logger.debug("Image upscale completed (model=%s)", model)
         return ImageUpscaleResult(
             url=item.get("url"),
             b64_json=item.get("b64_json"),
@@ -445,6 +470,7 @@ class ImageStylesAPI:
         Returns:
             List of ImageStyle objects
         """
+        logger.debug("Fetching available image styles")
         response = self.client.get(ImageEndpoints.STYLES)
         result = response.json()
         
@@ -476,6 +502,7 @@ class ImageStylesAPI:
                 preview_url=preview_url
             ))
         
+        logger.debug("Retrieved %s image styles", len(styles))
         return styles
     
     def get_style(self, style_id: str) -> Optional[ImageStyle]:
@@ -517,7 +544,7 @@ class ImageStylesAPI:
 def generate_image(
     prompt: str,
     client: Optional[HTTPClient] = None,
-    **kwargs
+    **kwargs: Any
 ) -> ImageGeneration:
     """Convenience function to generate a single image."""
     if client is None:
@@ -534,7 +561,7 @@ def edit_image(
     image: Union[str, bytes, Path],
     prompt: str,
     client: Optional[HTTPClient] = None,
-    **kwargs
+    **kwargs: Any
 ) -> ImageEditResult:
     """Convenience function to edit an image."""
     if client is None:
@@ -550,7 +577,7 @@ def edit_image(
 def upscale_image(
     image: Union[str, bytes, Path],
     client: Optional[HTTPClient] = None,
-    **kwargs
+    **kwargs: Any
 ) -> ImageUpscaleResult:
     """Convenience function to upscale an image."""
     if client is None:

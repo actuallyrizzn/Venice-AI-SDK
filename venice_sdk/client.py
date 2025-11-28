@@ -3,6 +3,7 @@ Core HTTP client for the Venice SDK.
 """
 
 import json
+import logging
 import time
 from typing import Any, Dict, Generator, Optional, Union
 
@@ -11,6 +12,8 @@ from requests import Response
 
 from .config import Config, load_config
 from .errors import VeniceAPIError, VeniceConnectionError, handle_api_error
+
+logger = logging.getLogger(__name__)
 
 
 class HTTPClient:
@@ -41,7 +44,7 @@ class HTTPClient:
         endpoint: str,
         data: Optional[Dict[str, Any]] = None,
         stream: bool = False,
-        **kwargs
+        **kwargs: Any
     ) -> Union[Response, Generator[str, None, None]]:
         """
         Make an HTTP request to the Venice API.
@@ -61,7 +64,15 @@ class HTTPClient:
             VeniceConnectionError: If there is a connection error
         """
         url = f"{self.config.base_url}/{endpoint.lstrip('/')}"
-        
+        payload_keys = sorted(data.keys()) if isinstance(data, dict) else None
+        logger.debug(
+            "Preparing HTTP %s %s (stream=%s, payload_keys=%s)",
+            method.upper(),
+            url,
+            stream,
+            payload_keys,
+        )
+
         # Add timeout if not specified
         if "timeout" not in kwargs:
             kwargs["timeout"] = self.config.timeout
@@ -79,6 +90,14 @@ class HTTPClient:
                 
                 # Common error handling (non-2xx)
                 if response.status_code >= 400:
+                    logger.warning(
+                        "HTTP %s %s failed with status %s (attempt %s/%s)",
+                        method.upper(),
+                        url,
+                        response.status_code,
+                        attempt + 1,
+                        self.config.max_retries,
+                    )
                     # Attempt to parse error payload safely
                     try:
                         error_data = response.json() or {}
@@ -114,6 +133,14 @@ class HTTPClient:
                     # Retry on 429 and 5xx if attempts remain
                     if (is_rate_limited or is_server_error) and attempt < self.config.max_retries - 1:
                         delay_seconds = retry_after_seconds if retry_after_seconds is not None else self.config.retry_delay * (2 ** attempt)
+                        logger.info(
+                            "Retrying HTTP %s %s after %ss delay (attempt %s/%s)",
+                            method.upper(),
+                            url,
+                            delay_seconds,
+                            attempt + 1,
+                            self.config.max_retries,
+                        )
                         time.sleep(delay_seconds)
                         continue
 
@@ -125,11 +152,31 @@ class HTTPClient:
                 # Success
                 if stream:
                     # For streaming success, return generator
+                    logger.debug(
+                        "HTTP %s %s streaming response started",
+                        method.upper(),
+                        url,
+                    )
                     return self._handle_streaming_response(response)
                 else:
+                    logger.debug(
+                        "HTTP %s %s succeeded with status %s",
+                        method.upper(),
+                        url,
+                        response.status_code,
+                    )
                     return response
                 
             except requests.exceptions.RequestException as e:
+                logger.error(
+                    "HTTP %s %s raised %s on attempt %s/%s",
+                    method.upper(),
+                    url,
+                    type(e).__name__,
+                    attempt + 1,
+                    self.config.max_retries,
+                    exc_info=True,
+                )
                 if attempt == self.config.max_retries - 1:
                     raise VeniceConnectionError(f"Request failed after {self.config.max_retries} attempts: {str(e)}")
                 time.sleep(2 ** attempt)  # Exponential backoff
@@ -148,6 +195,10 @@ class HTTPClient:
             VeniceAPIError: If the request fails
         """
         if response.status_code >= 400:
+            logger.warning(
+                "Streaming response returned status %s before payload consumption",
+                response.status_code,
+            )
             try:
                 error_data = response.json() or {}
             except Exception:
@@ -178,6 +229,7 @@ class HTTPClient:
                 continue
             
             line_str = line.decode("utf-8")
+            logger.debug("Received streaming chunk: %s", line_str[:200])
             
             # Handle Server-Sent Events format
             if line_str.startswith("data: "):
@@ -189,6 +241,7 @@ class HTTPClient:
                     # Yield the parsed JSON data as a dict
                     yield data
                 except json.JSONDecodeError:
+                    logger.debug("Skipping non-JSON streaming line")
                     continue
             else:
                 # Handle other formats (legacy)
@@ -201,18 +254,18 @@ class HTTPClient:
                 except json.JSONDecodeError:
                     continue
     
-    def get(self, endpoint: str, **kwargs) -> Response:
+    def get(self, endpoint: str, **kwargs: Any) -> Response:
         """Make a GET request."""
         return self._make_request("GET", endpoint, **kwargs)
     
-    def post(self, endpoint: str, data: Optional[Dict[str, Any]] = None, **kwargs) -> Response:
+    def post(self, endpoint: str, data: Optional[Dict[str, Any]] = None, **kwargs: Any) -> Response:
         """Make a POST request."""
         return self._make_request("POST", endpoint, data=data, **kwargs)
     
-    def stream(self, endpoint: str, data: Optional[Dict[str, Any]] = None, **kwargs) -> Generator[Dict[str, Any], None, None]:
+    def stream(self, endpoint: str, data: Optional[Dict[str, Any]] = None, **kwargs: Any) -> Generator[Dict[str, Any], None, None]:
         """Make a streaming request."""
         return self._make_request("POST", endpoint, data=data, stream=True, **kwargs)
     
-    def delete(self, endpoint: str, **kwargs) -> Response:
+    def delete(self, endpoint: str, **kwargs: Any) -> Response:
         """Make a DELETE request."""
         return self._make_request("DELETE", endpoint, **kwargs) 

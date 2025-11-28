@@ -6,7 +6,8 @@ This module provides a unified client interface for all Venice AI API endpoints.
 
 from __future__ import annotations
 
-from typing import Optional
+import logging
+from typing import Any, Optional
 
 from .client import HTTPClient
 from .config import Config, load_config
@@ -18,6 +19,8 @@ from .characters import CharactersAPI
 from .account import APIKeysAPI, BillingAPI, AccountManager
 from .models_advanced import ModelsTraitsAPI, ModelsCompatibilityAPI
 from .embeddings import EmbeddingsAPI
+
+logger = logging.getLogger(__name__)
 
 
 class VeniceClient:
@@ -37,6 +40,12 @@ class VeniceClient:
         """
         self.config = config or load_config()
         self._http_client = HTTPClient(self.config)
+        logger.info(
+            "Initialized VeniceClient (base_url=%s, timeout=%ss, retries=%s)",
+            self.config.base_url,
+            self.config.timeout,
+            self.config.max_retries,
+        )
         
         # Initialize all API modules
         self.chat = ChatAPI(self._http_client)
@@ -92,6 +101,7 @@ class VeniceClient:
     
     def clear_caches(self) -> None:
         """Clear all caches in the client."""
+        logger.debug("Clearing VeniceClient caches")
         if hasattr(self.models_traits, 'clear_cache'):
             self.models_traits.clear_cache()
         if hasattr(self.models_compatibility, 'clear_cache'):
@@ -101,7 +111,7 @@ class VeniceClient:
 
 
 # Convenience function for easy client creation
-def create_client(api_key: Optional[str] = None, **kwargs) -> VeniceClient:
+def create_client(api_key: Optional[str] = None, **kwargs: Any) -> VeniceClient:
     """
     Create a Venice client with optional configuration.
     
@@ -113,8 +123,10 @@ def create_client(api_key: Optional[str] = None, **kwargs) -> VeniceClient:
         VeniceClient instance
     """
     if api_key:
+        logger.debug("Creating VeniceClient with explicit API key")
         config = Config(api_key=api_key, **kwargs)
     else:
+        logger.debug("Creating VeniceClient from environment configuration")
         config = load_config()
         # Update config with any additional kwargs
         for key, value in kwargs.items():
