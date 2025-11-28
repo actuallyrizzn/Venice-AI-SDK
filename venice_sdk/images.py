@@ -18,8 +18,8 @@ from urllib.parse import urlparse
 
 from .client import HTTPClient
 from .errors import VeniceAPIError, ImageGenerationError
-from .config import load_config
 from .endpoints import ImageEndpoints
+from ._http import ensure_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -547,14 +547,12 @@ def generate_image(
     **kwargs: Any
 ) -> ImageGeneration:
     """Convenience function to generate a single image."""
-    if client is None:
-        from .config import load_config
-        from .venice_client import VeniceClient
-        config = load_config()
-        client = VeniceClient(config)
-    
-    api = ImageAPI(client)
-    return api.generate(prompt, **kwargs)
+    http_client = ensure_http_client(client)
+    api = ImageAPI(http_client)
+    result = api.generate(prompt, **kwargs)
+    if isinstance(result, list):
+        return result[0]
+    return result
 
 
 def edit_image(
@@ -564,14 +562,12 @@ def edit_image(
     **kwargs: Any
 ) -> ImageEditResult:
     """Convenience function to edit an image."""
-    if client is None:
-        from .config import load_config
-        from .venice_client import VeniceClient
-        config = load_config()
-        client = VeniceClient(config)
-    
-    api = ImageEditAPI(client)
-    return api.edit(image, prompt, **kwargs)
+    http_client = ensure_http_client(client)
+    api = ImageEditAPI(http_client)
+    result = api.edit(image, prompt, **kwargs)
+    if isinstance(result, list):
+        return result[0]
+    return result
 
 
 def upscale_image(
@@ -580,11 +576,6 @@ def upscale_image(
     **kwargs: Any
 ) -> ImageUpscaleResult:
     """Convenience function to upscale an image."""
-    if client is None:
-        from .config import load_config
-        from .venice_client import VeniceClient
-        config = load_config()
-        client = VeniceClient(config)
-    
-    api = ImageUpscaleAPI(client)
+    http_client = ensure_http_client(client)
+    api = ImageUpscaleAPI(http_client)
     return api.upscale(image, **kwargs)

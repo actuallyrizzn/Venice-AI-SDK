@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from .client import HTTPClient
 from .errors import VeniceAPIError, CharacterNotFoundError
-from .config import load_config
+from ._http import ensure_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -41,15 +41,11 @@ class Character:
     
     def get_capabilities(self) -> List[str]:
         """Get list of character capabilities."""
-        if isinstance(self.capabilities, dict):
-            return list(self.capabilities.keys())
-        return []
+        return list(self.capabilities.keys())
     
     def has_capability(self, capability: str) -> bool:
         """Check if character has a specific capability."""
-        if isinstance(self.capabilities, dict):
-            return self.capabilities.get(capability, False)
-        return False
+        return bool(self.capabilities.get(capability))
 
 
 class CharactersAPI:
@@ -388,13 +384,8 @@ def get_character(
 ) -> Optional[Character]:
     """Convenience function to get a character by slug."""
     logger.debug("Convenience get_character called for slug=%s", slug)
-    if client is None:
-        from .config import load_config
-        from .venice_client import VeniceClient
-        config = load_config()
-        client = VeniceClient(config)
-    
-    api = CharactersAPI(client)
+    http_client = ensure_http_client(client)
+    api = CharactersAPI(http_client)
     return api.get(slug)
 
 
@@ -404,13 +395,8 @@ def list_characters(
 ) -> List[Character]:
     """Convenience function to list characters."""
     logger.debug("Convenience list_characters called with filters=%s", kwargs)
-    if client is None:
-        from .config import load_config
-        from .venice_client import VeniceClient
-        config = load_config()
-        client = VeniceClient(config)
-    
-    api = CharactersAPI(client)
+    http_client = ensure_http_client(client)
+    api = CharactersAPI(http_client)
     return api.list(**kwargs)
 
 
@@ -421,11 +407,6 @@ def search_characters(
 ) -> List[Character]:
     """Convenience function to search characters."""
     logger.debug("Convenience search_characters called for query=%s", query)
-    if client is None:
-        from .config import load_config
-        from .venice_client import VeniceClient
-        config = load_config()
-        client = VeniceClient(config)
-    
-    api = CharactersAPI(client)
+    http_client = ensure_http_client(client)
+    api = CharactersAPI(http_client)
     return api.search(query, **kwargs)

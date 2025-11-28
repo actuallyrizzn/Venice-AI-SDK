@@ -14,11 +14,11 @@ from typing import Any, Dict, List, Optional, Union, Generator
 
 from .client import HTTPClient
 from .errors import VeniceAPIError, AudioGenerationError
-from .config import load_config
+from ._http import ensure_http_client
 
 try:
-    import pygame
-except ImportError:
+    import pygame  # type: ignore[import-not-found]
+except ImportError:  # pragma: no cover - optional dependency
     pygame = None
 
 
@@ -243,9 +243,9 @@ class AudioAPI:
             **kwargs
         }
         
-        response = self.client.stream("/audio/speech", data=data)
+        response = self.client.post("/audio/speech", data=data, stream=True)
         
-        for chunk in response:
+        for chunk in response.iter_content(chunk_size=chunk_size):
             if chunk:
                 yield chunk
     
@@ -364,13 +364,8 @@ def text_to_speech(
     **kwargs: Any
 ) -> AudioResult:
     """Convenience function to convert text to speech."""
-    if client is None:
-        from .config import load_config
-        from .venice_client import VeniceClient
-        config = load_config()
-        client = VeniceClient(config)
-    
-    api = AudioAPI(client)
+    http_client = ensure_http_client(client)
+    api = AudioAPI(http_client)
     return api.speech(text, **kwargs)
 
 
@@ -381,11 +376,6 @@ def text_to_speech_file(
     **kwargs: Any
 ) -> Path:
     """Convenience function to convert text to speech and save to file."""
-    if client is None:
-        from .config import load_config
-        from .venice_client import VeniceClient
-        config = load_config()
-        client = VeniceClient(config)
-    
-    api = AudioAPI(client)
+    http_client = ensure_http_client(client)
+    api = AudioAPI(http_client)
     return api.speech_to_file(text, output_path, **kwargs)

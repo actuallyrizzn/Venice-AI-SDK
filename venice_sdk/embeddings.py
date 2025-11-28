@@ -10,11 +10,11 @@ import logging
 import math
 import random
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Iterator, List, Optional, Union
 
 from .client import HTTPClient
 from .errors import VeniceAPIError, EmbeddingError
-from .config import load_config
+from ._http import ensure_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ class EmbeddingResult:
         """Get embedding by index."""
         return self.embeddings[index]
     
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Embedding]:
         """Iterate over embeddings."""
         return iter(self.embeddings)
     
@@ -280,8 +280,8 @@ class SemanticSearch:
     
     def __init__(self, embeddings_api: EmbeddingsAPI):
         self.embeddings_api = embeddings_api
-        self.documents = []
-        self.document_embeddings = []
+        self.documents: List[str] = []
+        self.document_embeddings: List[List[float]] = []
         self.model = "text-embedding-ada-002"
     
     def add_documents(
@@ -418,13 +418,8 @@ def generate_embedding(
     **kwargs: Any
 ) -> List[float]:
     """Convenience function to generate a single embedding."""
-    if client is None:
-        from .config import load_config
-        from .venice_client import VeniceClient
-        config = load_config()
-        client = VeniceClient(config)
-    
-    api = EmbeddingsAPI(client)
+    http_client = ensure_http_client(client)
+    api = EmbeddingsAPI(http_client)
     return api.generate_single(text, **kwargs)
 
 
@@ -435,13 +430,8 @@ def calculate_similarity(
     **kwargs: Any
 ) -> float:
     """Convenience function to calculate similarity between two texts."""
-    if client is None:
-        from .config import load_config
-        from .venice_client import VeniceClient
-        config = load_config()
-        client = VeniceClient(config)
-    
-    api = EmbeddingsAPI(client)
+    http_client = ensure_http_client(client)
+    api = EmbeddingsAPI(http_client)
     emb1 = api.generate_single(text1, **kwargs)
     emb2 = api.generate_single(text2, **kwargs)
     
@@ -454,11 +444,6 @@ def generate_embeddings(
     **kwargs: Any
 ) -> EmbeddingResult:
     """Convenience function to generate embeddings."""
-    if client is None:
-        from .config import load_config
-        from .venice_client import VeniceClient
-        config = load_config()
-        client = VeniceClient(config)
-    
-    api = EmbeddingsAPI(client)
+    http_client = ensure_http_client(client)
+    api = EmbeddingsAPI(http_client)
     return api.generate(texts, **kwargs)

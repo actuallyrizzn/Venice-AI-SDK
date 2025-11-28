@@ -172,6 +172,9 @@ class HTTPClient:
                 if attempt == self.config.max_retries - 1:
                     raise VeniceConnectionError(f"Request failed after {self.config.max_retries} attempts: {str(e)}")
                 time.sleep(2 ** attempt)  # Exponential backoff
+        raise VeniceConnectionError(
+            f"Request failed after {self.config.max_retries} attempts: exhausted retry loop"
+        )
     
     def _handle_streaming_response(self, response: Response) -> Generator[Dict[str, Any], None, None]:
         """

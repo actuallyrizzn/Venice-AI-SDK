@@ -210,13 +210,13 @@ class ChatAPI:
         )
 
         if stream:
-            response = self.client.stream("chat/completions", data=data)
+            stream_response = self.client.stream("chat/completions", data=data)
             logger.debug("Streaming chat completion started for model %s", model)
-            return self._stream_text_chunks(response)
-        else:
-            response = self.client.post("chat/completions", data=data)
-            logger.debug("Chat completion finished for model %s", model)
-            return cast(JSONDict, response.json())
+            return self._stream_text_chunks(stream_response)
+
+        http_response = self.client.post("chat/completions", data=data)
+        logger.debug("Chat completion finished for model %s", model)
+        return cast(JSONDict, http_response.json())
     
     def _create_completion(self, data: JSONDict) -> ChatCompletion:
         """Create a non-streaming completion."""
