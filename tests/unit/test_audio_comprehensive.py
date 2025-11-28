@@ -2,9 +2,11 @@
 Comprehensive unit tests for the audio module.
 """
 
-import pytest
+import logging
 from pathlib import Path
 from unittest.mock import patch, MagicMock, mock_open
+
+import pytest
 from venice_sdk.audio import (
     Voice, AudioResult, AudioAPI, AudioBatchProcessor,
     text_to_speech, text_to_speech_file
@@ -578,7 +580,7 @@ class TestAudioBatchProcessorComprehensive:
         # Filename should be truncated
         assert len(saved_files[0].stem) <= 53  # 3 digits + underscore + 50 chars
 
-    def test_process_batch_with_errors(self, mock_client, tmp_path, capsys):
+    def test_process_batch_with_errors(self, mock_client, tmp_path, caplog):
         """Test batch processing with some errors."""
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -597,15 +599,15 @@ class TestAudioBatchProcessorComprehensive:
         texts = ["Success text", "Error text", "Another success"]
         output_dir = tmp_path / "audio_output"
         
-        saved_files = processor.process_batch(texts=texts, output_dir=output_dir)
+        with caplog.at_level(logging.WARNING, logger="venice_sdk.audio"):
+            saved_files = processor.process_batch(texts=texts, output_dir=output_dir)
         
         # Should have 2 successful files, 1 failed
         assert len(saved_files) == 2
         assert all(path.exists() for path in saved_files)
         
-        # Check that error was printed
-        captured = capsys.readouterr()
-        assert "Failed to process text 1" in captured.out
+        # Check that error was logged without leaking sensitive text content
+        assert "Failed to process text index 1" in caplog.text
 
     def test_process_batch_empty_texts(self, mock_client, tmp_path):
         """Test batch processing with empty texts list."""
