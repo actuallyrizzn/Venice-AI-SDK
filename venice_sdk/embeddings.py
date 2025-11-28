@@ -10,7 +10,7 @@ import logging
 import math
 import random
 from dataclasses import dataclass
-from typing import Any, Dict, Iterator, List, Optional, Union
+from typing import Any, Dict, Iterator, List, Optional, TypedDict, Union
 
 from .client import HTTPClient
 from .errors import VeniceAPIError, EmbeddingError
@@ -275,6 +275,16 @@ class EmbeddingSimilarity:
         return sum(a * b for a, b in zip(embedding1, embedding2))
 
 
+class SemanticSearchResult(TypedDict):
+    document: str
+    similarity: float
+    index: int
+
+
+def _similarity_score(result: SemanticSearchResult) -> float:
+    return result["similarity"]
+
+
 class SemanticSearch:
     """Semantic search using embeddings."""
     
@@ -312,7 +322,7 @@ class SemanticSearch:
         query: str,
         top_k: int = 5,
         similarity_threshold: float = 0.0
-    ) -> List[Dict[str, Any]]:
+    ) -> List[SemanticSearchResult]:
         """
         Search for similar documents.
         
@@ -331,18 +341,20 @@ class SemanticSearch:
         query_embedding = self.embeddings_api.generate_single(query, model=self.model)
         
         # Calculate similarities
-        similarities = []
+        similarities: List[SemanticSearchResult] = []
         for i, doc_embedding in enumerate(self.document_embeddings):
             similarity = EmbeddingSimilarity.cosine_similarity(query_embedding, doc_embedding)
             if similarity >= similarity_threshold:
-                similarities.append({
-                    "document": self.documents[i],
-                    "similarity": similarity,
-                    "index": i
-                })
+                similarities.append(
+                    {
+                        "document": self.documents[i],
+                        "similarity": similarity,
+                        "index": i,
+                    }
+                )
         
         # Sort by similarity (descending) and return top_k
-        similarities.sort(key=lambda x: x["similarity"], reverse=True)
+        similarities.sort(key=_similarity_score, reverse=True)
         return similarities[:top_k]
     
     def clear(self) -> None:

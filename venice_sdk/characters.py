@@ -39,13 +39,21 @@ class Character:
             "character_slug": self.slug
         }
     
+    def _capabilities_dict(self) -> Dict[str, Any]:
+        """Return capabilities as a dictionary regardless of source format."""
+        if isinstance(self.capabilities, dict):
+            return self.capabilities
+        if isinstance(self.capabilities, list):
+            return {str(capability): True for capability in self.capabilities}
+        return {}
+    
     def get_capabilities(self) -> List[str]:
         """Get list of character capabilities."""
-        return list(self.capabilities.keys())
+        return list(self._capabilities_dict().keys())
     
     def has_capability(self, capability: str) -> bool:
         """Check if character has a specific capability."""
-        return bool(self.capabilities.get(capability))
+        return bool(self._capabilities_dict().get(capability))
 
 
 class CharactersAPI:
@@ -77,7 +85,7 @@ class CharactersAPI:
         Returns:
             List of Character objects
         """
-        params = {}
+        params: Dict[str, Any] = {}
         
         if category:
             params["category"] = category
@@ -275,7 +283,7 @@ class CharacterManager:
     
     def __init__(self, characters_api: CharactersAPI):
         self.characters_api = characters_api
-        self._character_cache = {}
+        self._character_cache: Dict[str, Character] = {}
     
     def get_character(self, identifier: str, use_cache: bool = True) -> Optional[Character]:
         """

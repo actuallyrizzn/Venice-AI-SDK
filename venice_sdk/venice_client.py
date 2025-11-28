@@ -7,7 +7,7 @@ This module provides a unified client interface for all Venice AI API endpoints.
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from .client import HTTPClient
 from .config import Config, load_config
@@ -79,7 +79,7 @@ class VeniceClient:
         """Get the underlying HTTP client."""
         return self._http_client
     
-    def get_account_summary(self) -> dict:
+    def get_account_summary(self) -> Dict[str, Any]:
         """
         Get a comprehensive account summary.
         
@@ -89,7 +89,7 @@ class VeniceClient:
         manager = AccountManager(self.api_keys, self.billing)
         return manager.get_account_summary()
     
-    def get_rate_limit_status(self) -> dict:
+    def get_rate_limit_status(self) -> Dict[str, Any]:
         """
         Get current rate limit status.
         
