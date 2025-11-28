@@ -57,7 +57,7 @@ class RateLimits:
 @dataclass
 class RateLimitLog:
     """Represents a rate limit log entry."""
-    timestamp: datetime
+    timestamp: Optional[datetime]
     endpoint: str
     status_code: int
     response_time: float
@@ -71,7 +71,7 @@ class UsageInfo:
     total_usage: int
     current_period: str
     credits_remaining: int
-    usage_by_model: Dict[str, Dict[str, int]]
+    usage_by_model: Dict[str, Dict[str, Any]]
     billing_period_start: Optional[datetime] = None
     billing_period_end: Optional[datetime] = None
     pagination: Optional[Dict[str, Any]] = None
@@ -198,7 +198,7 @@ class APIKeysAPI:
         try:
             response = self.client.delete("/api_keys", params={"id": key_id})
             result = response.json()
-            return result.get("success", False)
+            return bool(result.get("success", False))
         except Exception as e:
             raise APIKeyError(f"Failed to delete API key: {e}")
     
@@ -347,7 +347,7 @@ class APIKeysAPI:
         Returns:
             List of RateLimitLog objects
         """
-        params = {}
+        params: Dict[str, Any] = {}
         
         if limit:
             params["limit"] = limit
@@ -445,7 +445,7 @@ class BillingAPI:
         Returns:
             UsageInfo object with usage details
         """
-        params = {}
+        params: Dict[str, Any] = {}
         
         if currency:
             params["currency"] = currency
@@ -533,15 +533,17 @@ class BillingAPI:
             Dictionary mapping model IDs to ModelUsage objects
         """
         usage_info = self.get_usage()
-        model_usage = {}
+        model_usage: Dict[str, ModelUsage] = {}
         
         for model_id, usage_data in usage_info.usage_by_model.items():
+            last_used_raw = usage_data.get("last_used")
+            last_used = self._parse_datetime(last_used_raw) if isinstance(last_used_raw, str) else None
             model_usage[model_id] = ModelUsage(
                 model_id=model_id,
-                requests=usage_data.get("requests", 0),
-                tokens=usage_data.get("tokens", 0),
-                cost=usage_data.get("cost", 0.0),
-                last_used=self._parse_datetime(usage_data.get("last_used"))
+                requests=int(usage_data.get("requests", 0)),
+                tokens=int(usage_data.get("tokens", 0)),
+                cost=float(usage_data.get("cost", 0.0)),
+                last_used=last_used
             )
         
         return model_usage
@@ -598,7 +600,10 @@ class BillingAPI:
             if "data" not in result:
                 raise BillingError("Invalid response format from billing summary endpoint")
             
-            return result["data"]
+            data = result["data"]
+            if not isinstance(data, dict):
+                raise BillingError("Billing summary payload must be an object")
+            return data
         except Exception as e:
             # Fallback to basic usage info if billing summary is not available
             usage_info = self.get_usage()
@@ -660,7 +665,7 @@ class AccountManager:
             except Exception:
                 pass  # Not an admin key, skip API keys
             
-            result = {}
+            result: Dict[str, Any] = {}
             
             if usage_info:
                 result["usage"] = {
@@ -745,32 +750,34 @@ class AccountManager:
         
         return True
     
-    def get_rate_limit_logs(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
-        """Alias for get_rate_limits_log() for backward compatibility."""
-        return self.get_rate_limits_log(limit)
+    def get_rate_limit_logs(
+        self,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        **kwargs: Any,
+    ) -> List[RateLimitLog]:
+        """Proxy to API key rate limit logs for backward compatibility."""
+        return self.api_keys_api.get_rate_limits_log(
+            limit=limit,
+            offset=offset,
+            start_date=start_date,
+            end_date=end_date,
+            **kwargs,
+        )
     
     def get_usage_info(self) -> UsageInfo:
         """Alias for get_usage() for backward compatibility."""
-        return self.get_usage()
+        return self.billing_api.get_usage()
     
     def get_model_usage(self) -> Dict[str, ModelUsage]:
         """Alias for get_usage_by_model() for backward compatibility."""
-        return self.get_usage_by_model()
+        return self.billing_api.get_usage_by_model()
     
     def get_billing_summary(self) -> Dict[str, Any]:
-        """
-        Get a comprehensive billing summary.
-        
-        Returns:
-            Dictionary with billing summary information
-        """
-        response = self.client.get("/billing/summary")
-        result = response.json()
-        
-        if "data" not in result:
-            raise BillingError("Invalid response format from billing summary endpoint")
-        
-        return result["data"]
+        """Proxy to the billing summary endpoint."""
+        return self.billing_api.get_billing_summary()
 
 
 # Convenience functions
