@@ -262,6 +262,47 @@ def test_get_models_utility(mock_client):
         assert models[0].id == "llama-3.3-70b"
 
 
+def test_get_models_handles_missing_capabilities(mock_client):
+    """Ensure get_models gracefully defaults when capabilities are missing."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "data": [
+            {
+                "id": "resilient-model",
+                "type": "text",
+                "model_spec": {},
+            }
+        ]
+    }
+    mock_client.get.return_value = mock_response
+
+    with patch('venice_sdk.models.HTTPClient', return_value=mock_client):
+        models = get_models()
+
+    assert models[0].capabilities.supports_function_calling is False
+    assert models[0].capabilities.supports_web_search is False
+    assert models[0].capabilities.available_context_tokens == 0
+    assert models[0].description == "No description available"
+
+
+def test_get_models_missing_required_fields_raises(mock_client):
+    """Ensure get_models raises a VeniceAPIError for malformed payloads."""
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "data": [
+            {
+                "type": "text",
+                "model_spec": {},
+            }
+        ]
+    }
+    mock_client.get.return_value = mock_response
+
+    with patch('venice_sdk.models.HTTPClient', return_value=mock_client):
+        with pytest.raises(VeniceAPIError):
+            get_models()
+
+
 def test_get_model_by_id_utility(mock_client):
     """Test the get_model_by_id utility function."""
     mock_response = MagicMock()

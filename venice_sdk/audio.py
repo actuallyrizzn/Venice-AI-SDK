@@ -6,10 +6,11 @@ This module provides text-to-speech capabilities using the Venice AI API.
 
 from __future__ import annotations
 
+import io
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union, Generator
-import io
 
 from .client import HTTPClient
 from .errors import VeniceAPIError, AudioGenerationError
@@ -19,6 +20,9 @@ try:
     import pygame
 except ImportError:
     pygame = None
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -342,8 +346,12 @@ class AudioBatchProcessor:
                     **kwargs
                 )
                 saved_files.append(saved_path)
-            except Exception as e:
-                print(f"Failed to process text {i}: {e}")
+            except Exception:
+                logger.warning(
+                    "Failed to process text index %s during batch audio generation",
+                    i,
+                    exc_info=True,
+                )
                 continue
         
         return saved_files
