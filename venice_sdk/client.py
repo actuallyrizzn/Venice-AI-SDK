@@ -38,14 +38,14 @@ class HTTPClient:
             "Content-Type": "application/json"
         })
     
-    def _make_request(
+    def _request(
         self,
         method: str,
         endpoint: str,
         data: Optional[Dict[str, Any]] = None,
         stream: bool = False,
         **kwargs: Any
-    ) -> Union[Response, Generator[str, None, None]]:
+    ) -> Response:
         """
         Make an HTTP request to the Venice API.
         
@@ -150,22 +150,14 @@ class HTTPClient:
                     return response
 
                 # Success
-                if stream:
-                    # For streaming success, return generator
-                    logger.debug(
-                        "HTTP %s %s streaming response started",
-                        method.upper(),
-                        url,
-                    )
-                    return self._handle_streaming_response(response)
-                else:
-                    logger.debug(
-                        "HTTP %s %s succeeded with status %s",
-                        method.upper(),
-                        url,
-                        response.status_code,
-                    )
-                    return response
+                logger.debug(
+                    "HTTP %s %s succeeded with status %s (stream=%s)",
+                    method.upper(),
+                    url,
+                    response.status_code,
+                    stream,
+                )
+                return response
                 
             except requests.exceptions.RequestException as e:
                 logger.error(
@@ -256,16 +248,18 @@ class HTTPClient:
     
     def get(self, endpoint: str, **kwargs: Any) -> Response:
         """Make a GET request."""
-        return self._make_request("GET", endpoint, **kwargs)
+        return self._request("GET", endpoint, **kwargs)
     
     def post(self, endpoint: str, data: Optional[Dict[str, Any]] = None, **kwargs: Any) -> Response:
         """Make a POST request."""
-        return self._make_request("POST", endpoint, data=data, **kwargs)
+        return self._request("POST", endpoint, data=data, **kwargs)
     
     def stream(self, endpoint: str, data: Optional[Dict[str, Any]] = None, **kwargs: Any) -> Generator[Dict[str, Any], None, None]:
         """Make a streaming request."""
-        return self._make_request("POST", endpoint, data=data, stream=True, **kwargs)
+        response = self._request("POST", endpoint, data=data, stream=True, **kwargs)
+        logger.debug("HTTP POST %s streaming response started", endpoint)
+        return self._handle_streaming_response(response)
     
     def delete(self, endpoint: str, **kwargs: Any) -> Response:
         """Make a DELETE request."""
-        return self._make_request("DELETE", endpoint, **kwargs) 
+        return self._request("DELETE", endpoint, **kwargs)
