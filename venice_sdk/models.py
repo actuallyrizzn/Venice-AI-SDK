@@ -4,7 +4,7 @@ Model discovery and management for the Venice SDK.
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 from .client import HTTPClient
 from .errors import VeniceAPIError
@@ -26,9 +26,13 @@ class Model:
     type: str
     capabilities: ModelCapabilities
     description: str
+    display_name: Optional[str] = None
 
 
 logger = logging.getLogger(__name__)
+
+
+JSONDict = Dict[str, Any]
 
 
 class ModelsAPI:
@@ -43,7 +47,7 @@ class ModelsAPI:
         """
         self.client = client
     
-    def list(self) -> List[Dict]:
+    def list(self) -> List[JSONDict]:
         """
         Get a list of available models.
         
@@ -54,9 +58,9 @@ class ModelsAPI:
             VeniceAPIError: If the request fails
         """
         response = self.client.get("models")
-        return response.json()["data"]
+        return cast(List[JSONDict], response.json()["data"])
     
-    def get(self, model_id: str) -> Dict:
+    def get(self, model_id: str) -> JSONDict:
         """
         Get a specific model by ID.
         
@@ -146,7 +150,7 @@ def get_text_models(client: Optional[HTTPClient] = None) -> List[Model]:
     return [model for model in get_models(client) if model.type == "text"] 
 
 
-def _build_model_from_data(model_data: Dict[str, Any]) -> Model:
+def _build_model_from_data(model_data: JSONDict) -> Model:
     """
     Build a Model object from raw API data using defensive defaults.
     """
@@ -158,11 +162,11 @@ def _build_model_from_data(model_data: Dict[str, Any]) -> Model:
     if not model_id or not model_type:
         raise VeniceAPIError("Model payload missing required `id` or `type` fields.", status_code=500)
     
-    model_spec = model_data.get("model_spec") or {}
+    model_spec = cast(JSONDict, model_data.get("model_spec") or {})
     if "model_spec" not in model_data:
         logger.debug("Model %s missing model_spec; falling back to defaults.", model_id)
     
-    capabilities_data = model_spec.get("capabilities") or {}
+    capabilities_data = cast(JSONDict, model_spec.get("capabilities") or {})
     if not capabilities_data:
         logger.debug("Model %s missing capabilities; defaulting capability flags.", model_id)
     
@@ -176,9 +180,11 @@ def _build_model_from_data(model_data: Dict[str, Any]) -> Model:
         or "No description available"
     )
     
+    raw_name = model_data.get("name")
+
     return Model(
         id=model_id,
-        name=model_data.get("name") or model_id,  # default to ID for backward compatibility
+        name=model_id,
         type=model_type,
         capabilities=ModelCapabilities(
             supports_function_calling=supports_function_calling,
@@ -186,6 +192,7 @@ def _build_model_from_data(model_data: Dict[str, Any]) -> Model:
             available_context_tokens=available_context_tokens,
         ),
         description=description,
+        display_name=raw_name or model_id,
     )
 
 

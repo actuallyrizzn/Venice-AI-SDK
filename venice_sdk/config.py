@@ -3,7 +3,7 @@ Configuration management for the Venice SDK.
 """
 
 import os
-from typing import Optional
+from typing import Dict, Optional
 from dotenv import load_dotenv
 
 
@@ -44,14 +44,14 @@ class Config:
         self.retry_delay = retry_delay if retry_delay is not None else 1
 
     @property
-    def headers(self) -> dict:
+    def headers(self) -> Dict[str, str]:
         """Get the default headers for API requests."""
         return {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
     
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Check if two Config objects are equal."""
         if not isinstance(other, Config):
             return False

@@ -6,12 +6,15 @@ This module provides character/persona management capabilities using the Venice 
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 
 from .client import HTTPClient
 from .errors import VeniceAPIError, CharacterNotFoundError
-from .config import load_config
+from ._http import ensure_http_client
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -38,15 +41,11 @@ class Character:
     
     def get_capabilities(self) -> List[str]:
         """Get list of character capabilities."""
-        if isinstance(self.capabilities, dict):
-            return list(self.capabilities.keys())
-        return []
+        return list(self.capabilities.keys())
     
     def has_capability(self, capability: str) -> bool:
         """Check if character has a specific capability."""
-        if isinstance(self.capabilities, dict):
-            return self.capabilities.get(capability, False)
-        return False
+        return bool(self.capabilities.get(capability))
 
 
 class CharactersAPI:
@@ -62,7 +61,7 @@ class CharactersAPI:
         is_public: Optional[bool] = None,
         limit: Optional[int] = None,
         offset: Optional[int] = None,
-        **kwargs
+        **kwargs: Any
     ) -> List[Character]:
         """
         List available characters.
@@ -93,6 +92,14 @@ class CharactersAPI:
         
         params.update(kwargs)
         
+        logger.debug(
+            "Listing characters (category=%s, tags=%s, is_public=%s, limit=%s, offset=%s)",
+            category,
+            tags,
+            is_public,
+            limit,
+            offset,
+        )
         response = self.client.get("/characters", params=params)
         result = response.json()
         
@@ -103,6 +110,7 @@ class CharactersAPI:
         for item in result["data"]:
             characters.append(self._parse_character(item))
         
+        logger.debug("Retrieved %s characters", len(characters))
         return characters
     
     def get(self, slug: str) -> Optional[Character]:
@@ -115,6 +123,7 @@ class CharactersAPI:
         Returns:
             Character object or None if not found
         """
+        logger.debug("Fetching character with slug=%s", slug)
         try:
             response = self.client.get(f"/characters/{slug}")
             result = response.json()
@@ -132,6 +141,7 @@ class CharactersAPI:
             
         except VeniceAPIError as e:
             if "not found" in str(e).lower() or "404" in str(e):
+                logger.debug("Character %s not found", slug)
                 return None
             raise
     
@@ -140,7 +150,7 @@ class CharactersAPI:
         query: str,
         category: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        **kwargs
+        **kwargs: Any
     ) -> List[Character]:
         """
         Search for characters by name, description, or content.
@@ -154,6 +164,12 @@ class CharactersAPI:
         Returns:
             List of matching Character objects
         """
+        logger.debug(
+            "Searching characters (query=%s, category=%s, tags=%s)",
+            query,
+            category,
+            tags,
+        )
         all_characters = self.list(category=category, tags=tags, **kwargs)
         query_lower = query.lower()
         
@@ -165,6 +181,7 @@ class CharactersAPI:
                 query_lower in character.system_prompt.lower()):
                 matching_characters.append(character)
         
+        logger.debug("Found %s matching characters for query=%s", len(matching_characters), query)
         return matching_characters
     
     def get_by_category(self, category: str) -> List[Character]:
@@ -272,9 +289,11 @@ class CharacterManager:
             Character object or None if not found
         """
         if use_cache and identifier in self._character_cache:
+            logger.debug("Character cache hit for %s", identifier)
             return self._character_cache[identifier]
         
         # Try as slug first
+        logger.debug("Looking up character %s (use_cache=%s)", identifier, use_cache)
         character = self.characters_api.get(identifier)
         
         if not character:
@@ -285,6 +304,7 @@ class CharacterManager:
         
         if character and use_cache:
             self._character_cache[identifier] = character
+            logger.debug("Cached character %s", identifier)
         
         return character
     
@@ -298,6 +318,7 @@ class CharacterManager:
         Returns:
             List of characters with the capability
         """
+        logger.debug("Finding characters with capability=%s", capability)
         all_characters = self.characters_api.list()
         return [
             char for char in all_characters
@@ -347,11 +368,13 @@ class CharacterManager:
                 seen.add(char.slug)
                 unique_recommended.append(char)
         
+        logger.debug("Recommended %s characters for context=%s", len(unique_recommended), context)
         return unique_recommended
     
     def clear_cache(self) -> None:
         """Clear the character cache."""
         self._character_cache.clear()
+        logger.debug("Cleared character cache")
 
 
 # Convenience functions
@@ -360,42 +383,30 @@ def get_character(
     client: Optional[HTTPClient] = None
 ) -> Optional[Character]:
     """Convenience function to get a character by slug."""
-    if client is None:
-        from .config import load_config
-        from .venice_client import VeniceClient
-        config = load_config()
-        client = VeniceClient(config)
-    
-    api = CharactersAPI(client)
+    logger.debug("Convenience get_character called for slug=%s", slug)
+    http_client = ensure_http_client(client)
+    api = CharactersAPI(http_client)
     return api.get(slug)
 
 
 def list_characters(
     client: Optional[HTTPClient] = None,
-    **kwargs
+    **kwargs: Any
 ) -> List[Character]:
     """Convenience function to list characters."""
-    if client is None:
-        from .config import load_config
-        from .venice_client import VeniceClient
-        config = load_config()
-        client = VeniceClient(config)
-    
-    api = CharactersAPI(client)
+    logger.debug("Convenience list_characters called with filters=%s", kwargs)
+    http_client = ensure_http_client(client)
+    api = CharactersAPI(http_client)
     return api.list(**kwargs)
 
 
 def search_characters(
     query: str,
     client: Optional[HTTPClient] = None,
-    **kwargs
+    **kwargs: Any
 ) -> List[Character]:
     """Convenience function to search characters."""
-    if client is None:
-        from .config import load_config
-        from .venice_client import VeniceClient
-        config = load_config()
-        client = VeniceClient(config)
-    
-    api = CharactersAPI(client)
+    logger.debug("Convenience search_characters called for query=%s", query)
+    http_client = ensure_http_client(client)
+    api = CharactersAPI(http_client)
     return api.search(query, **kwargs)

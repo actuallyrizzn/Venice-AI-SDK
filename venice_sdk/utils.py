@@ -2,13 +2,13 @@
 Utility functions for the Venice SDK.
 """
 
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from functools import lru_cache
 import tiktoken
 
 
 @lru_cache(maxsize=10)
-def _get_cached_encoder(encoder_name: str):
+def _get_cached_encoder(encoder_name: str) -> tiktoken.Encoding:
     """
     Get a cached tiktoken encoder to avoid repeated creation overhead.
     
@@ -52,7 +52,7 @@ def count_tokens(
         return len(encoder_obj.encode(text))
 
 
-def _get_encoder_for_model(model: str) -> str:
+def _get_encoder_for_model(model: Optional[str]) -> str:
     """
     Get the appropriate encoder for a given model.
     
@@ -106,7 +106,10 @@ def validate_stop_sequences(stop: Optional[Union[str, List[str]]] = None) -> Opt
     raise ValueError("Stop sequences must be a string or list of strings")
 
 
-def format_messages(messages: List[dict]) -> List[dict]:
+JSONDict = Dict[str, Any]
+
+
+def format_messages(messages: List[JSONDict]) -> List[JSONDict]:
     """
     Validate and format chat messages.
     
@@ -137,7 +140,7 @@ def format_messages(messages: List[dict]) -> List[dict]:
     return messages
 
 
-def format_tools(tools: List[dict]) -> List[dict]:
+def format_tools(tools: List[JSONDict]) -> List[JSONDict]:
     """
     Validate and format tool definitions.
     

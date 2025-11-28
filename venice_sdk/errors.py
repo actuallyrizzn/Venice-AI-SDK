@@ -2,27 +2,31 @@
 Custom exceptions for the Venice SDK.
 """
 
+from __future__ import annotations
+
+from typing import Any, Dict, Optional
+
 
 class VeniceError(Exception):
     """Base exception for all Venice SDK errors."""
-    pass
 
 
 class VeniceAPIError(VeniceError):
     """Base exception for all Venice API errors."""
-    def __init__(self, message: str, status_code: int = None):
+
+    def __init__(self, message: str, status_code: Optional[int] = None) -> None:
         super().__init__(message)
         self.status_code = status_code
 
 
 class VeniceConnectionError(VeniceError):
     """Raised when there is a connection error."""
-    pass
 
 
 class RateLimitError(VeniceAPIError):
     """Raised when the rate limit is exceeded."""
-    def __init__(self, message: str, retry_after: int = None):
+
+    def __init__(self, message: str, retry_after: Optional[int] = None) -> None:
         super().__init__(message)
         self.retry_after = retry_after
 
@@ -72,7 +76,7 @@ class EmbeddingError(VeniceAPIError):
     pass
 
 
-def handle_api_error(status_code: int, response_data: dict) -> None:
+def handle_api_error(status_code: int, response_data: Dict[str, Any]) -> None:
     """
     Handle API errors by raising appropriate exceptions.
     

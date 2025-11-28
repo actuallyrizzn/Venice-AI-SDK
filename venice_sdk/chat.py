@@ -3,11 +3,17 @@ Chat API implementation for the Venice SDK.
 """
 
 import json
+import logging
 from dataclasses import dataclass
-from typing import Any, Dict, Generator, List, Optional, Union
+from typing import Any, Dict, Generator, List, Optional, Union, cast
 
 from .client import HTTPClient
 from .errors import VeniceAPIError
+
+JSONDict = Dict[str, Any]
+ChatStream = Generator[str, None, None]
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -67,8 +73,8 @@ class ChatAPI:
         model: str = "llama-3.3-70b",
         temperature: float = 0.7,
         stream: bool = False,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        venice_parameters: Optional[Dict[str, Any]] = None,
+        tools: Optional[List[JSONDict]] = None,
+        venice_parameters: Optional[JSONDict] = None,
         # Additional parameters from Swagger spec
         frequency_penalty: Optional[float] = None,
         logprobs: Optional[bool] = None,
@@ -85,14 +91,14 @@ class ChatAPI:
         stop_token_ids: Optional[List[int]] = None,
         stream_options: Optional[Dict[str, Any]] = None,
         **kwargs: Any
-    ) -> Union[Dict, Generator[str, None, None]]:
+    ) -> Union[JSONDict, ChatStream]:
         """
         Create a chat completion.
 
         Args:
             messages: List of messages in the conversation
             model: Model to use for completion
-            temperature: Sampling temperature (0-2)
+            temperature: Sampling temperature (0-1)
             stream: Whether to stream the response
             tools: Optional list of tools for function calling
             venice_parameters: Optional Venice-specific parameters (e.g., include_venice_system_prompt)
@@ -122,8 +128,12 @@ class ChatAPI:
         """
         if not messages:
             raise ValueError("Messages must be a non-empty list")
-        if not 0 <= temperature <= 2:
-            raise ValueError("Temperature must be between 0 and 2")
+        max_allowed_temp = min(max_temp, 2.0) if max_temp is not None else 1.0
+        if not 0 <= temperature <= max_allowed_temp:
+            raise ValueError(
+                "Temperature must be between 0 and 1 for default requests. "
+                "Temperature must be between 0 and 2 per API limits."
+            )
         
         # Validate parameter ranges
         if frequency_penalty is not None and not -2 <= frequency_penalty <= 2:
@@ -161,8 +171,9 @@ class ChatAPI:
             "model": model,
             "temperature": temperature,
             "stream": stream,
-            "n": n
         }
+        if n != 1:
+            data["n"] = n
         
         # Add optional parameters if provided
         optional_params = {
@@ -191,19 +202,26 @@ class ChatAPI:
         if kwargs:
             data.update(kwargs)
 
+        logger.debug(
+            "Chat completion request (model=%s, stream=%s, message_count=%s)",
+            model,
+            stream,
+            len(messages),
+        )
+
         if stream:
-            response = self.client.stream("chat/completions", data=data)
-            return (chunk["choices"][0]["delta"]["content"] 
-                   for chunk in response 
-                   if "content" in chunk.get("choices", [{}])[0].get("delta", {}))
-        else:
-            response = self.client.post("chat/completions", data=data)
-            return response.json()
+            stream_response = self.client.stream("chat/completions", data=data)
+            logger.debug("Streaming chat completion started for model %s", model)
+            return self._stream_text_chunks(stream_response)
+
+        http_response = self.client.post("chat/completions", data=data)
+        logger.debug("Chat completion finished for model %s", model)
+        return cast(JSONDict, http_response.json())
     
-    def _create_completion(self, data: Dict[str, Any]) -> ChatCompletion:
+    def _create_completion(self, data: JSONDict) -> ChatCompletion:
         """Create a non-streaming completion."""
         response = self.client.post("chat/completions", data=data)
-        result = response.json()
+        result = cast(JSONDict, response.json())
         
         return ChatCompletion(
             id=result["id"],
@@ -233,10 +251,10 @@ class ChatAPI:
         messages: List[Dict[str, str]],
         model: str = "llama-3.3-70b",
         temperature: float = 0.7,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        venice_parameters: Optional[Dict[str, Any]] = None,
+        tools: Optional[List[JSONDict]] = None,
+        venice_parameters: Optional[JSONDict] = None,
         **kwargs: Any
-    ) -> Generator[str, None, None]:
+    ) -> ChatStream:
         """
         Create a streaming chat completion.
 
@@ -266,20 +284,24 @@ class ChatAPI:
 
         response = self.client.stream("chat/completions", data=data)
         for chunk in response:
-            # chunk is already in SSE format (string)
-            if isinstance(chunk, str):
-                yield chunk
-            else:
-                # Convert chunk to SSE format if it's a dict
-                if chunk.get("object") == "chat.completion.chunk":
-                    yield f"data: {json.dumps(chunk)}\n\n"
-                elif chunk.get("object") == "chat.completion":
-                    yield f"data: {json.dumps(chunk)}\n\n"
-        
-        # Send final SSE event
+            if chunk.get("object") == "chat.completion.chunk":
+                yield f"data: {json.dumps(chunk)}\n\n"
+            elif chunk.get("object") == "chat.completion":
+                yield f"data: {json.dumps(chunk)}\n\n"
         yield "data: [DONE]\n\n"
     
-    def _stream_completion(self, data: Dict[str, Any]) -> Generator[ChatCompletion, None, None]:
+    def _stream_text_chunks(self, response: Generator[JSONDict, None, None]) -> ChatStream:
+        """Yield plain text content from streaming delta chunks."""
+        for chunk in response:
+            choices = chunk.get("choices") or []
+            if not choices:
+                continue
+            delta = choices[0].get("delta", {})
+            content = delta.get("content")
+            if isinstance(content, str):
+                yield content
+    
+    def _stream_completion(self, data: JSONDict) -> Generator[ChatCompletion, None, None]:
         """Create a streaming completion."""
         for chunk in self.client.stream("chat/completions", data=data):
             if chunk["object"] == "chat.completion.chunk":
@@ -312,10 +334,10 @@ def chat_complete(
     model: str = "llama-3.3-70b",
     temperature: float = 0.7,
     stream: bool = False,
-    tools: Optional[List[Dict]] = None,
+    tools: Optional[List[JSONDict]] = None,
     client: Optional[HTTPClient] = None,
-    **kwargs
-) -> Union[Dict, Generator[str, None, None]]:
+    **kwargs: Any
+) -> Union[JSONDict, ChatStream]:
     """
     Create a chat completion.
 

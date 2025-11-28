@@ -6,14 +6,17 @@ This module provides vector embedding generation and similarity calculation capa
 
 from __future__ import annotations
 
+import logging
 import math
 import random
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Iterator, List, Optional, Union
 
 from .client import HTTPClient
 from .errors import VeniceAPIError, EmbeddingError
-from .config import load_config
+from ._http import ensure_http_client
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -55,7 +58,7 @@ class EmbeddingResult:
         """Get embedding by index."""
         return self.embeddings[index]
     
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Embedding]:
         """Iterate over embeddings."""
         return iter(self.embeddings)
     
@@ -82,7 +85,7 @@ class EmbeddingsAPI:
         model: str = "text-embedding-ada-002",
         encoding_format: str = "float",
         user: Optional[str] = None,
-        **kwargs
+        **kwargs: Any
     ) -> EmbeddingResult:
         """
         Generate embeddings for text.
@@ -107,6 +110,11 @@ class EmbeddingsAPI:
         if user:
             data["user"] = user
         
+        logger.debug(
+            "Generating embeddings (model=%s, input_type=%s)",
+            model,
+            "list" if isinstance(input_text, list) else "str",
+        )
         response = self.client.post("/embeddings", data=data)
         result = response.json()
         
@@ -121,6 +129,7 @@ class EmbeddingsAPI:
                 object=item.get("object", "embedding")
             ))
         
+        logger.debug("Generated %s embedding vectors", len(embeddings))
         return EmbeddingResult(
             embeddings=embeddings,
             model=result["model"],
@@ -132,7 +141,7 @@ class EmbeddingsAPI:
         self,
         text: str,
         model: str = "text-embedding-ada-002",
-        **kwargs
+        **kwargs: Any
     ) -> List[float]:
         """
         Generate a single embedding and return just the vector.
@@ -145,6 +154,7 @@ class EmbeddingsAPI:
         Returns:
             Embedding vector as list of floats
         """
+        logger.debug("Generating single embedding for model=%s", model)
         result = self.generate(text, model=model, **kwargs)
         return result.get_embedding(0)
     
@@ -153,7 +163,7 @@ class EmbeddingsAPI:
         texts: List[str],
         model: str = "text-embedding-ada-002",
         batch_size: int = 100,
-        **kwargs
+        **kwargs: Any
     ) -> List[List[float]]:
         """
         Generate embeddings for a large batch of texts.
@@ -167,6 +177,12 @@ class EmbeddingsAPI:
         Returns:
             List of embedding vectors
         """
+        logger.debug(
+            "Generating batch embeddings (count=%s, batch_size=%s, model=%s)",
+            len(texts),
+            batch_size,
+            model,
+        )
         all_embeddings = []
         
         for i in range(0, len(texts), batch_size):
@@ -264,8 +280,8 @@ class SemanticSearch:
     
     def __init__(self, embeddings_api: EmbeddingsAPI):
         self.embeddings_api = embeddings_api
-        self.documents = []
-        self.document_embeddings = []
+        self.documents: List[str] = []
+        self.document_embeddings: List[List[float]] = []
         self.model = "text-embedding-ada-002"
     
     def add_documents(
@@ -399,16 +415,11 @@ class EmbeddingClustering:
 def generate_embedding(
     text: str,
     client: Optional[HTTPClient] = None,
-    **kwargs
+    **kwargs: Any
 ) -> List[float]:
     """Convenience function to generate a single embedding."""
-    if client is None:
-        from .config import load_config
-        from .venice_client import VeniceClient
-        config = load_config()
-        client = VeniceClient(config)
-    
-    api = EmbeddingsAPI(client)
+    http_client = ensure_http_client(client)
+    api = EmbeddingsAPI(http_client)
     return api.generate_single(text, **kwargs)
 
 
@@ -416,16 +427,11 @@ def calculate_similarity(
     text1: str,
     text2: str,
     client: Optional[HTTPClient] = None,
-    **kwargs
+    **kwargs: Any
 ) -> float:
     """Convenience function to calculate similarity between two texts."""
-    if client is None:
-        from .config import load_config
-        from .venice_client import VeniceClient
-        config = load_config()
-        client = VeniceClient(config)
-    
-    api = EmbeddingsAPI(client)
+    http_client = ensure_http_client(client)
+    api = EmbeddingsAPI(http_client)
     emb1 = api.generate_single(text1, **kwargs)
     emb2 = api.generate_single(text2, **kwargs)
     
@@ -435,14 +441,9 @@ def calculate_similarity(
 def generate_embeddings(
     texts: Union[str, List[str]],
     client: Optional[HTTPClient] = None,
-    **kwargs
+    **kwargs: Any
 ) -> EmbeddingResult:
     """Convenience function to generate embeddings."""
-    if client is None:
-        from .config import load_config
-        from .venice_client import VeniceClient
-        config = load_config()
-        client = VeniceClient(config)
-    
-    api = EmbeddingsAPI(client)
+    http_client = ensure_http_client(client)
+    api = EmbeddingsAPI(http_client)
     return api.generate(texts, **kwargs)
