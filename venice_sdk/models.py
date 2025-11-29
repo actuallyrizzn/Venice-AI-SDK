@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, cast
 
 from .client import HTTPClient
-from .errors import VeniceAPIError
+from .errors import VeniceAPIError, VeniceConnectionError
 
 
 @dataclass
@@ -77,7 +77,12 @@ class ModelsAPI:
         for model in models:
             if model.get("id") == model_id:
                 return model
-        raise VeniceAPIError(f"Model {model_id} not found", status_code=404)
+        raise VeniceAPIError(
+            f"Model '{model_id}' not found",
+            status_code=404,
+            error_code="MODEL_NOT_FOUND",
+            context={"model_id": model_id},
+        )
     
     def validate(self, model_id: str) -> bool:
         """
@@ -92,7 +97,7 @@ class ModelsAPI:
         try:
             self.get(model_id)
             return True
-        except Exception:
+        except (VeniceAPIError, VeniceConnectionError):
             return False
 
 
@@ -155,12 +160,22 @@ def _build_model_from_data(model_data: JSONDict) -> Model:
     Build a Model object from raw API data using defensive defaults.
     """
     if not isinstance(model_data, dict):
-        raise VeniceAPIError("Invalid model payload returned by API.", status_code=500)
+        raise VeniceAPIError(
+            "Invalid model payload returned by API.",
+            status_code=500,
+            error_code="INVALID_MODEL_PAYLOAD",
+            context={"payload_type": type(model_data).__name__},
+        )
     
     model_id = model_data.get("id")
     model_type = model_data.get("type")
     if not model_id or not model_type:
-        raise VeniceAPIError("Model payload missing required `id` or `type` fields.", status_code=500)
+        raise VeniceAPIError(
+            "Model payload missing required `id` or `type` fields.",
+            status_code=500,
+            error_code="MODEL_PAYLOAD_MISSING_FIELDS",
+            context={"payload_keys": sorted(model_data.keys())},
+        )
     
     model_spec = cast(JSONDict, model_data.get("model_spec") or {})
     if "model_spec" not in model_data:

@@ -8,11 +8,12 @@ The SDK defines several exception types:
 
 ```python
 from venice_sdk.errors import (
-    VeniceAPIError,      # Base exception
-    UnauthorizedError,   # Authentication errors
-    RateLimitError,      # Rate limit exceeded
-    InvalidRequestError, # Invalid request parameters
-    APIError            # Other API errors
+    VeniceAPIError,        # Base API exception
+    VeniceConnectionError, # Network / transport errors
+    UnauthorizedError,     # Authentication errors
+    RateLimitError,        # Rate limit exceeded
+    InvalidRequestError,   # Invalid request parameters
+    ModelNotFoundError,    # Missing resources
 )
 ```
 
@@ -32,6 +33,31 @@ except VeniceAPIError as e:
     print(f"API error: {e}")
 ```
 
+## Error Metadata & Formatting
+
+Every `VeniceError` exposes consistent metadata:
+
+- `error_code`: Canonical code (e.g., `MODEL_NOT_FOUND`)
+- `status_code`: HTTP status (if available)
+- `context`: Normalized dictionary containing request identifiers, retry hints, etc.
+- `cause`: The original exception when raised via `raise ... from ...`
+
+The default string representation automatically formats these pieces:
+
+```python
+from venice_sdk.errors import VeniceAPIError
+
+try:
+    ...
+except VeniceAPIError as err:
+    # Example: "[RATE_LIMIT] Too many requests (HTTP 429; Context: method='POST', retry_after=5)"
+    print(str(err))
+    print("code:", err.error_code)
+    print("request id:", err.context.get("request_id"))
+    if err.__cause__:
+        print("root cause:", repr(err.__cause__))
+```
+
 ## Specific Error Handling
 
 ```python
@@ -43,7 +69,7 @@ except UnauthorizedError:
     print("Authentication failed. Please check your API key.")
 except InvalidRequestError as e:
     print(f"Invalid request: {e}")
-    if e.code == "INVALID_MODEL":
+    if e.error_code == "INVALID_MODEL":
         print("Please check the model ID and try again.")
 except VeniceAPIError as e:
     print(f"Other API error: {e}")
@@ -97,12 +123,16 @@ response = custom_retry(lambda: client.request(...))
 The SDK maps common error codes to specific exceptions:
 
 | Error Code | Exception | Description |
-|------------|------------|-------------|
+|------------|-----------|-------------|
 | `UNAUTHORIZED` | `UnauthorizedError` | Invalid or missing API key |
-| `RATE_LIMIT_EXCEEDED` | `RateLimitError` | Rate limit exceeded |
-| `INVALID_MODEL` | `InvalidRequestError` | Invalid model ID |
-| `INVALID_REQUEST` | `InvalidRequestError` | Invalid request parameters |
-| Others | `APIError` | Other API errors |
+| `RATE_LIMIT_EXCEEDED` | `RateLimitError` | Too many requests sent in a short window |
+| `MODEL_NOT_FOUND` | `ModelNotFoundError` | Requested model does not exist |
+| `CHARACTER_NOT_FOUND` | `CharacterNotFoundError` | Character slug is missing or deleted |
+| `INVALID_MODEL` | `InvalidRequestError` | Invalid model identifier supplied by client |
+| `INVALID_REQUEST` | `InvalidRequestError` | Malformed payload or parameters |
+| `INVALID_MODEL_PAYLOAD` | `VeniceAPIError` | Upstream response used an unexpected schema |
+| `MODEL_PAYLOAD_MISSING_FIELDS` | `VeniceAPIError` | Upstream payload missed required keys |
+| _anything else_ | `VeniceAPIError` | Fallback for unmapped API issues |
 
 ## Best Practices
 
