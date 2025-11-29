@@ -25,6 +25,10 @@ def mock_config():
     config.timeout = 30
     config.max_retries = 3
     config.retry_delay = 1
+    config.pool_connections = 10
+    config.pool_maxsize = 20
+    config.retry_backoff_factor = 0.5
+    config.retry_status_codes = [429, 500, 502, 503, 504]
     return config
 
 
