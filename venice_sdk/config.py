@@ -3,7 +3,7 @@ Configuration management for the Venice SDK.
 """
 
 import os
-from typing import Dict, Optional
+from typing import Dict, Iterable, List, Optional
 from dotenv import load_dotenv
 
 
@@ -17,7 +17,11 @@ class Config:
         default_model: Optional[str] = None,
         timeout: Optional[int] = None,
         max_retries: Optional[int] = None,
-        retry_delay: Optional[int] = None
+        retry_delay: Optional[int] = None,
+        pool_connections: Optional[int] = None,
+        pool_maxsize: Optional[int] = None,
+        retry_backoff_factor: Optional[float] = None,
+        retry_status_codes: Optional[Iterable[int]] = None,
     ):
         """
         Initialize the configuration.
@@ -42,6 +46,16 @@ class Config:
         self.timeout = timeout if timeout is not None else 30
         self.max_retries = max_retries if max_retries is not None else 3
         self.retry_delay = retry_delay if retry_delay is not None else 1
+        self.pool_connections = pool_connections if pool_connections is not None else 10
+        self.pool_maxsize = pool_maxsize if pool_maxsize is not None else 20
+        self.retry_backoff_factor = (
+            retry_backoff_factor if retry_backoff_factor is not None else 0.5
+        )
+        default_retry_statuses: List[int] = [429, 500, 502, 503, 504]
+        if retry_status_codes is None:
+            self.retry_status_codes = default_retry_statuses
+        else:
+            self.retry_status_codes = list(retry_status_codes) or default_retry_statuses
 
     @property
     def headers(self) -> Dict[str, str]:
@@ -108,11 +122,36 @@ def load_config(api_key: Optional[str] = None) -> Config:
     retry_delay_str = os.getenv("VENICE_RETRY_DELAY", "1")
     retry_delay = int(retry_delay_str) if retry_delay_str else 1
     
+    pool_connections_str = os.getenv("VENICE_POOL_CONNECTIONS", "10")
+    pool_connections = int(pool_connections_str) if pool_connections_str else 10
+
+    pool_maxsize_str = os.getenv("VENICE_POOL_MAXSIZE", "20")
+    pool_maxsize = int(pool_maxsize_str) if pool_maxsize_str else 20
+
+    retry_backoff_str = os.getenv("VENICE_RETRY_BACKOFF_FACTOR", "0.5")
+    retry_backoff_factor = float(retry_backoff_str) if retry_backoff_str else 0.5
+
+    retry_status_codes_env = os.getenv("VENICE_RETRY_STATUS_CODES")
+    retry_status_codes: Optional[List[int]] = None
+    if retry_status_codes_env:
+        try:
+            retry_status_codes = [
+                int(code.strip())
+                for code in retry_status_codes_env.split(",")
+                if code.strip()
+            ]
+        except ValueError:
+            retry_status_codes = None
+
     return Config(
         api_key=api_key,
         base_url=base_url,
         default_model=default_model,
         timeout=timeout,
         max_retries=max_retries,
-        retry_delay=retry_delay
-    ) 
+        retry_delay=retry_delay,
+        pool_connections=pool_connections,
+        pool_maxsize=pool_maxsize,
+        retry_backoff_factor=retry_backoff_factor,
+        retry_status_codes=retry_status_codes,
+    )

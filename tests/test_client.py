@@ -6,7 +6,7 @@ import json
 from unittest.mock import patch, MagicMock, Mock
 import pytest
 import requests
-from venice_sdk.client import HTTPClient
+from venice_sdk.client import HTTPClient, HTTPClientManager
 from venice_sdk.config import Config
 from venice_sdk.errors import VeniceError, VeniceAPIError, VeniceConnectionError
 
@@ -20,6 +20,10 @@ def mock_config():
     config.timeout = 30
     config.max_retries = 3
     config.retry_delay = 1
+    config.pool_connections = 10
+    config.pool_maxsize = 20
+    config.retry_backoff_factor = 0.5
+    config.retry_status_codes = [429, 500, 502, 503, 504]
     return config
 
 
@@ -41,6 +45,14 @@ def test_client_initialization_no_config():
     with patch("venice_sdk.client.load_config") as mock_load_config:
         mock_config = MagicMock(spec=Config)
         mock_config.api_key = "default_key"
+        mock_config.base_url = "https://api.venice.ai/api/v1"
+        mock_config.timeout = 30
+        mock_config.max_retries = 3
+        mock_config.retry_delay = 1
+        mock_config.pool_connections = 10
+        mock_config.pool_maxsize = 20
+        mock_config.retry_backoff_factor = 0.5
+        mock_config.retry_status_codes = [429, 500, 502, 503, 504]
         mock_load_config.return_value = mock_config
         
         client = HTTPClient()
@@ -72,19 +84,13 @@ def test_make_request_error(client):
 
 def test_make_request_retry(client):
     """Test request retry logic."""
-    mock_success = MagicMock()
-    mock_success.status_code = 200
-    mock_success.json.return_value = {"status": "success"}
-    
     with patch.object(client.session, "request") as mock_request:
-        mock_request.side_effect = [
-            requests.exceptions.RequestException("Connection error"),
-            mock_success
-        ]
+        mock_request.side_effect = requests.exceptions.RequestException("Connection error")
         
-        response = client._make_request("GET", "test/endpoint")
-        assert response.json() == {"status": "success"}
-        assert mock_request.call_count == 2
+        with pytest.raises(VeniceConnectionError) as exc_info:
+            client._make_request("GET", "test/endpoint")
+        assert "Connection error" in str(exc_info.value)
+        mock_request.assert_called_once()
 
 
 @pytest.fixture
@@ -115,8 +121,8 @@ def test_make_request_max_retries(client, mocker):
     with pytest.raises(VeniceConnectionError) as exc_info:
         client._make_request("GET", "test")
     
-    assert "Request failed after 3 attempts" in str(exc_info.value)
-    assert mock_session.request.call_count == 3
+    assert "Connection failed" in str(exc_info.value)
+    assert mock_session.request.call_count == 1
 
 
 def test_streaming_response(client):
@@ -277,3 +283,49 @@ def test_get_custom_timeout(mock_request, client):
         stream=False,
         timeout=60
     ) 
+
+
+class TestHTTPClientManager:
+    """Tests for the HTTPClientManager pooling behavior."""
+
+    def test_returns_cached_client_for_same_config(self):
+        manager = HTTPClientManager()
+        config = Config(api_key="key-1", base_url="https://example.com")
+
+        client_one = manager.get_client(config)
+        client_two = manager.get_client(config)
+
+        assert client_one is client_two
+
+    def test_isolates_different_configs(self):
+        manager = HTTPClientManager()
+        config_a = Config(api_key="key-a", base_url="https://api-a.example.com")
+        config_b = Config(api_key="key-b", base_url="https://api-b.example.com")
+
+        client_a = manager.get_client(config_a)
+        client_b = manager.get_client(config_b)
+
+        assert client_a is not client_b
+
+    def test_clear_removes_cached_client(self):
+        manager = HTTPClientManager()
+        config = Config(api_key="key-2", base_url="https://example.com")
+
+        cached_client = manager.get_client(config)
+        manager.clear(config)
+        fresh_client = manager.get_client(config)
+
+        assert cached_client is not fresh_client
+
+    def test_global_clear_drops_all_clients(self):
+        manager = HTTPClientManager()
+        config_a = Config(api_key="key-a")
+        config_b = Config(api_key="key-b")
+
+        client_a = manager.get_client(config_a)
+        client_b = manager.get_client(config_b)
+
+        manager.clear()
+
+        assert manager.get_client(config_a) is not client_a
+        assert manager.get_client(config_b) is not client_b
