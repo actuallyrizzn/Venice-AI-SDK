@@ -99,9 +99,11 @@ class HTTPClient:
                         self.config.max_retries,
                     )
                     # Attempt to parse error payload safely
+                    parse_error: Optional[Exception] = None
                     try:
                         error_data = response.json() or {}
-                    except Exception:
+                    except ValueError as json_error:
+                        parse_error = json_error
                         error_data = {"error": {"message": response.text or "Unknown error"}}
 
                     # Normalize string error payloads to dict form
@@ -120,7 +122,7 @@ class HTTPClient:
                     if retry_after_header is not None:
                         try:
                             retry_after_seconds = int(retry_after_header)
-                        except Exception:
+                        except (TypeError, ValueError):
                             retry_after_seconds = None
 
                     # If 429 and body lacks retry_after, inject from header for better error context
@@ -129,6 +131,19 @@ class HTTPClient:
                         if isinstance(error_obj, dict) and error_obj.get("retry_after") is None and retry_after_seconds is not None:
                             error_obj["retry_after"] = retry_after_seconds
                             error_data["error"] = error_obj
+
+                    error_context_extra = {
+                        "method": method.upper(),
+                        "url": url,
+                        "attempt": attempt + 1,
+                        "stream": stream,
+                    }
+                    if hasattr(response, "headers"):
+                        request_id_header = response.headers.get("X-Request-ID") or response.headers.get("x-request-id")
+                        if request_id_header:
+                            error_context_extra["request_id"] = request_id_header
+                        if retry_after_header is not None:
+                            error_context_extra["retry_after_header"] = retry_after_header
 
                     # Retry on 429 and 5xx if attempts remain
                     if (is_rate_limited or is_server_error) and attempt < self.config.max_retries - 1:
@@ -145,7 +160,12 @@ class HTTPClient:
                         continue
 
                     # No retry or attempts exhausted: raise specific API error
-                    handle_api_error(status, error_data)
+                    handle_api_error(
+                        status,
+                        error_data,
+                        extra_context=error_context_extra,
+                        cause=parse_error,
+                    )
                     # handle_api_error always raises; the following return is unreachable.
                     return response
 
@@ -170,10 +190,19 @@ class HTTPClient:
                     exc_info=True,
                 )
                 if attempt == self.config.max_retries - 1:
-                    raise VeniceConnectionError(f"Request failed after {self.config.max_retries} attempts: {str(e)}")
+                    raise VeniceConnectionError(
+                        f"Request failed after {self.config.max_retries} attempts: {str(e)}",
+                        context={
+                            "method": method.upper(),
+                            "url": url,
+                            "attempt": attempt + 1,
+                        },
+                        cause=e,
+                    ) from e
                 time.sleep(2 ** attempt)  # Exponential backoff
         raise VeniceConnectionError(
-            f"Request failed after {self.config.max_retries} attempts: exhausted retry loop"
+            f"Request failed after {self.config.max_retries} attempts: exhausted retry loop",
+            context={"method": method.upper(), "url": url},
         )
     
     def _handle_streaming_response(self, response: Response) -> Generator[Dict[str, Any], None, None]:
@@ -194,9 +223,11 @@ class HTTPClient:
                 "Streaming response returned status %s before payload consumption",
                 response.status_code,
             )
+            parse_error: Optional[Exception] = None
             try:
                 error_data = response.json() or {}
-            except Exception:
+            except ValueError as json_error:
+                parse_error = json_error
                 error_data = {"error": {"message": response.text or "Unknown error"}}
 
             # Normalize string error payloads to dict form
@@ -209,7 +240,7 @@ class HTTPClient:
                 if retry_after_header is not None:
                     try:
                         retry_after_seconds = int(retry_after_header)
-                    except Exception:
+                    except (TypeError, ValueError):
                         retry_after_seconds = None
                     if retry_after_seconds is not None:
                         error_obj = error_data.get("error") or {}
@@ -217,7 +248,16 @@ class HTTPClient:
                             error_obj["retry_after"] = retry_after_seconds
                             error_data["error"] = error_obj
 
-            handle_api_error(response.status_code, error_data)
+            extra_context = {
+                "stream": True,
+                "url": getattr(response, "url", None),
+            }
+            handle_api_error(
+                response.status_code,
+                error_data,
+                extra_context=extra_context,
+                cause=parse_error,
+            )
         
         for line in response.iter_lines():
             if not line:

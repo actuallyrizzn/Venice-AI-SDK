@@ -6,14 +6,17 @@ This module provides API key management, rate limiting, and billing capabilities
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
 from .client import HTTPClient
-from .errors import VeniceAPIError, BillingError, APIKeyError
+from .errors import VeniceAPIError, VeniceConnectionError, BillingError, APIKeyError
 from ._http import ensure_http_client
 
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class APIKey:
@@ -182,8 +185,10 @@ class APIKeysAPI:
                 is_active=True,
                 rate_limits=api_key_data.get("consumptionLimit")
             )
-        except Exception as e:
-            raise APIKeyError(f"Failed to create API key: {e}")
+        except (VeniceAPIError, VeniceConnectionError) as err:
+            raise APIKeyError("Failed to create API key") from err
+        except (KeyError, TypeError, ValueError) as parse_err:
+            raise APIKeyError("Failed to parse API key creation response") from parse_err
     
     def delete(self, key_id: str) -> bool:
         """
@@ -199,8 +204,10 @@ class APIKeysAPI:
             response = self.client.delete("/api_keys", params={"id": key_id})
             result = response.json()
             return bool(result.get("success", False))
-        except Exception as e:
-            raise APIKeyError(f"Failed to delete API key: {e}")
+        except (VeniceAPIError, VeniceConnectionError) as err:
+            raise APIKeyError("Failed to delete API key") from err
+        except (KeyError, TypeError, ValueError) as parse_err:
+            raise APIKeyError("Failed to parse API key deletion response") from parse_err
     
     def update(self, key_id: str, name: Optional[str] = None, permissions: Optional[List[str]] = None) -> Optional[APIKey]:
         """
@@ -604,15 +611,25 @@ class BillingAPI:
             if not isinstance(data, dict):
                 raise BillingError("Billing summary payload must be an object")
             return data
-        except Exception as e:
-            # Fallback to basic usage info if billing summary is not available
+        except (VeniceAPIError, VeniceConnectionError, BillingError) as err:
+            logger.info("Billing summary unavailable, falling back to usage info: %s", err)
             usage_info = self.get_usage()
             return {
-                "current_balance": 0,  # Not available
+                "current_balance": 0,
                 "total_spent": usage_info.total_usage,
-                "last_payment": None,  # Not available
-                "next_billing_date": None,  # Not available
-                "subscription_status": "active"  # Assume active
+                "last_payment": None,
+                "next_billing_date": None,
+                "subscription_status": "active",
+            }
+        except (KeyError, TypeError, ValueError) as parse_err:
+            logger.warning("Billing summary payload invalid: %s", parse_err)
+            usage_info = self.get_usage()
+            return {
+                "current_balance": 0,
+                "total_spent": usage_info.total_usage,
+                "last_payment": None,
+                "next_billing_date": None,
+                "subscription_status": "active",
             }
     
     def _parse_datetime(self, dt_str: Optional[str]) -> Optional[datetime]:
@@ -648,22 +665,22 @@ class AccountManager:
             usage_info = None
             try:
                 usage_info = self.billing_api.get_usage()
-            except Exception:
-                pass  # Not an admin key, skip usage info
+            except (VeniceAPIError, VeniceConnectionError, BillingError) as err:
+                logger.debug("Usage info unavailable (likely missing admin scope): %s", err, exc_info=True)
             
             # Try to get rate limits (may require admin permissions)
             rate_limits = None
             try:
                 rate_limits = self.api_keys_api.get_rate_limits()
-            except Exception:
-                pass  # Not an admin key, skip rate limits
+            except (APIKeyError, VeniceAPIError, VeniceConnectionError) as err:
+                logger.debug("Rate limit info unavailable (likely missing admin scope): %s", err, exc_info=True)
             
             # Try to get API keys (may require admin permissions)
             api_keys = []
             try:
                 api_keys = self.api_keys_api.list()
-            except Exception:
-                pass  # Not an admin key, skip API keys
+            except (APIKeyError, VeniceAPIError, VeniceConnectionError) as err:
+                logger.debug("API key listing unavailable (likely missing admin scope): %s", err, exc_info=True)
             
             result: Dict[str, Any] = {}
             
@@ -696,8 +713,9 @@ class AccountManager:
                 }
             
             return result
-        except Exception as e:
-            return {"error": str(e)}
+        except (VeniceAPIError, VeniceConnectionError, BillingError, APIKeyError) as err:
+            logger.error("Failed to assemble account summary", exc_info=True)
+            return {"error": str(err)}
     
     def check_rate_limit_status(self) -> Dict[str, Any]:
         """
@@ -711,8 +729,8 @@ class AccountManager:
             rate_limits = None
             try:
                 rate_limits = self.api_keys_api.get_rate_limits()
-            except Exception:
-                pass  # Not an admin key, skip rate limits
+            except (APIKeyError, VeniceAPIError, VeniceConnectionError) as err:
+                logger.debug("Rate limit lookup unavailable: %s", err, exc_info=True)
             
             if rate_limits:
                 current_usage = rate_limits.current_usage
@@ -734,8 +752,9 @@ class AccountManager:
                     "status": "unknown",
                     "message": "Rate limit information not available - admin permissions required"
                 }
-        except Exception as e:
-            return {"error": str(e), "status": "error"}
+        except (VeniceAPIError, VeniceConnectionError, APIKeyError) as err:
+            logger.error("Failed to check rate limit status", exc_info=True)
+            return {"error": str(err), "status": "error"}
     
     def _is_within_limits(self, rate_limits: RateLimits) -> bool:
         """Check if current usage is within rate limits."""
