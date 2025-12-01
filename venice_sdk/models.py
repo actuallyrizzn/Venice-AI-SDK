@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, cast
 
 from .client import HTTPClient
 from .errors import VeniceAPIError, VeniceConnectionError
+from ._http import ensure_http_client
 
 
 @dataclass
@@ -114,8 +115,8 @@ def get_models(client: Optional[HTTPClient] = None) -> List[Model]:
     Raises:
         VeniceAPIError: If the request fails.
     """
-    client = client or HTTPClient()
-    models_api = ModelsAPI(client)
+    http_client = ensure_http_client(client, factory=HTTPClient)
+    models_api = ModelsAPI(http_client)
     models_data = models_api.list()
     
     models = []
@@ -136,8 +137,8 @@ def get_model_by_id(model_id: str, client: Optional[HTTPClient] = None) -> Optio
     Returns:
         Model if found, None otherwise.
     """
-    client = client or HTTPClient()
-    models_api = ModelsAPI(client)
+    http_client = ensure_http_client(client, factory=HTTPClient)
+    models_api = ModelsAPI(http_client)
     model_data = models_api.get(model_id)
     return _build_model_from_data(model_data)
 

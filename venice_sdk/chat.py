@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Generator, List, Optional, Union, cast
 
 from .client import HTTPClient
+from ._http import ensure_http_client
 from .errors import VeniceAPIError
 
 JSONDict = Dict[str, Any]
@@ -357,8 +358,8 @@ def chat_complete(
         ValueError: If messages is empty or temperature is invalid
         VeniceAPIError: If the request fails
     """
-    client = client or HTTPClient()
-    chat_api = ChatAPI(client)
+    http_client = ensure_http_client(client, factory=HTTPClient)
+    chat_api = ChatAPI(http_client)
     return chat_api.complete(
         messages=messages,
         model=model,
