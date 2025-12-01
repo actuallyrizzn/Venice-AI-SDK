@@ -15,6 +15,7 @@ from urllib3.util.retry import Retry
 
 from .config import Config, load_config
 from .errors import VeniceAPIError, VeniceConnectionError, handle_api_error
+from .metrics import RateLimitMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +28,13 @@ class HTTPClient:
     retries, and error handling.
     """
     
-    def __init__(self, config: Optional[Config] = None):
+    def __init__(self, config: Optional[Config] = None, enable_metrics: bool = True):
         """
         Initialize the client.
         
         Args:
             config: Optional configuration. If not provided, will be loaded from environment.
+            enable_metrics: Whether to enable rate limiting metrics collection (default: True)
         """
         self.config = config or load_config()
         self.session = requests.Session()
@@ -57,6 +59,7 @@ class HTTPClient:
         )
         self.session.mount("https://", adapter)
         self.session.mount("http://", adapter)
+        self.metrics = RateLimitMetrics() if enable_metrics else None
     
     def _request(
         self,
@@ -146,6 +149,7 @@ class HTTPClient:
                 except (TypeError, ValueError):
                     retry_after_seconds = None
 
+<<<<<<< HEAD
             if response.status_code == 429:
                 error_obj = error_data.get("error") or {}
                 if (
@@ -155,6 +159,35 @@ class HTTPClient:
                 ):
                     error_obj["retry_after"] = retry_after_seconds
                     error_data["error"] = error_obj
+=======
+                    # If 429 and body lacks retry_after, inject from header for better error context
+                    if is_rate_limited:
+                        error_obj = error_data.get("error") or {}
+                        if isinstance(error_obj, dict) and error_obj.get("retry_after") is None and retry_after_seconds is not None:
+                            error_obj["retry_after"] = retry_after_seconds
+                            error_data["error"] = error_obj
+                        
+                        # Record rate limit event in metrics
+                        if self.metrics is not None:
+                            remaining_requests = None
+                            # Try to extract remaining requests from response headers
+                            if hasattr(response, "headers"):
+                                remaining = response.headers.get("X-RateLimit-Remaining") or response.headers.get("x-ratelimit-remaining")
+                                if remaining is not None:
+                                    try:
+                                        remaining_requests = int(remaining)
+                                    except (TypeError, ValueError):
+                                        pass
+                            
+                            self.metrics.record_rate_limit(
+                                endpoint=endpoint,
+                                status_code=status,
+                                retry_after=retry_after_seconds,
+                                request_count=1,
+                                remaining_requests=remaining_requests,
+                                method=method.upper()
+                            )
+>>>>>>> ceb4dfc (feat(metrics): Add rate limiting metrics and analytics)
 
             error_context_extra = {
                 "method": method.upper(),
@@ -217,6 +250,7 @@ class HTTPClient:
             # Inject Retry-After header if present but missing in body for 429s
             if response.status_code == 429:
                 retry_after_header = response.headers.get("Retry-After") if hasattr(response, "headers") else None
+                retry_after_seconds = None
                 if retry_after_header is not None:
                     try:
                         retry_after_seconds = int(retry_after_header)
@@ -227,6 +261,28 @@ class HTTPClient:
                         if isinstance(error_obj, dict) and error_obj.get("retry_after") is None:
                             error_obj["retry_after"] = retry_after_seconds
                             error_data["error"] = error_obj
+                
+                # Record rate limit event in metrics
+                if self.metrics is not None:
+                    remaining_requests = None
+                    if hasattr(response, "headers"):
+                        remaining = response.headers.get("X-RateLimit-Remaining") or response.headers.get("x-ratelimit-remaining")
+                        if remaining is not None:
+                            try:
+                                remaining_requests = int(remaining)
+                            except (TypeError, ValueError):
+                                pass
+                    
+                    # Extract endpoint from response URL if available
+                    endpoint = getattr(response, "url", "unknown")
+                    self.metrics.record_rate_limit(
+                        endpoint=endpoint,
+                        status_code=response.status_code,
+                        retry_after=retry_after_seconds,
+                        request_count=1,
+                        remaining_requests=remaining_requests,
+                        method="POST"  # Streaming is typically POST
+                    )
 
             extra_context = {
                 "stream": True,

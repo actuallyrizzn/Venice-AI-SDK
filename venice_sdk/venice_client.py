@@ -99,6 +99,57 @@ class VeniceClient:
         manager = AccountManager(self.api_keys, self.billing)
         return manager.check_rate_limit_status()
     
+    def get_rate_limit_metrics(self) -> Optional[Dict[str, Any]]:
+        """
+        Get rate limiting metrics and analytics.
+        
+        Returns:
+            Dictionary with rate limit metrics summary, or None if metrics are disabled
+        """
+        if self._http_client.metrics is None:
+            return None
+        return self._http_client.metrics.get_rate_limit_summary()
+    
+    def get_rate_limit_events(self, endpoint: Optional[str] = None) -> Optional[list]:
+        """
+        Get rate limit events, optionally filtered by endpoint.
+        
+        Args:
+            endpoint: Optional endpoint to filter by
+            
+        Returns:
+            List of rate limit events, or None if metrics are disabled
+        """
+        if self._http_client.metrics is None:
+            return None
+        events = self._http_client.metrics.get_rate_limit_events(endpoint)
+        return [
+            {
+                "timestamp": event.timestamp.isoformat(),
+                "endpoint": event.endpoint,
+                "status_code": event.status_code,
+                "retry_after": event.retry_after,
+                "request_count": event.request_count,
+                "remaining_requests": event.remaining_requests,
+                "method": event.method
+            }
+            for event in events
+        ]
+    
+    def get_endpoint_metrics(self, endpoint: str) -> Optional[Dict[str, Any]]:
+        """
+        Get metrics for a specific endpoint.
+        
+        Args:
+            endpoint: Endpoint to get metrics for
+            
+        Returns:
+            Dictionary with endpoint metrics, or None if metrics are disabled or endpoint not found
+        """
+        if self._http_client.metrics is None:
+            return None
+        return self._http_client.metrics.get_endpoint_summary(endpoint)
+    
     def clear_caches(self) -> None:
         """Clear all caches in the client."""
         logger.debug("Clearing VeniceClient caches")
