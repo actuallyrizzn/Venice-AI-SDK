@@ -17,7 +17,25 @@ from venice_sdk.errors import VeniceAPIError, UnauthorizedError
 
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+
+# Environment-based configuration
+ENVIRONMENT = os.getenv('FLASK_ENV', os.getenv('ENVIRONMENT', 'development')).lower()
+IS_PRODUCTION = ENVIRONMENT in ('production', 'prod')
+
+# Secret key configuration
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    if IS_PRODUCTION:
+        raise ValueError(
+            "SECRET_KEY must be set for production deployment. "
+            "Set it as an environment variable: export SECRET_KEY='your-secret-key'"
+        )
+    else:
+        # Development: use random key
+        SECRET_KEY = os.urandom(24)
+        print("⚠️  WARNING: Using random SECRET_KEY for development. Set SECRET_KEY environment variable for production.")
+
+app.secret_key = SECRET_KEY
 
 # Initialize Venice AI client
 client = VeniceClient()
@@ -650,9 +668,64 @@ def create_templates():
     (templates_dir / "index.html").write_text(index_html)
 
 
+def validate_production_config():
+    """Validate configuration for production deployment."""
+    warnings = []
+    errors = []
+    
+    # Check debug mode
+    debug_mode = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+    if IS_PRODUCTION and debug_mode:
+        errors.append(
+            "DEBUG mode is enabled in production! This is a security risk. "
+            "Set FLASK_DEBUG=false or remove it from environment variables."
+        )
+    
+    # Check host configuration
+    host = os.getenv('FLASK_HOST', '0.0.0.0')
+    if IS_PRODUCTION and host == '0.0.0.0':
+        warnings.append(
+            "Host is set to '0.0.0.0' which allows connections from any IP. "
+            "In production, consider using a specific host or a reverse proxy."
+        )
+    
+    # Check secret key
+    if IS_PRODUCTION and not os.getenv('SECRET_KEY'):
+        errors.append(
+            "SECRET_KEY is not set! This is required for production. "
+            "Set it as an environment variable: export SECRET_KEY='your-secret-key'"
+        )
+    elif IS_PRODUCTION and os.getenv('SECRET_KEY') == 'dev-secret-key':
+        errors.append(
+            "SECRET_KEY is set to 'dev-secret-key' which is not suitable for production! "
+            "Use a strong, randomly generated secret key."
+        )
+    
+    # Display warnings and errors
+    if warnings:
+        print("\n⚠️  PRODUCTION WARNINGS:")
+        for warning in warnings:
+            print(f"   - {warning}")
+    
+    if errors:
+        print("\n❌ PRODUCTION CONFIGURATION ERRORS:")
+        for error in errors:
+            print(f"   - {error}")
+        print("\n⚠️  The application will not start in production with these errors.")
+        raise ValueError("Production configuration validation failed. See errors above.")
+    
+    if IS_PRODUCTION and not warnings and not errors:
+        print("✅ Production configuration validated successfully")
+
+
 def main():
     """Run the web application."""
     print("🌐 Starting Venice AI Web Application...")
+    print(f"📋 Environment: {ENVIRONMENT}")
+    
+    # Validate production configuration
+    if IS_PRODUCTION:
+        validate_production_config()
     
     # Create templates
     create_templates()
@@ -665,10 +738,24 @@ def main():
     
     print("✅ API key found")
     print("🚀 Starting Flask server...")
-    print("📱 Open your browser to: http://localhost:5000")
+    
+    # Configuration from environment variables
+    debug_mode = os.getenv('FLASK_DEBUG', 'true' if not IS_PRODUCTION else 'false').lower() == 'true'
+    host = os.getenv('FLASK_HOST', '0.0.0.0' if not IS_PRODUCTION else '127.0.0.1')
+    port = int(os.getenv('FLASK_PORT', '5000'))
+    
+    if IS_PRODUCTION and debug_mode:
+        print("⚠️  WARNING: DEBUG mode is enabled in production! This is a security risk.")
+        print("   Set FLASK_DEBUG=false to disable debug mode.")
+    
+    if IS_PRODUCTION and host == '0.0.0.0':
+        print("⚠️  WARNING: Host is set to '0.0.0.0' which allows connections from any IP.")
+        print("   Consider using a specific host or a reverse proxy in production.")
+    
+    print(f"📱 Open your browser to: http://{host}:{port}")
     
     # Run the Flask app
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=debug_mode, host=host, port=port)
 
 
 if __name__ == "__main__":
