@@ -148,6 +148,30 @@ class VideoAPI:
         """
         self.client = client
     
+    def _normalize_duration(self, duration: Union[int, str, None]) -> Optional[str]:
+        """
+        Normalize duration to API format.
+
+        Args:
+            duration: Duration as integer (seconds) or string (e.g., "5s")
+
+        Returns:
+            Duration string in format "Xs" or None
+
+        Note:
+            API currently only supports "5s" or "10s". Other values will be
+            converted but may be rejected by the API.
+        """
+        if duration is None:
+            return None
+        if isinstance(duration, str):
+            # If already in string format, return as-is
+            return duration
+        if isinstance(duration, int):
+            # Convert integer to string format (e.g., 5 -> "5s")
+            return f"{duration}s"
+        return str(duration)
+    
     def _encode_image(self, image: Union[str, bytes, Path]) -> str:
         """
         Encode image to base64 data URI.
@@ -190,7 +214,7 @@ class VideoAPI:
         model: str,
         prompt: Optional[str] = None,
         image: Optional[Union[str, bytes, Path]] = None,
-        duration: Optional[int] = None,
+        duration: Optional[Union[int, str]] = None,
         resolution: Optional[str] = None,
         audio: bool = False,
         seed: Optional[int] = None,
@@ -240,7 +264,7 @@ class VideoAPI:
         if image:
             data["image"] = self._encode_image(image)
         if duration is not None:
-            data["duration"] = duration
+            data["duration"] = self._normalize_duration(duration)
         if resolution:
             data["resolution"] = resolution
         if seed is not None:
@@ -261,7 +285,7 @@ class VideoAPI:
             model,
             bool(prompt),
             bool(image),
-            duration,
+            data.get("duration"),
             resolution,
         )
         
@@ -423,7 +447,7 @@ class VideoAPI:
         model: str,
         prompt: Optional[str] = None,
         image: Optional[Union[str, bytes, Path]] = None,
-        duration: Optional[int] = None,
+        duration: Optional[Union[int, str]] = None,
         resolution: Optional[str] = None,
         audio: bool = False,
         seed: Optional[int] = None,
@@ -471,9 +495,16 @@ class VideoAPI:
         if prompt:
             data["prompt"] = prompt
         if image:
-            data["image"] = self._encode_image(image)
+            # For image-to-video, API expects image_url instead of image
+            encoded_image = self._encode_image(image)
+            # If it's a URL, use image_url, otherwise use image
+            if encoded_image.startswith(('http://', 'https://')):
+                data["image_url"] = encoded_image
+            else:
+                # For base64 data URIs, use image_url as well
+                data["image_url"] = encoded_image
         if duration is not None:
-            data["duration"] = duration
+            data["duration"] = self._normalize_duration(duration)
         if resolution:
             data["resolution"] = resolution
         if seed is not None:
@@ -519,7 +550,7 @@ class VideoAPI:
         model: str,
         prompt: Optional[str] = None,
         image: Optional[Union[str, bytes, Path]] = None,
-        duration: Optional[int] = None,
+        duration: Optional[Union[int, str]] = None,
         resolution: Optional[str] = None,
         audio: bool = False,
         seed: Optional[int] = None,

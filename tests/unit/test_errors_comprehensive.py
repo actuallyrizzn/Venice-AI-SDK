@@ -36,7 +36,9 @@ class TestVeniceAPIError:
     def test_venice_api_error_initialization(self):
         """Test VeniceAPIError initialization."""
         error = VeniceAPIError("API error", status_code=400)
-        assert str(error) == "API error"
+        rendered = str(error)
+        assert rendered.startswith("API error")
+        assert "HTTP 400" in rendered
         assert error.status_code == 400
         assert isinstance(error, VeniceError)
 
@@ -217,7 +219,7 @@ class TestHandleAPIError:
         """Test handling error without error key."""
         with pytest.raises(VeniceAPIError) as exc_info:
             handle_api_error(400, {"message": "Bad request"})
-        assert "Unknown error" in str(exc_info.value)
+        assert "Bad request" in str(exc_info.value)
 
     def test_handle_api_error_with_none_error(self):
         """Test handling error with None error."""

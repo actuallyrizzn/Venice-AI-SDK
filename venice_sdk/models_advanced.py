@@ -7,9 +7,10 @@ This module provides advanced model capabilities including traits and compatibil
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .client import HTTPClient
+from ._http import ensure_http_client
 from .errors import VeniceAPIError, ModelNotFoundError
 from .config import load_config
 
@@ -24,7 +25,7 @@ class ModelTraits:
     supported_formats: Optional[List[str]] = None
     context_length: Optional[int] = None
     max_tokens: Optional[int] = None
-    temperature_range: Optional[tuple] = None
+    temperature_range: Optional[Tuple[float, float]] = None
     languages: Optional[List[str]] = None
     
     def has_capability(self, capability: str) -> bool:
@@ -90,12 +91,31 @@ class CompatibilityMapping:
         return list(self.provider_mappings.keys())
 
 
+def _to_temperature_range(raw: Any) -> Optional[Tuple[float, float]]:
+    """Coerce API temperature ranges into a typed tuple."""
+    if isinstance(raw, (list, tuple)) and len(raw) >= 2:
+        try:
+            return float(raw[0]), float(raw[1])
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def _recommendation_score(entry: Dict[str, Any]) -> float:
+    """Safely extract a numeric score from a recommendation dictionary."""
+    score = entry.get("score", 0.0)
+    try:
+        return float(score)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 class ModelsTraitsAPI:
     """Advanced model traits API client."""
     
     def __init__(self, client: HTTPClient):
         self.client = client
-        self._traits_cache = {}
+        self._traits_cache: Dict[str, ModelTraits] = {}
     
     def get_traits(self, use_cache: bool = True) -> Dict[str, ModelTraits]:
         """
@@ -293,7 +313,7 @@ class ModelsTraitsAPI:
             required_capabilities = ["text_generation", "chat"]
         
         all_traits = self.get_traits()
-        scored_models = []
+        scored_models: List[Tuple[str, int]] = []
         
         for model_id, traits in all_traits.items():
             score = 0
@@ -305,7 +325,7 @@ class ModelsTraitsAPI:
                 scored_models.append((model_id, score))
         
         # Sort by score (descending) and return model IDs
-        scored_models.sort(key=lambda x: x[1], reverse=True)
+        scored_models.sort(key=lambda item: item[1], reverse=True)
         return [model_id for model_id, _ in scored_models]
     
     def clear_cache(self) -> None:
@@ -322,7 +342,7 @@ class ModelsTraitsAPI:
             supported_formats=data.get("supported_formats"),
             context_length=data.get("context_length"),
             max_tokens=data.get("max_tokens"),
-            temperature_range=tuple(data["temperature_range"]) if data.get("temperature_range") else None,
+            temperature_range=_to_temperature_range(data.get("temperature_range")),
             languages=data.get("languages")
         )
 
@@ -332,7 +352,7 @@ class ModelsCompatibilityAPI:
     
     def __init__(self, client: HTTPClient):
         self.client = client
-        self._mapping_cache = None
+        self._mapping_cache: Optional[CompatibilityMapping] = None
     
     def get_mapping(self, use_cache: bool = True) -> CompatibilityMapping:
         """
@@ -464,7 +484,7 @@ class ModelRecommendationEngine:
         
         # Get traits for all models
         all_traits = self.traits_api.get_traits()
-        recommendations = []
+        recommendations: List[Dict[str, Any]] = []
         
         for model_id in best_models:
             if model_id not in all_traits:
@@ -485,7 +505,7 @@ class ModelRecommendationEngine:
             })
         
         # Sort by score (descending)
-        recommendations.sort(key=lambda x: x["score"], reverse=True)
+        recommendations.sort(key=_recommendation_score, reverse=True)
         return recommendations
     
     def _calculate_recommendation_score(
@@ -543,13 +563,8 @@ def get_model_traits(
     client: Optional[HTTPClient] = None
 ) -> Optional[ModelTraits]:
     """Convenience function to get model traits."""
-    if client is None:
-        from .config import load_config
-        from .venice_client import VeniceClient
-        config = load_config()
-        client = VeniceClient(config)
-    
-    api = ModelsTraitsAPI(client)
+    http_client = ensure_http_client(client)
+    api = ModelsTraitsAPI(http_client)
     return api.get_model_traits(model_id)
 
 
@@ -557,13 +572,8 @@ def get_compatibility_mapping(
     client: Optional[HTTPClient] = None
 ) -> CompatibilityMapping:
     """Convenience function to get compatibility mapping."""
-    if client is None:
-        from .config import load_config
-        from .venice_client import VeniceClient
-        config = load_config()
-        client = VeniceClient(config)
-    
-    api = ModelsCompatibilityAPI(client)
+    http_client = ensure_http_client(client)
+    api = ModelsCompatibilityAPI(http_client)
     return api.get_mapping()
 
 
@@ -572,11 +582,6 @@ def find_models_by_capability(
     client: Optional[HTTPClient] = None
 ) -> List[str]:
     """Convenience function to find models by capability."""
-    if client is None:
-        from .config import load_config
-        from .venice_client import VeniceClient
-        config = load_config()
-        client = VeniceClient(config)
-    
-    api = ModelsTraitsAPI(client)
+    http_client = ensure_http_client(client)
+    api = ModelsTraitsAPI(http_client)
     return api.find_models_by_capability(capability)

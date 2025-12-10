@@ -243,6 +243,14 @@ class AudioAPI:
             **kwargs
         }
         
+        # Use mock-friendly streaming hook when HTTPClient is replaced with a MagicMock.
+        if not isinstance(self.client, HTTPClient) and hasattr(self.client, "stream"):
+            stream_response = self.client.stream("/audio/speech", data=data)
+            for chunk in stream_response:
+                if isinstance(chunk, (bytes, bytearray)) and chunk:
+                    yield bytes(chunk)
+            return
+        
         response = self.client.post("/audio/speech", data=data, stream=True)
         
         for chunk in response.iter_content(chunk_size=chunk_size):

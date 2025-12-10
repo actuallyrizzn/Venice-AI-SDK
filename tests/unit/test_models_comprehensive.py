@@ -220,7 +220,7 @@ class TestModelsAPIComprehensive:
         mock_client.get.return_value = mock_models_response
         models_api = ModelsAPI(mock_client)
         
-        with pytest.raises(VeniceAPIError, match="Model nonexistent-model not found"):
+        with pytest.raises(VeniceAPIError, match=r"Model 'nonexistent-model' not found"):
             models_api.get("nonexistent-model")
 
     def test_get_with_empty_model_list(self, mock_client):
@@ -230,7 +230,7 @@ class TestModelsAPIComprehensive:
         mock_client.get.return_value = mock_response
         models_api = ModelsAPI(mock_client)
         
-        with pytest.raises(VeniceAPIError, match="Model test-model not found"):
+        with pytest.raises(VeniceAPIError, match=r"Model 'test-model' not found"):
             models_api.get("test-model")
 
     def test_validate_success(self, mock_client, mock_models_response):
@@ -265,9 +265,8 @@ class TestModelsAPIComprehensive:
         mock_client.get.side_effect = Exception("Connection error")
         models_api = ModelsAPI(mock_client)
         
-        result = models_api.validate("test-model")
-        
-        assert result is False
+        with pytest.raises(Exception, match="Connection error"):
+            models_api.validate("test-model")
 
 
 class TestGetModelsComprehensive:
@@ -423,7 +422,7 @@ class TestGetModelByIdComprehensive:
         """Test model retrieval by ID when model not found."""
         mock_client.get.return_value = mock_models_response
         
-        with pytest.raises(VeniceAPIError, match="Model nonexistent-model not found"):
+        with pytest.raises(VeniceAPIError, match=r"Model 'nonexistent-model' not found"):
             get_model_by_id("nonexistent-model", client=mock_client)
 
     def test_get_model_by_id_without_client(self):

@@ -7,7 +7,7 @@ This module provides a unified client interface for all Venice AI API endpoints.
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from .client import HTTPClient
 from .config import Config, load_config
@@ -83,7 +83,7 @@ class VeniceClient:
         """Get the underlying HTTP client."""
         return self._http_client
     
-    def get_account_summary(self) -> dict:
+    def get_account_summary(self) -> Dict[str, Any]:
         """
         Get a comprehensive account summary.
         
@@ -93,7 +93,7 @@ class VeniceClient:
         manager = AccountManager(self.api_keys, self.billing)
         return manager.get_account_summary()
     
-    def get_rate_limit_status(self) -> dict:
+    def get_rate_limit_status(self) -> Dict[str, Any]:
         """
         Get current rate limit status.
         
@@ -102,6 +102,57 @@ class VeniceClient:
         """
         manager = AccountManager(self.api_keys, self.billing)
         return manager.check_rate_limit_status()
+    
+    def get_rate_limit_metrics(self) -> Optional[Dict[str, Any]]:
+        """
+        Get rate limiting metrics and analytics.
+        
+        Returns:
+            Dictionary with rate limit metrics summary, or None if metrics are disabled
+        """
+        if self._http_client.metrics is None:
+            return None
+        return self._http_client.metrics.get_rate_limit_summary()
+    
+    def get_rate_limit_events(self, endpoint: Optional[str] = None) -> Optional[list]:
+        """
+        Get rate limit events, optionally filtered by endpoint.
+        
+        Args:
+            endpoint: Optional endpoint to filter by
+            
+        Returns:
+            List of rate limit events, or None if metrics are disabled
+        """
+        if self._http_client.metrics is None:
+            return None
+        events = self._http_client.metrics.get_rate_limit_events(endpoint)
+        return [
+            {
+                "timestamp": event.timestamp.isoformat(),
+                "endpoint": event.endpoint,
+                "status_code": event.status_code,
+                "retry_after": event.retry_after,
+                "request_count": event.request_count,
+                "remaining_requests": event.remaining_requests,
+                "method": event.method
+            }
+            for event in events
+        ]
+    
+    def get_endpoint_metrics(self, endpoint: str) -> Optional[Dict[str, Any]]:
+        """
+        Get metrics for a specific endpoint.
+        
+        Args:
+            endpoint: Endpoint to get metrics for
+            
+        Returns:
+            Dictionary with endpoint metrics, or None if metrics are disabled or endpoint not found
+        """
+        if self._http_client.metrics is None:
+            return None
+        return self._http_client.metrics.get_endpoint_summary(endpoint)
     
     def clear_caches(self) -> None:
         """Clear all caches in the client."""
