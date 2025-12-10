@@ -55,3 +55,12 @@ class ModelsEndpoints:
     
     MODELS = "models"
     MODELS_COMPATIBILITY_MAPPING = "/models/compatibility_mapping"
+
+
+class VideoEndpoints:
+    """Video-related API endpoints."""
+    
+    QUEUE = "/video/queue"
+    RETRIEVE = "/video/retrieve"
+    QUOTE = "/video/quote"
+    COMPLETE = "/video/complete"

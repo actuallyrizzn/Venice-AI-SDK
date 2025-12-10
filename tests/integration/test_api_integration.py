@@ -222,6 +222,229 @@ class TestAPIIntegration:
                 assert isinstance(result, list)
                 assert len(result) > 0
 
+    def test_video_to_models_integration(self):
+        """Test integration between video and models APIs."""
+        with patch.object(self.client.http_client, 'get') as mock_get, \
+             patch.object(self.client.http_client, 'post') as mock_post:
+            # Mock models list response
+            mock_models_response = MagicMock()
+            mock_models_response.status_code = 200
+            mock_models_response.json.return_value = {
+                "data": [{
+                    "id": "kling-2.6-pro-text-to-video",
+                    "name": "Kling 2.6 Pro",
+                    "type": "video",
+                    "model_spec": {
+                        "capabilities": {
+                            "textToVideo": True,
+                            "imageToVideo": False
+                        }
+                    }
+                }, {
+                    "id": "kling-2.6-pro-image-to-video",
+                    "name": "Kling 2.6 Pro Image",
+                    "type": "video",
+                    "model_spec": {
+                        "capabilities": {
+                            "textToVideo": False,
+                            "imageToVideo": True
+                        }
+                    }
+                }]
+            }
+            
+            # Mock video queue response
+            mock_queue_response = MagicMock()
+            mock_queue_response.status_code = 200
+            mock_queue_response.json.return_value = {
+                "job_id": "video_job_123",
+                "status": "queued",
+                "created_at": "2024-01-01T00:00:00Z"
+            }
+            
+            # Mock video retrieve response
+            mock_retrieve_response = MagicMock()
+            mock_retrieve_response.status_code = 200
+            mock_retrieve_response.json.return_value = {
+                "job_id": "video_job_123",
+                "status": "completed",
+                "video_url": "https://example.com/video.mp4",
+                "progress": 100.0,
+                "completed_at": "2024-01-01T00:00:10Z"
+            }
+            
+            def mock_get_side_effect(url, **kwargs):
+                if "models" in url:
+                    return mock_models_response
+                return mock_models_response
+            
+            def mock_post_side_effect(url, **kwargs):
+                if "video/queue" in url:
+                    return mock_queue_response
+                elif "video/retrieve" in url:
+                    return mock_retrieve_response
+                return mock_queue_response
+            
+            mock_get.side_effect = mock_get_side_effect
+            mock_post.side_effect = mock_post_side_effect
+            
+            # Test the integration
+            # 1. Get available video models
+            models = self.client.models.list()
+            video_models = [
+                model for model in models 
+                if model.get("type") == "video"
+            ]
+            assert len(video_models) > 0
+            
+            # 2. Queue video generation using a video model
+            text_to_video_model = next(
+                (m for m in video_models if m.get("id") == "kling-2.6-pro-text-to-video"),
+                None
+            )
+            assert text_to_video_model is not None
+            
+            job = self.client.video.queue(
+                model=text_to_video_model["id"],
+                prompt="A beautiful sunset over the ocean",
+                duration=5,
+                resolution="1080p"
+            )
+            
+            assert job is not None
+            assert job.job_id == "video_job_123"
+            assert job.status == "queued"
+            
+            # 3. Retrieve video job status
+            retrieved_job = self.client.video.retrieve(job.job_id)
+            assert retrieved_job.status == "completed"
+            assert retrieved_job.video_url == "https://example.com/video.mp4"
+
+    def test_video_quote_integration(self):
+        """Test integration between video quote and queue APIs."""
+        with patch.object(self.client.http_client, 'post') as mock_post:
+            # Mock quote response
+            mock_quote_response = MagicMock()
+            mock_quote_response.status_code = 200
+            mock_quote_response.json.return_value = {
+                "estimated_cost": 0.50,
+                "currency": "USD",
+                "estimated_duration": 120,
+                "pricing_breakdown": {
+                    "base_cost": 0.30,
+                    "duration_cost": 0.20
+                }
+            }
+            
+            # Mock queue response
+            mock_queue_response = MagicMock()
+            mock_queue_response.status_code = 200
+            mock_queue_response.json.return_value = {
+                "job_id": "video_job_123",
+                "status": "queued"
+            }
+            
+            call_count = 0
+            def mock_post_side_effect(url, **kwargs):
+                nonlocal call_count
+                call_count += 1
+                if "video/quote" in url:
+                    return mock_quote_response
+                elif "video/queue" in url:
+                    return mock_queue_response
+                return mock_quote_response
+            
+            mock_post.side_effect = mock_post_side_effect
+            
+            # Test the integration
+            # 1. Get quote first
+            quote = self.client.video.quote(
+                model="kling-2.6-pro-text-to-video",
+                prompt="A cat playing with yarn",
+                duration=3,
+                resolution="720p"
+            )
+            
+            assert quote.estimated_cost == 0.50
+            assert quote.currency == "USD"
+            
+            # 2. Queue the job with same parameters
+            job = self.client.video.queue(
+                model="kling-2.6-pro-text-to-video",
+                prompt="A cat playing with yarn",
+                duration=3,
+                resolution="720p"
+            )
+            
+            assert job.job_id == "video_job_123"
+            assert call_count == 2  # Quote + Queue
+
+    def test_images_to_video_integration(self):
+        """Test integration between images and video APIs."""
+        with patch.object(self.client.http_client, 'post') as mock_post, \
+             patch('requests.get') as mock_requests_get:
+            # Mock image generation response
+            mock_image_response = MagicMock()
+            mock_image_response.status_code = 200
+            mock_image_response.json.return_value = {
+                "data": [{
+                    "url": "https://example.com/generated-image.png",
+                    "revised_prompt": "A beautiful sunset over mountains"
+                }],
+                "created": 1234567890
+            }
+            
+            # Mock image download
+            mock_image_download = MagicMock()
+            mock_image_download.status_code = 200
+            mock_image_download.content = b"fake_image_data"
+            mock_image_download.raise_for_status.return_value = None
+            mock_requests_get.return_value = mock_image_download
+            
+            # Mock video queue response
+            mock_video_queue_response = MagicMock()
+            mock_video_queue_response.status_code = 200
+            mock_video_queue_response.json.return_value = {
+                "job_id": "video_job_123",
+                "status": "queued"
+            }
+            
+            call_count = 0
+            def mock_post_side_effect(url, **kwargs):
+                nonlocal call_count
+                call_count += 1
+                if "images/generations" in url:
+                    return mock_image_response
+                elif "video/queue" in url:
+                    return mock_video_queue_response
+                return mock_image_response
+            
+            mock_post.side_effect = mock_post_side_effect
+            
+            # Test the integration workflow
+            # 1. Generate an image
+            image_result = self.client.images.generate(
+                prompt="A serene mountain landscape",
+                model="dall-e-3",
+                size="1024x1024"
+            )
+            
+            assert image_result is not None
+            assert image_result.url is not None
+            
+            # 2. Use the generated image for image-to-video
+            job = self.client.video.queue(
+                model="kling-2.6-pro-image-to-video",
+                image=image_result.url,
+                prompt="Animate this image with gentle movement",
+                duration=3,
+                resolution="720p"
+            )
+            
+            assert job is not None
+            assert job.job_id == "video_job_123"
+            assert call_count == 2  # Image generation + Video queue
+
     def test_images_to_styles_integration(self):
         """Test integration between images and styles APIs."""
         with patch.object(self.client.http_client, 'post') as mock_post:

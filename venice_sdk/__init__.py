@@ -20,6 +20,7 @@ from .errors import (
     CharacterNotFoundError,
     ImageGenerationError,
     AudioGenerationError,
+    VideoGenerationError,
     BillingError,
     APIKeyError,
     EmbeddingError,
@@ -60,6 +61,12 @@ from .audio import (
     AudioBatchProcessor,
     text_to_speech,
     text_to_speech_file,
+)
+from .video import (
+    VideoMetadata,
+    VideoJob,
+    VideoQuote,
+    VideoAPI,
 )
 from .characters import (
     Character,
@@ -131,6 +138,7 @@ __all__ = [
     "CharacterNotFoundError",
     "ImageGenerationError",
     "AudioGenerationError",
+    "VideoGenerationError",
     "BillingError",
     "APIKeyError",
     "EmbeddingError",
@@ -171,6 +179,12 @@ __all__ = [
     "AudioBatchProcessor",
     "text_to_speech",
     "text_to_speech_file",
+    
+    # Video
+    "VideoMetadata",
+    "VideoJob",
+    "VideoQuote",
+    "VideoAPI",
     
     # Characters
     "Character",

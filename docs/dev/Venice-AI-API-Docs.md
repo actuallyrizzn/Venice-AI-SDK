@@ -632,6 +632,596 @@ Common voice options include:
 - `nova`: Bright, energetic voice
 - `shimmer`: Soft, gentle voice
 
+## Video Generation API
+
+The **Video Generation** endpoints enable text-to-video and image-to-video generation using an async queue system. Video generation is a resource-intensive process, so Venice uses a queue-based approach where you submit a job and then poll for results.
+
+### Video Generation Overview
+
+- **Queue Video Generation:** `POST https://api.venice.ai/api/v1/video/queue` ([Venice API Docs: /video/queue](https://docs.venice.ai/api-reference/endpoint/video/queue))
+- **Retrieve Video:** `POST https://api.venice.ai/api/v1/video/retrieve` ([Venice API Docs: /video/retrieve](https://docs.venice.ai/api-reference/endpoint/video/retrieve))
+- **Quote Video Generation:** `POST https://api.venice.ai/api/v1/video/quote` ([Venice API Docs: /video/quote](https://docs.venice.ai/api-reference/endpoint/video/quote))
+- **Complete Video:** `POST https://api.venice.ai/api/v1/video/complete` ([Venice API Docs: /video/complete](https://docs.venice.ai/api-reference/endpoint/video/complete))
+- **Purpose:** Generate videos from text prompts or animate static images into video clips
+- **Use Cases:** Content creation, marketing videos, animation, social media content, video editing workflows, educational content, product demonstrations
+
+### Video Generation Types
+
+Venice supports two types of video generation:
+
+- **Text-to-Video:** Generate videos from text descriptions (e.g., "A cat walking on a sunny beach"). The model interprets the text prompt and creates a video sequence from scratch.
+- **Image-to-Video:** Animate static images into video clips. You provide an image and optionally a prompt describing the desired motion or animation.
+
+### Queue Video Generation
+
+The queue endpoint submits a video generation job and returns a job ID for tracking. This is the first step in the async workflow. The job is placed in a queue and processed asynchronously.
+
+**Request Structure:**
+
+- `model` (string, required): The ID of the video model to use. Must be a valid video model ID (e.g., "kling-2.6-pro-text-to-video", "sora-2-text-to-video", "veo3-full-text-to-video", "wan-2.5-preview-text-to-video" for text-to-video, or "kling-2.6-pro-image-to-video", "sora-2-image-to-video" for image-to-video). Use the `/models` endpoint to list available video models.
+- `prompt` (string, required for text-to-video, optional for image-to-video): Text description of the video to generate. Should be detailed and descriptive for best results. For image-to-video, this describes the desired animation or motion.
+- `image` (string, optional for image-to-video, not used for text-to-video): Base64-encoded image data (with data URI prefix like `data:image/png;base64,`) or a publicly accessible image URL. Required for image-to-video models. The image should be in a supported format (PNG, JPEG, WebP).
+- `duration` (integer, optional): Duration of the video in seconds. Supported values vary by model (common ranges: 3-10 seconds). Some models have fixed durations. Check model documentation for supported durations.
+- `resolution` (string, optional): Video resolution. Common values include "720p", "1080p", "4k", "512x512", "768x768", "1024x1024". Supported resolutions depend on the model. Higher resolutions may increase generation time and cost.
+- `audio` (boolean, optional): Whether to include audio in the generated video. Default is `false`. When `true`, the model may generate audio or use text-to-speech for narration. Audio generation may increase cost and processing time.
+- `seed` (integer, optional): Random seed for reproducible results. Using the same seed with the same prompt and parameters will produce similar or identical results. Useful for consistency in testing or when iterating on prompts.
+- `negative_prompt` (string, optional): Text describing what should not appear in the video. Helps guide the model away from unwanted elements (e.g., "blurry, distorted, low quality, watermark").
+- `aspect_ratio` (string, optional): Desired aspect ratio for the video (e.g., "16:9", "9:16", "1:1", "4:3"). Some models support aspect ratio specification. If not provided, the model uses default aspect ratios.
+- `fps` (integer, optional): Frames per second for the generated video. Common values: 24, 30, 60. Default depends on the model. Higher FPS may increase generation time and cost.
+- `motion_bucket_id` (integer, optional): Controls the amount of motion in image-to-video generation. Higher values (e.g., 127) create more motion, lower values (e.g., 1) create subtle motion. Model-specific parameter.
+- `guidance_scale` (float, optional): Controls how closely the model follows the prompt. Higher values (e.g., 7.5) adhere more closely to the prompt, lower values allow more creative interpretation. Model-specific parameter.
+
+**Python Example:**
+
+```python
+import requests
+import base64
+
+url = "https://api.venice.ai/api/v1/video/queue"
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json"
+}
+
+# Text-to-video example
+data = {
+    "model": "kling-2.6-pro-text-to-video",
+    "prompt": "A serene sunset over a calm ocean with gentle waves",
+    "duration": 5,
+    "resolution": "1080p",
+    "audio": False
+}
+response = requests.post(url, headers=headers, json=data)
+result = response.json()
+
+job_id = result.get("job_id")
+print(f"Video generation queued. Job ID: {job_id}")
+```
+
+**Image-to-Video Example:**
+
+```python
+# Read and encode image
+with open("static_image.png", "rb") as image_file:
+    image_data = base64.b64encode(image_file.read()).decode('utf-8')
+
+data = {
+    "model": "kling-2.6-pro-image-to-video",
+    "image": image_data,
+    "prompt": "Animate this image with gentle movement",
+    "duration": 3,
+    "resolution": "720p"
+}
+response = requests.post(url, headers=headers, json=data)
+result = response.json()
+
+job_id = result.get("job_id")
+print(f"Video generation queued. Job ID: {job_id}")
+```
+
+**cURL Equivalent:**
+
+```bash
+curl --request POST \
+  --url https://api.venice.ai/api/v1/video/queue \
+  --header "Authorization: Bearer <your-api-key>" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "model": "kling-2.6-pro-text-to-video",
+    "prompt": "A serene sunset over a calm ocean with gentle waves",
+    "duration": 5,
+    "resolution": "1080p",
+    "audio": false
+  }'
+```
+
+**Response Structure:**
+
+On success (HTTP 200), the response includes:
+- `job_id` (string): Unique identifier for tracking the video generation job. Use this ID with the retrieve endpoint to check status and get results.
+- `status` (string): Initial job status. Common values:
+  - `"queued"`: Job is in the queue waiting to be processed
+  - `"processing"`: Job is currently being processed
+  - `"completed"`: Job has finished successfully (only in retrieve endpoint)
+  - `"failed"`: Job failed with an error (only in retrieve endpoint)
+- `estimated_completion_time` (string, optional): ISO 8601 timestamp indicating estimated completion time. May not be available immediately.
+- `created_at` (string, optional): ISO 8601 timestamp when the job was created
+- `queue_position` (integer, optional): Position in the queue (if available)
+
+**Error Responses:**
+
+- **400 Bad Request:** Invalid request parameters (e.g., missing required fields, invalid model ID, unsupported resolution)
+- **401 Unauthorized:** Invalid or missing API key
+- **402 Payment Required:** Insufficient credits or account balance
+- **413 Payload Too Large:** Image or request payload exceeds size limits (typically 10MB for images)
+- **422 Unprocessable Entity:** Invalid video parameters (e.g., unsupported resolution, invalid duration, incompatible model/parameter combination)
+- **500 Server Error:** Internal server error or generation failure
+
+### Retrieve Video
+
+The retrieve endpoint checks the status of a video generation job and returns the result when complete. This endpoint should be called periodically (polling) to check if the video generation has finished. Recommended polling interval is 5-10 seconds.
+
+**Request Structure:**
+
+- `job_id` (string, required): The job ID returned from the queue endpoint. Must be a valid job ID from a previously queued video generation request.
+
+**Python Example:**
+
+```python
+import requests
+import time
+
+url = "https://api.venice.ai/api/v1/video/retrieve"
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json"
+}
+
+job_id = "video_job_12345"  # From queue response
+
+# Poll for completion
+while True:
+    data = {"job_id": job_id}
+    response = requests.post(url, headers=headers, json=data)
+    result = response.json()
+    
+    status = result.get("status")
+    print(f"Status: {status}")
+    
+    if status == "completed":
+        video_url = result.get("video_url")
+        print(f"Video ready: {video_url}")
+        break
+    elif status == "failed":
+        error = result.get("error")
+        print(f"Generation failed: {error}")
+        break
+    else:
+        # Still processing, wait before polling again
+        time.sleep(5)  # Poll every 5 seconds
+```
+
+**cURL Equivalent:**
+
+```bash
+curl --request POST \
+  --url https://api.venice.ai/api/v1/video/retrieve \
+  --header "Authorization: Bearer <your-api-key>" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "job_id": "video_job_12345"
+  }'
+```
+
+**Response Structure:**
+
+- `status` (string): Current job status. Possible values:
+  - `"queued"`: Job is waiting in the queue
+  - `"processing"`: Job is currently being processed
+  - `"completed"`: Job finished successfully and video is ready
+  - `"failed"`: Job failed with an error
+- `job_id` (string): The job ID (echoed from request)
+- `video_url` (string, optional): URL to download the generated video. Only present when `status` is `"completed"`. This URL is typically valid for a limited time (e.g., 24-48 hours). Download the video promptly.
+- `video_id` (string, optional): Internal video identifier
+- `progress` (float, optional): Generation progress as a percentage (0-100). May not be available for all models or at all stages.
+- `error` (string, optional): Error message if status is `"failed"`. Contains details about what went wrong.
+- `error_code` (string, optional): Error code if status is `"failed"`. See error codes documentation for details.
+- `created_at` (string): ISO 8601 timestamp when the job was created
+- `started_at` (string, optional): ISO 8601 timestamp when processing began
+- `completed_at` (string, optional): ISO 8601 timestamp when the job completed (or failed)
+- `estimated_time_remaining` (integer, optional): Estimated seconds remaining until completion (when processing)
+- `model` (string, optional): The model ID used for generation (echoed from queue request)
+- `metadata` (object, optional): Additional metadata about the generated video:
+  - `duration` (float): Actual video duration in seconds
+  - `resolution` (string): Actual video resolution
+  - `fps` (integer): Frames per second
+  - `format` (string): Video format (e.g., "mp4", "webm")
+  - `file_size` (integer): File size in bytes
+
+**Error Responses:**
+
+- **400 Bad Request:** Invalid job_id format or missing job_id
+- **401 Unauthorized:** Invalid or missing API key
+- **404 Not Found:** Job ID not found or job has expired (jobs may be purged after a certain period)
+- **422 Unprocessable Entity:** Invalid request format
+- **500 Server Error:** Internal server error
+
+### Quote Video Generation
+
+The quote endpoint provides a price estimate for video generation before submitting the job. This is useful for cost estimation and budget planning. The quote is based on the specified parameters (model, duration, resolution, audio, etc.) and gives you an estimate before committing to the generation.
+
+**Request Structure:**
+
+The request structure is identical to the queue endpoint, but no job is created. All parameters that affect pricing should be included:
+- `model` (string, required): The video model ID
+- `prompt` (string, required for text-to-video): Text description
+- `image` (string, optional for image-to-video): Image data or URL
+- `duration` (integer, optional): Video duration in seconds
+- `resolution` (string, optional): Video resolution
+- `audio` (boolean, optional): Whether audio is included
+- All other optional parameters that may affect pricing
+
+**Python Example:**
+
+```python
+import requests
+
+url = "https://api.venice.ai/api/v1/video/quote"
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json"
+}
+
+data = {
+    "model": "kling-2.6-pro-text-to-video",
+    "prompt": "A serene sunset over a calm ocean with gentle waves",
+    "duration": 5,
+    "resolution": "1080p",
+    "audio": False
+}
+response = requests.post(url, headers=headers, json=data)
+quote = response.json()
+
+print(f"Estimated cost: ${quote.get('estimated_cost', 0)}")
+print(f"Estimated duration: {quote.get('estimated_duration', 0)} seconds")
+print(f"Currency: {quote.get('currency', 'USD')}")
+```
+
+**cURL Equivalent:**
+
+```bash
+curl --request POST \
+  --url https://api.venice.ai/api/v1/video/quote \
+  --header "Authorization: Bearer <your-api-key>" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "model": "kling-2.6-pro-text-to-video",
+    "prompt": "A serene sunset over a calm ocean with gentle waves",
+    "duration": 5,
+    "resolution": "1080p",
+    "audio": false
+  }'
+```
+
+**Response Structure:**
+
+- `estimated_cost` (float): Estimated cost in the specified currency. This is the total cost for the video generation based on the provided parameters.
+- `currency` (string): Currency code (e.g., "USD", "EUR", "GBP"). Defaults to account currency.
+- `estimated_duration` (integer): Estimated generation time in seconds. This is the time it will take to generate the video, not the video duration.
+- `pricing_breakdown` (object, optional): Detailed cost breakdown by component:
+  - `base_cost` (float): Base cost for the model
+  - `duration_cost` (float): Cost per second of video duration
+  - `resolution_cost` (float): Additional cost for higher resolution
+  - `audio_cost` (float): Additional cost if audio is enabled
+  - `total_cost` (float): Total estimated cost
+- `cost_components` (array, optional): Array of cost component objects with `name`, `cost`, and `description`
+- `pricing_model` (string, optional): Pricing model used (e.g., "per_second", "fixed", "tiered")
+- `minimum_cost` (float, optional): Minimum cost for this generation type
+- `maximum_cost` (float, optional): Maximum cost estimate (if variable pricing)
+
+**Note:** Quotes are estimates and actual costs may vary slightly based on actual processing time and resource usage. Final billing is based on actual usage.
+
+**Error Responses:**
+
+- **400 Bad Request:** Invalid request parameters
+- **401 Unauthorized:** Invalid or missing API key
+- **402 Payment Required:** Account has insufficient credits (quote still provided)
+- **422 Unprocessable Entity:** Invalid video parameters
+- **500 Server Error:** Internal server error
+
+### Complete Video
+
+The complete endpoint is a convenience method that combines queue and retrieve in a single synchronous call. It waits for the video generation to complete before returning the result. This is useful for simple scripts or when you want to wait for the result without implementing polling logic.
+
+**Important Considerations:**
+
+- **Timeout:** The complete endpoint may take several minutes to return (video generation can take 1-10+ minutes depending on model, duration, and resolution). Ensure your HTTP client has appropriate timeout settings (recommended: 10-15 minutes minimum).
+- **Connection Stability:** Maintain a stable connection throughout the generation process. If the connection drops, you'll need to use the queue/retrieve pattern to recover.
+- **Production Use:** For production applications, the async queue/retrieve pattern is recommended as it's more resilient to network issues and allows better progress tracking.
+
+**Request Structure:**
+
+Same as the queue endpoint. All parameters from the queue endpoint are supported:
+- `model` (string, required)
+- `prompt` (string, required for text-to-video)
+- `image` (string, optional for image-to-video)
+- `duration` (integer, optional)
+- `resolution` (string, optional)
+- `audio` (boolean, optional)
+- `seed` (integer, optional)
+- `negative_prompt` (string, optional)
+- All other optional parameters
+
+**Python Example:**
+
+```python
+import requests
+
+url = "https://api.venice.ai/api/v1/video/complete"
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json"
+}
+
+data = {
+    "model": "kling-2.6-pro-text-to-video",
+    "prompt": "A serene sunset over a calm ocean with gentle waves",
+    "duration": 5,
+    "resolution": "1080p",
+    "audio": False
+}
+response = requests.post(url, headers=headers, json=data)
+result = response.json()
+
+if result.get("status") == "completed":
+    video_url = result.get("video_url")
+    print(f"Video ready: {video_url}")
+else:
+    print(f"Generation failed: {result.get('error')}")
+```
+
+**cURL Equivalent:**
+
+```bash
+curl --request POST \
+  --url https://api.venice.ai/api/v1/video/complete \
+  --header "Authorization: Bearer <your-api-key>" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "model": "kling-2.6-pro-text-to-video",
+    "prompt": "A serene sunset over a calm ocean with gentle waves",
+    "duration": 5,
+    "resolution": "1080p",
+    "audio": false
+  }'
+```
+
+**Response Structure:**
+
+Same as the retrieve endpoint when status is "completed":
+- `status` (string): Will be "completed" on success or "failed" on error
+- `job_id` (string): The job ID assigned to this generation
+- `video_url` (string): URL to download the generated video (when status is "completed")
+- `video_id` (string, optional): Internal video identifier
+- `created_at` (string): ISO 8601 timestamp when the job was created
+- `completed_at` (string): ISO 8601 timestamp when the job completed
+- `metadata` (object, optional): Video metadata (duration, resolution, fps, format, file_size)
+- `error` (string, optional): Error message if status is "failed"
+- `error_code` (string, optional): Error code if status is "failed"
+
+**Error Responses:**
+
+- **400 Bad Request:** Invalid request parameters
+- **401 Unauthorized:** Invalid or missing API key
+- **402 Payment Required:** Insufficient credits or account balance
+- **413 Payload Too Large:** Image or request payload exceeds size limits
+- **422 Unprocessable Entity:** Invalid video parameters
+- **408 Request Timeout:** Request timed out (if your client has a timeout shorter than generation time)
+- **500 Server Error:** Generation failure or internal server error
+
+**Note:** The complete endpoint may take a significant amount of time to return (video generation can take minutes), so ensure your HTTP client has appropriate timeout settings. For production applications, consider using the async queue/retrieve pattern instead.
+
+### Video Generation Workflow
+
+The recommended workflow for video generation:
+
+1. **Get a Quote (Optional):** Use `/video/quote` to estimate cost before generation
+2. **Queue the Job:** Submit the generation request to `/video/queue` and receive a `job_id`
+3. **Poll for Results:** Periodically call `/video/retrieve` with the `job_id` to check status
+4. **Download Video:** When status is "completed", use the `video_url` to download the video
+
+**Example Complete Workflow:**
+
+```python
+import requests
+import time
+
+API_KEY = "your-api-key"
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json"
+}
+
+# Step 1: Get quote (optional)
+quote_url = "https://api.venice.ai/api/v1/video/quote"
+quote_data = {
+    "model": "kling-2.6-pro-text-to-video",
+    "prompt": "A cat playing with a ball of yarn",
+    "duration": 3,
+    "resolution": "720p"
+}
+quote_response = requests.post(quote_url, headers=headers, json=quote_data)
+quote = quote_response.json()
+print(f"Estimated cost: ${quote.get('estimated_cost', 0)}")
+
+# Step 2: Queue the job
+queue_url = "https://api.venice.ai/api/v1/video/queue"
+queue_response = requests.post(queue_url, headers=headers, json=quote_data)
+queue_result = queue_response.json()
+job_id = queue_result.get("job_id")
+print(f"Job queued: {job_id}")
+
+# Step 3: Poll for completion
+retrieve_url = "https://api.venice.ai/api/v1/video/retrieve"
+max_polls = 60  # Maximum number of polls (5 minutes at 5-second intervals)
+poll_count = 0
+
+while poll_count < max_polls:
+    retrieve_data = {"job_id": job_id}
+    retrieve_response = requests.post(retrieve_url, headers=headers, json=retrieve_data)
+    result = retrieve_response.json()
+    
+    status = result.get("status")
+    progress = result.get("progress", 0)
+    
+    print(f"Status: {status} ({progress}% complete)")
+    
+    if status == "completed":
+        video_url = result.get("video_url")
+        print(f"Video ready: {video_url}")
+        # Download the video
+        video_response = requests.get(video_url)
+        with open("generated_video.mp4", "wb") as f:
+            f.write(video_response.content)
+        print("Video downloaded successfully!")
+        break
+    elif status == "failed":
+        error = result.get("error")
+        print(f"Generation failed: {error}")
+        break
+    
+    time.sleep(5)  # Wait 5 seconds before next poll
+    poll_count += 1
+
+if poll_count >= max_polls:
+    print("Polling timeout reached. Video may still be processing.")
+```
+
+### Available Video Models
+
+Venice provides access to multiple state-of-the-art video generation models. Model availability may vary by account tier and region. Always use the `/models` endpoint to get the current list of available models for your account.
+
+**Text-to-Video Models:**
+
+- `kling-2.6-pro-text-to-video`: High-quality text-to-video generation with excellent motion and detail
+- `kling-2.5-turbo-pro-text-to-video`: Faster variant of Kling 2.6 Pro
+- `sora-2-text-to-video`: Advanced text-to-video model from OpenAI
+- `sora-2-pro-text-to-video`: Professional-grade Sora 2 variant
+- `veo3-full-text-to-video`: Full-featured Google Veo 3 model
+- `veo3-fast-text-to-video`: Faster variant of Veo 3
+- `veo3.1-full-text-to-video`: Updated Veo 3.1 model
+- `veo3.1-fast-text-to-video`: Faster Veo 3.1 variant
+- `wan-2.5-preview-text-to-video`: Preview text-to-video model
+- `wan-2.2-a14b-text-to-video`: Alternative Wan model variant
+- `ltx-2-full-text-to-video`: Full-featured LTX-2 model
+- `ltx-2-fast-text-to-video`: Faster LTX-2 variant
+- `longcat-text-to-video`: LongCat text-to-video model
+- `longcat-distilled-text-to-video`: Distilled LongCat variant
+
+**Image-to-Video Models:**
+
+- `kling-2.6-pro-image-to-video`: High-quality image-to-video animation with smooth motion
+- `kling-2.5-turbo-pro-image-to-video`: Faster Kling 2.6 Pro variant
+- `sora-2-image-to-video`: Advanced image-to-video model
+- `sora-2-pro-image-to-video`: Professional-grade Sora 2 variant
+- `veo3-full-image-to-video`: Full-featured Google Veo 3 model
+- `veo3-fast-image-to-video`: Faster Veo 3 variant
+- `veo3.1-full-image-to-video`: Updated Veo 3.1 model
+- `veo3.1-fast-image-to-video`: Faster Veo 3.1 variant
+- `wan-2.5-preview-image-to-video`: Preview image-to-video model
+- `wan-2.1-pro-image-to-video`: Alternative Wan model variant
+- `ltx-2-full-image-to-video`: Full-featured LTX-2 model
+- `ltx-2-fast-image-to-video`: Faster LTX-2 variant
+- `longcat-image-to-video`: LongCat image-to-video model
+- `longcat-distilled-image-to-video`: Distilled LongCat variant
+- `ovi-image-to-video`: OVI image-to-video model
+
+**Model Selection Tips:**
+
+- **Quality vs Speed:** Models with "fast" in the name prioritize speed over maximum quality. Use "full" or "pro" models for best quality.
+- **Resolution Support:** Different models support different resolutions. Check model documentation or use the quote endpoint to see supported options.
+- **Duration Limits:** Each model has supported duration ranges. Common ranges are 3-10 seconds, but some models support longer durations.
+- **Cost Considerations:** Higher quality models and longer durations typically cost more. Use the quote endpoint to compare costs.
+
+To see all available video models with their capabilities, use the `/models` endpoint and filter by type "video". The response includes supported resolutions, durations, and other model-specific parameters.
+
+### Error Handling
+
+Video generation can fail at various stages. Always implement proper error handling and check status fields in responses.
+
+**Common Error Scenarios:**
+
+- **400 Bad Request:** 
+  - Invalid model ID (model doesn't exist or isn't available for your account)
+  - Missing required fields (e.g., `prompt` for text-to-video, `image` for image-to-video)
+  - Invalid parameter values (e.g., negative duration, invalid resolution string)
+  - Malformed image data (for image-to-video)
+  
+- **401 Unauthorized:** 
+  - Invalid or missing API key
+  - API key doesn't have permission for video generation
+  - Expired API key
+  
+- **402 Payment Required:** 
+  - Insufficient credits or account balance
+  - Account tier doesn't support video generation
+  - Billing issue with account
+  
+- **413 Payload Too Large:** 
+  - Image file exceeds size limits (typically 10MB)
+  - Request payload too large
+  - Resolution too high for account tier
+  
+- **422 Unprocessable Entity:** 
+  - Unsupported resolution for the selected model
+  - Invalid duration (outside supported range)
+  - Incompatible parameter combinations
+  - Invalid image format (for image-to-video)
+  - Prompt too long or contains prohibited content
+  
+- **404 Not Found (Retrieve endpoint):** 
+  - Job ID not found
+  - Job has expired (jobs may be purged after 7-30 days)
+  - Job ID belongs to a different account
+  
+- **500 Server Error:** 
+  - Generation failure (model error, processing error)
+  - Internal server error
+  - Service temporarily unavailable
+
+**Error Response Format:**
+
+Error responses follow this structure:
+```json
+{
+  "error": {
+    "message": "Error description",
+    "type": "invalid_request_error",
+    "code": "INVALID_MODEL",
+    "param": "model"
+  }
+}
+```
+
+**Best Practices for Error Handling:**
+
+1. **Always check status:** When polling with retrieve, check the `status` field and handle "failed" status appropriately
+2. **Read error messages:** The `error` field in failed responses contains helpful information
+3. **Handle timeouts:** Implement appropriate timeouts and retry logic for network issues
+4. **Validate before queueing:** Use the quote endpoint to validate parameters before submitting jobs
+5. **Monitor job status:** Don't poll too frequently (recommended: 5-10 second intervals)
+6. **Handle expired jobs:** Jobs may expire after a period. Re-queue if needed
+7. **Download promptly:** Video URLs may expire. Download completed videos promptly
+8. **Log errors:** Keep logs of failed jobs for debugging and support
+
+**Retry Strategy:**
+
+For transient errors (500, network timeouts), implement exponential backoff retry logic:
+- Initial retry after 5 seconds
+- Double the wait time for each subsequent retry
+- Maximum 3-5 retries
+- Don't retry on 400, 401, 402, 404, or 422 errors (these are permanent failures)
+
 ## Characters API
 
 The **Characters** endpoint allows you to list and retrieve information about available AI characters/personas.
@@ -958,13 +1548,19 @@ This guide covers all major Venice API endpoints:
 #### Audio Services
 10. **Audio/Speech** (`/audio/speech`) - Convert text to natural-sounding speech
 
+#### Video Generation
+11. **Queue Video Generation** (`/video/queue`) - Submit video generation jobs (text-to-video and image-to-video)
+12. **Retrieve Video** (`/video/retrieve`) - Check status and retrieve completed video generation results
+13. **Quote Video Generation** (`/video/quote`) - Get price estimates for video generation before submitting jobs
+14. **Complete Video** (`/video/complete`) - Synchronous video generation (combines queue and retrieve)
+
 #### Character Management
-11. **Characters** (`/characters`) - List and retrieve AI character/persona information
+15. **Characters** (`/characters`) - List and retrieve AI character/persona information
 
 #### Account Management
-12. **API Keys** (`/api_keys`) - Manage API keys and generate Web3 keys
-13. **Rate Limits** (`/api_keys/rate_limits`) - Monitor API usage and rate limits
-14. **Billing** (`/billing/usage`) - Track usage and billing information
+16. **API Keys** (`/api_keys`) - Manage API keys and generate Web3 keys
+17. **Rate Limits** (`/api_keys/rate_limits`) - Monitor API usage and rate limits
+18. **Billing** (`/billing/usage`) - Track usage and billing information
 
 ### Integration Best Practices
 

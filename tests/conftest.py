@@ -244,6 +244,13 @@ def embeddings_api(mock_client):
 
 
 @pytest.fixture
+def video_api(mock_client):
+    """Create a VideoAPI instance for testing."""
+    from venice_sdk.video import VideoAPI
+    return VideoAPI(mock_client)
+
+
+@pytest.fixture
 def account_api(mock_client):
     """Create an AccountAPI instance for testing."""
     from venice_sdk.account import AccountAPI

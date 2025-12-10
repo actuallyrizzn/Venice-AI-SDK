@@ -326,6 +326,258 @@ class TestWorkflowE2E:
                     assert saved_audio_path == audio_path
                     assert audio_path.exists()
 
+    def test_video_creation_workflow(self):
+        """Test complete video creation workflow."""
+        with patch('venice_sdk.venice_client.HTTPClient') as mock_client_class, \
+             patch('requests.get') as mock_requests_get:
+            mock_client = MagicMock()
+            mock_client_class.return_value = mock_client
+            
+            # Mock models list
+            mock_models_response = MagicMock()
+            mock_models_response.status_code = 200
+            mock_models_response.json.return_value = {
+                "data": [{
+                    "id": "kling-2.6-pro-text-to-video",
+                    "name": "Kling 2.6 Pro",
+                    "type": "video",
+                    "model_spec": {
+                        "capabilities": {
+                            "textToVideo": True
+                        }
+                    }
+                }]
+            }
+            
+            # Mock video quote
+            mock_quote_response = MagicMock()
+            mock_quote_response.status_code = 200
+            mock_quote_response.json.return_value = {
+                "estimated_cost": 0.50,
+                "currency": "USD",
+                "estimated_duration": 120
+            }
+            
+            # Mock video queue
+            mock_queue_response = MagicMock()
+            mock_queue_response.status_code = 200
+            mock_queue_response.json.return_value = {
+                "job_id": "video_job_123",
+                "status": "queued",
+                "created_at": "2024-01-01T00:00:00Z"
+            }
+            
+            # Mock video retrieve (processing)
+            mock_retrieve_processing = MagicMock()
+            mock_retrieve_processing.status_code = 200
+            mock_retrieve_processing.json.return_value = {
+                "job_id": "video_job_123",
+                "status": "processing",
+                "progress": 50.0
+            }
+            
+            # Mock video retrieve (completed)
+            mock_retrieve_completed = MagicMock()
+            mock_retrieve_completed.status_code = 200
+            mock_retrieve_completed.json.return_value = {
+                "job_id": "video_job_123",
+                "status": "completed",
+                "video_url": "https://example.com/video.mp4",
+                "progress": 100.0,
+                "completed_at": "2024-01-01T00:00:10Z"
+            }
+            
+            # Mock video download
+            mock_video_download = MagicMock()
+            mock_video_download.status_code = 200
+            mock_video_download.content = b"fake_video_data"
+            mock_video_download.raise_for_status.return_value = None
+            mock_requests_get.return_value = mock_video_download
+            
+            call_count = {"retrieve": 0}
+            def mock_get_side_effect(url, **kwargs):
+                if "models" in url:
+                    return mock_models_response
+                return mock_models_response
+            
+            def mock_post_side_effect(url, **kwargs):
+                if "video/quote" in url:
+                    return mock_quote_response
+                elif "video/queue" in url:
+                    return mock_queue_response
+                elif "video/retrieve" in url:
+                    call_count["retrieve"] += 1
+                    if call_count["retrieve"] == 1:
+                        return mock_retrieve_processing
+                    else:
+                        return mock_retrieve_completed
+                return mock_quote_response
+            
+            mock_client.get.side_effect = mock_get_side_effect
+            mock_client.post.side_effect = mock_post_side_effect
+            
+            # Complete video creation workflow
+            client = VeniceClient(self.config)
+            
+            # 1. Discover available video models
+            models = client.models.list()
+            video_models = [
+                model for model in models 
+                if model.get("type") == "video"
+            ]
+            assert len(video_models) > 0
+            selected_model = video_models[0]["id"]
+            
+            # 2. Get price quote
+            quote = client.video.quote(
+                model=selected_model,
+                prompt="A serene sunset over a calm ocean",
+                duration=5,
+                resolution="1080p"
+            )
+            
+            assert quote.estimated_cost == 0.50
+            assert quote.currency == "USD"
+            
+            # 3. Queue video generation
+            job = client.video.queue(
+                model=selected_model,
+                prompt="A serene sunset over a calm ocean",
+                duration=5,
+                resolution="1080p",
+                audio=False
+            )
+            
+            assert job.job_id == "video_job_123"
+            assert job.status == "queued"
+            
+            # 4. Poll for completion (simulated with wait_for_completion)
+            with patch('venice_sdk.video.time.sleep'):
+                completed_job = client.video.wait_for_completion(
+                    job.job_id,
+                    poll_interval=1,
+                    max_wait_time=300
+                )
+            
+            assert completed_job.status == "completed"
+            assert completed_job.video_url == "https://example.com/video.mp4"
+            
+            # 5. Download video
+            with tempfile.TemporaryDirectory() as temp_dir:
+                video_path = Path(temp_dir) / "generated_video.mp4"
+                saved_path = completed_job.download(video_path)
+                
+                assert saved_path == video_path
+                assert video_path.exists()
+                assert video_path.read_bytes() == b"fake_video_data"
+
+    def test_image_to_video_workflow(self):
+        """Test complete image-to-video workflow."""
+        with patch('venice_sdk.venice_client.HTTPClient') as mock_client_class, \
+             patch('requests.get') as mock_requests_get:
+            mock_client = MagicMock()
+            mock_client_class.return_value = mock_client
+            
+            # Mock image generation
+            mock_image_response = MagicMock()
+            mock_image_response.status_code = 200
+            mock_image_response.json.return_value = {
+                "data": [{
+                    "url": "https://example.com/image.png",
+                    "revised_prompt": "A beautiful landscape"
+                }],
+                "created": 1234567890
+            }
+            
+            # Mock image download
+            mock_image_download = MagicMock()
+            mock_image_download.status_code = 200
+            mock_image_download.content = b"fake_image_data"
+            mock_image_download.raise_for_status.return_value = None
+            
+            # Mock video queue
+            mock_video_queue = MagicMock()
+            mock_video_queue.status_code = 200
+            mock_video_queue.json.return_value = {
+                "job_id": "video_job_456",
+                "status": "queued"
+            }
+            
+            # Mock video retrieve
+            mock_video_retrieve = MagicMock()
+            mock_video_retrieve.status_code = 200
+            mock_video_retrieve.json.return_value = {
+                "job_id": "video_job_456",
+                "status": "completed",
+                "video_url": "https://example.com/video.mp4"
+            }
+            
+            # Mock video download
+            mock_video_download = MagicMock()
+            mock_video_download.status_code = 200
+            mock_video_download.content = b"fake_video_data"
+            mock_video_download.raise_for_status.return_value = None
+            
+            def mock_requests_get_side_effect(url, **kwargs):
+                if "image.png" in url:
+                    return mock_image_download
+                elif "video.mp4" in url:
+                    return mock_video_download
+                return mock_image_download
+            
+            mock_requests_get.side_effect = mock_requests_get_side_effect
+            
+            def mock_post_side_effect(url, **kwargs):
+                if "images/generations" in url:
+                    return mock_image_response
+                elif "video/queue" in url:
+                    return mock_video_queue
+                elif "video/retrieve" in url:
+                    return mock_video_retrieve
+                return mock_image_response
+            
+            mock_client.post.side_effect = mock_post_side_effect
+            
+            # Complete image-to-video workflow
+            client = VeniceClient(self.config)
+            
+            # 1. Generate static image
+            image_result = client.images.generate(
+                prompt="A serene mountain landscape at sunset",
+                model="dall-e-3",
+                size="1024x1024"
+            )
+            
+            assert image_result.url is not None
+            
+            # 2. Animate image to video
+            job = client.video.queue(
+                model="kling-2.6-pro-image-to-video",
+                image=image_result.url,
+                prompt="Animate with gentle movement and flowing clouds",
+                duration=3,
+                resolution="720p"
+            )
+            
+            assert job.job_id == "video_job_456"
+            
+            # 3. Wait for completion
+            with patch('venice_sdk.video.time.sleep'):
+                completed_job = client.video.wait_for_completion(
+                    job.job_id,
+                    poll_interval=1
+                )
+            
+            assert completed_job.status == "completed"
+            
+            # 4. Download animated video
+            with tempfile.TemporaryDirectory() as temp_dir:
+                video_path = Path(temp_dir) / "animated_video.mp4"
+                saved_path = completed_job.download(video_path)
+                
+                assert saved_path.exists()
+                assert saved_path.read_bytes() == b"fake_video_data"
+
     def test_data_analysis_workflow(self):
         """Test complete data analysis workflow with embeddings."""
         with patch('venice_sdk.venice_client.HTTPClient') as mock_client_class:

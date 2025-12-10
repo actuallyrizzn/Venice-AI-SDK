@@ -15,6 +15,7 @@ from .chat import ChatAPI
 from .models import ModelsAPI
 from .images import ImageAPI, ImageEditAPI, ImageUpscaleAPI, ImageStylesAPI
 from .audio import AudioAPI
+from .video import VideoAPI
 from .characters import CharactersAPI
 from .account import APIKeysAPI, BillingAPI, AccountManager
 from .models_advanced import ModelsTraitsAPI, ModelsCompatibilityAPI
@@ -59,6 +60,9 @@ class VeniceClient:
         
         # Audio services
         self.audio = AudioAPI(self._http_client)
+        
+        # Video generation
+        self.video = VideoAPI(self._http_client)
         
         # Character management
         self.characters = CharactersAPI(self._http_client)

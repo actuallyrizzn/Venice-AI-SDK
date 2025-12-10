@@ -76,6 +76,11 @@ class EmbeddingError(VeniceAPIError):
     pass
 
 
+class VideoGenerationError(VeniceAPIError):
+    """Raised when video generation fails."""
+    pass
+
+
 def handle_api_error(status_code: int, response_data: Dict[str, Any]) -> None:
     """
     Handle API errors by raising appropriate exceptions.
