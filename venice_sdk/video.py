@@ -488,9 +488,11 @@ class VideoAPI:
         
         data: Dict[str, Any] = {
             "model": model,
-            "audio": audio,
             **kwargs
         }
+        # Only include audio if explicitly set to True (some models don't support audio parameter)
+        if audio:
+            data["audio"] = audio
         
         if prompt:
             data["prompt"] = prompt
