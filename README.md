@@ -29,6 +29,13 @@ A comprehensive Python SDK for the Venice AI API, providing complete access to a
 - 🎤 **Multiple Voices** - Choose from various voice options
 - 📁 **Audio Formats** - Support for MP3, WAV, AAC, and more
 
+### 🎬 Video Generation
+- 🎥 **Text-to-Video** - Generate videos from text descriptions
+- 🖼️ **Image-to-Video** - Animate static images into video clips
+- 💰 **Price Quotes** - Get cost estimates before generation
+- ⏱️ **Async Processing** - Queue jobs and track progress
+- 📥 **Video Download** - Easy video file download and management
+
 ### 🔧 Account Management
 - 🔑 **API Key Management** - Create, list, and delete API keys
 - 🌐 **Web3 Integration** - Generate Web3-compatible keys
@@ -95,6 +102,17 @@ embeddings = client.embeddings.generate([
 ])
 similarity = embeddings[0].cosine_similarity(embeddings[1])
 print(f"Similarity: {similarity}")
+
+# Video generation
+job = client.video.queue(
+    model="kling-2.6-pro-text-to-video",
+    prompt="A serene sunset over a calm ocean",
+    duration=5,
+    aspect_ratio="16:9"
+)
+completed_job = client.video.wait_for_completion(job.job_id)
+if completed_job.is_completed():
+    completed_job.download("video.mp4")
 
 # List available characters
 characters = client.characters.list()
@@ -226,6 +244,57 @@ search.add_documents([
 results = search.search("programming", top_k=2)
 for result in results:
     print(f"{result['similarity']:.3f}: {result['document']}")
+```
+
+### Video Generation
+```python
+# Text-to-video generation
+job = client.video.queue(
+    model="kling-2.6-pro-text-to-video",
+    prompt="A cat playing with a ball of yarn in slow motion",
+    duration=5,
+    aspect_ratio="16:9",
+    resolution="1080p"
+)
+
+# Wait for completion with progress tracking
+def track_progress(job):
+    print(f"Status: {job.status} - {job.progress}%")
+
+completed_job = client.video.wait_for_completion(
+    job.job_id,
+    poll_interval=5,
+    callback=track_progress
+)
+
+if completed_job.is_completed():
+    completed_job.download("cat_video.mp4")
+
+# Get price quote before generating
+quote = client.video.quote(
+    model="kling-2.6-pro-text-to-video",
+    prompt="A beautiful sunset",
+    duration=10,
+    resolution="1080p"
+)
+print(f"Estimated cost: ${quote.estimated_cost} {quote.currency}")
+
+# Image-to-video animation
+image = client.images.generate(
+    prompt="A serene mountain landscape",
+    model="dall-e-3"
+)
+
+animated_job = client.video.queue(
+    model="kling-2.6-pro-image-to-video",
+    image=image.url,
+    prompt="Animate with gentle movement",
+    duration=5
+)
+
+completed_animated = client.video.wait_for_completion(animated_job.job_id)
+if completed_animated.is_completed():
+    completed_animated.download("animated_landscape.mp4")
 ```
 
 ### Account Management

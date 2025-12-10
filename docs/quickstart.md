@@ -111,12 +111,41 @@ for model in models:
     print(f"  Context tokens: {model.capabilities.available_context_tokens}")
 ```
 
+## Video Generation
+
+Generate videos from text or animate images:
+
+```python
+# Text-to-video generation
+job = client.video.queue(
+    model="kling-2.6-pro-text-to-video",
+    prompt="A serene sunset over a calm ocean",
+    duration=5,
+    aspect_ratio="16:9"
+)
+
+# Wait for completion
+completed_job = client.video.wait_for_completion(job.job_id)
+
+# Download the video
+if completed_job.is_completed():
+    completed_job.download("video.mp4")
+
+# Get price quote before generating
+quote = client.video.quote(
+    model="kling-2.6-pro-text-to-video",
+    prompt="A beautiful animation",
+    duration=5
+)
+print(f"Estimated cost: ${quote.estimated_cost}")
+```
+
 ## Error Handling
 
 Handle errors gracefully:
 
 ```python
-from venice_sdk.errors import VeniceAPIError, RateLimitError
+from venice_sdk.errors import VeniceAPIError, RateLimitError, VideoGenerationError
 
 try:
     response = chat.complete(...)
@@ -124,10 +153,16 @@ except RateLimitError:
     print("Rate limit exceeded. Please try again later.")
 except VeniceAPIError as e:
     print(f"API error: {e}")
+
+try:
+    job = client.video.queue(...)
+except VideoGenerationError as e:
+    print(f"Video generation error: {e}")
 ```
 
 ## Next Steps
 
 - Check out the [API Reference](api/client.md) for detailed documentation
+- See [Video API](api/video.md) for video generation features
 - See [Advanced Usage](advanced/streaming.md) for more features
 - View [Examples](https://github.com/yourusername/venice-sdk/tree/main/examples) for more code samples 

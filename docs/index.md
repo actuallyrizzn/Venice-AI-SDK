@@ -28,6 +28,12 @@ A comprehensive Python SDK for the Venice AI API, providing complete access to a
 - 🎤 **Multiple Voices** - Choose from various voice options
 - 📁 **Audio Formats** - Support for MP3, WAV, AAC, and more
 
+### 🎬 Video Generation
+- 🎥 **Text-to-Video** - Generate videos from text descriptions
+- 🖼️ **Image-to-Video** - Animate static images into video clips
+- 💰 **Price Quotes** - Get cost estimates before generation
+- ⏱️ **Async Processing** - Queue jobs and track progress
+
 ### 🔧 Account Management
 - 🔑 **API Key Management** - Create, list, and delete API keys
 - 🌐 **Web3 Integration** - Generate Web3-compatible keys
@@ -88,6 +94,7 @@ audio.save("hello.mp3")
 - [Chat API](api/chat.md) - Text generation and conversations
 - [Models API](api/models.md) - Model discovery and management
 - [Images API](api/images.md) - Image generation and editing
+- [Video API](api/video.md) - Video generation from text and images
 - [Audio API](api/audio.md) - Text-to-speech synthesis
 - [Embeddings API](api/embeddings.md) - Vector embeddings
 - [Characters API](api/characters.md) - AI character management
