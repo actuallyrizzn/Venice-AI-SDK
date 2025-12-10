@@ -266,12 +266,7 @@ class VideoAPI:
         if image:
             # For image-to-video, API expects image_url instead of image
             encoded_image = self._encode_image(image)
-            # If it's a URL, use image_url, otherwise use image
-            if encoded_image.startswith(('http://', 'https://')):
-                data["image_url"] = encoded_image
-            else:
-                # For base64 data URIs, use image_url as well
-                data["image_url"] = encoded_image
+            data["image_url"] = encoded_image
         if duration is not None:
             data["duration"] = self._normalize_duration(duration)
         if resolution:
@@ -508,12 +503,7 @@ class VideoAPI:
         if image:
             # For image-to-video, API expects image_url instead of image
             encoded_image = self._encode_image(image)
-            # If it's a URL, use image_url, otherwise use image
-            if encoded_image.startswith(('http://', 'https://')):
-                data["image_url"] = encoded_image
-            else:
-                # For base64 data URIs, use image_url as well
-                data["image_url"] = encoded_image
+            data["image_url"] = encoded_image
         if duration is not None:
             data["duration"] = self._normalize_duration(duration)
         if resolution:
