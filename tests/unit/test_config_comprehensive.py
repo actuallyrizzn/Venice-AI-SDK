@@ -312,9 +312,10 @@ class TestLoadConfigComprehensive:
     def test_load_config_calls_load_dotenv(self):
         """load_dotenv is only called when an env file exists."""
         with patch('venice_sdk.config.load_dotenv') as mock_load_dotenv:
-            with patch.dict(os.environ, {"VENICE_API_KEY": "test-key"}, clear=True):
-                load_config()
-                mock_load_dotenv.assert_not_called()
+            with patch('pathlib.Path.exists', return_value=False):
+                with patch.dict(os.environ, {"VENICE_API_KEY": "test-key"}, clear=True):
+                    load_config()
+                    mock_load_dotenv.assert_not_called()
 
     def test_load_config_with_whitespace_values(self):
         """Test load_config with whitespace values in environment."""
@@ -395,10 +396,11 @@ class TestLoadConfigComprehensive:
     def test_load_config_with_dotenv_file(self):
         """load_dotenv is only called when an env file exists."""
         with patch('venice_sdk.config.load_dotenv') as mock_load_dotenv:
-            with patch.dict(os.environ, {"VENICE_API_KEY": "test-key"}, clear=True):
-                config = load_config()
-                mock_load_dotenv.assert_not_called()
-                assert config.api_key == "test-key"
+            with patch('pathlib.Path.exists', return_value=False):
+                with patch.dict(os.environ, {"VENICE_API_KEY": "test-key"}, clear=True):
+                    config = load_config()
+                    mock_load_dotenv.assert_not_called()
+                    assert config.api_key == "test-key"
 
     def test_load_config_parses_retry_status_codes(self):
         """Test parsing VENICE_RETRY_STATUS_CODES env var."""
