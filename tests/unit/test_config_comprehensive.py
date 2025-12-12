@@ -464,3 +464,84 @@ class TestTryLoadConfig:
             with patch("venice_sdk.config.load_dotenv"):
                 with pytest.raises(ValueError):
                     try_load_config()
+
+
+class TestLoadConfigGlobalConfigOptIn:
+    """Tests for VENICE_USE_GLOBAL_CONFIG opt-in behavior."""
+
+    def test_load_config_respects_venice_use_global_config_flag(self):
+        """load_config should only load global config when VENICE_USE_GLOBAL_CONFIG is set."""
+        with patch.dict(os.environ, {}, clear=True):
+            with patch("venice_sdk.config.load_dotenv") as mock_load_dotenv:
+                with patch("pathlib.Path.exists", return_value=False):  # No local .env
+                    with patch("venice_sdk.config._get_global_config_path") as mock_get_path:
+                        mock_global_path = MagicMock()
+                        mock_global_path.exists.return_value = True
+                        mock_get_path.return_value = mock_global_path
+                        
+                        # Without flag, should not load global config
+                        with pytest.raises(ValueError, match="API key must be provided"):
+                            load_config()
+                        
+                        # Should not have called load_dotenv (no local .env, and global not loaded)
+                        assert mock_load_dotenv.call_count == 0
+
+    def test_load_config_loads_global_config_when_flag_set(self):
+        """load_config should load global config when VENICE_USE_GLOBAL_CONFIG=1."""
+        def mock_load_global(*args, **kwargs):
+            os.environ["VENICE_API_KEY"] = "global-key"
+            os.environ["VENICE_BASE_URL"] = "https://global.example.com"
+        
+        with patch.dict(os.environ, {"VENICE_USE_GLOBAL_CONFIG": "1"}, clear=True):
+            with patch("venice_sdk.config.load_dotenv") as mock_load_dotenv:
+                with patch("venice_sdk.config._get_global_config_path") as mock_get_path:
+                    mock_global_path = MagicMock()
+                    mock_global_path.exists.return_value = True
+                    mock_get_path.return_value = mock_global_path
+                    mock_load_dotenv.side_effect = mock_load_global
+                    
+                    config = load_config()
+                    assert config.api_key == "global-key"
+                    assert config.base_url == "https://global.example.com"
+                    
+                    # Should have called load_dotenv for global config
+                    assert mock_load_dotenv.call_count >= 1
+
+    def test_load_config_ignores_global_config_when_flag_not_set(self):
+        """load_config should ignore global config when VENICE_USE_GLOBAL_CONFIG is not set."""
+        with patch.dict(os.environ, {}, clear=True):
+            with patch("venice_sdk.config.load_dotenv") as mock_load_dotenv:
+                with patch("pathlib.Path.exists", return_value=False):  # No local .env
+                    with patch("venice_sdk.config._get_global_config_path") as mock_get_path:
+                        mock_global_path = MagicMock()
+                        mock_global_path.exists.return_value = True
+                        mock_get_path.return_value = mock_global_path
+                        
+                        # Should raise error because no API key and global config is not loaded
+                        with pytest.raises(ValueError, match="API key must be provided"):
+                            load_config()
+                        
+                        # Should not have called load_dotenv (no local .env, and global not loaded)
+                        assert mock_load_dotenv.call_count == 0
+
+    def test_load_config_respects_flag_case_insensitive(self):
+        """VENICE_USE_GLOBAL_CONFIG should work with various truthy values."""
+        truthy_values = ["1", "true", "TRUE", "yes", "YES"]
+        
+        for flag_value in truthy_values:
+            def mock_load_global(*args, **kwargs):
+                os.environ["VENICE_API_KEY"] = f"key-{flag_value}"
+            
+            with patch.dict(os.environ, {"VENICE_USE_GLOBAL_CONFIG": flag_value}, clear=True):
+                with patch("venice_sdk.config.load_dotenv") as mock_load_dotenv:
+                    with patch("venice_sdk.config._get_global_config_path") as mock_get_path:
+                        mock_global_path = MagicMock()
+                        mock_global_path.exists.return_value = True
+                        mock_get_path.return_value = mock_global_path
+                        mock_load_dotenv.side_effect = mock_load_global
+                        
+                        config = load_config()
+                        assert config.api_key == f"key-{flag_value}"
+                        
+                        # Reset for next iteration
+                        os.environ.pop("VENICE_API_KEY", None)
