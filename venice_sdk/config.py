@@ -92,12 +92,19 @@ class Config:
 
 
 def _get_global_config_path() -> Path:
-    """Get the path to the global configuration directory."""
+    """Get the path to the global configuration directory.
+    
+    This function reads from the current environment (not cached values)
+    to ensure test isolation works correctly.
+    """
     if os.name == 'nt':  # Windows
-        config_dir = Path(_CACHED_APPDATA or os.getenv("APPDATA", "")) / "venice"
+        # Always read from current environment for test isolation
+        appdata = os.getenv("APPDATA", "")
+        config_dir = Path(appdata) / "venice" if appdata else Path.home() / ".config" / "venice"
     else:  # Unix-like
         # Respect XDG base directory spec when available.
-        xdg_config_home = _CACHED_XDG_CONFIG_HOME or os.getenv("XDG_CONFIG_HOME")
+        # Always read from current environment for test isolation
+        xdg_config_home = os.getenv("XDG_CONFIG_HOME")
         if xdg_config_home:
             config_dir = Path(xdg_config_home) / "venice"
         else:
@@ -113,7 +120,7 @@ def load_config(api_key: Optional[str] = None) -> Config:
     Configuration is loaded in the following priority order:
     1. Environment variables (highest priority)
     2. Local .env file (current directory)
-    3. Global .env file (~/.config/venice/.env or %APPDATA%/venice/.env)
+    3. Global .env file (~/.config/venice/.env or %APPDATA%/venice/.env) - opt-in via VENICE_USE_GLOBAL_CONFIG=1
     
     Args:
         api_key: Optional API key. If not provided, will be loaded from environment.
@@ -130,13 +137,15 @@ def load_config(api_key: Optional[str] = None) -> Config:
         load_dotenv(local_env_path)
     
     # Get API key from parameter or environment first.
-    # If absent, fall back to global .env for credential discovery only.
+    # If absent, fall back to global .env for credential discovery only (opt-in).
     api_key = api_key or os.getenv("VENICE_API_KEY")
     if not api_key:
-        global_env_path = _get_global_config_path()
-        if global_env_path.exists():
-            load_dotenv(global_env_path, override=False)  # Don't override existing env vars
-        api_key = os.getenv("VENICE_API_KEY")
+        # Only load global config if explicitly enabled (matches CLI behavior)
+        if os.getenv("VENICE_USE_GLOBAL_CONFIG") in {"1", "true", "TRUE", "yes", "YES"}:
+            global_env_path = _get_global_config_path()
+            if global_env_path.exists():
+                load_dotenv(global_env_path, override=False)  # Don't override existing env vars
+            api_key = os.getenv("VENICE_API_KEY")
     if not api_key:
         raise ValueError("API key must be provided")
     
