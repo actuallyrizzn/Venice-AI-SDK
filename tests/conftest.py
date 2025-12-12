@@ -4,12 +4,96 @@ Shared fixtures for all test modules.
 
 import os
 import json
+import tempfile
 from unittest.mock import MagicMock, patch
 from pathlib import Path
+import socket
+from urllib.parse import urlparse
+from typing import Optional, Tuple
 import pytest
-from venice_sdk.config import Config
+
+# Ensure global config lookups are isolated from any real user config files.
+# This must run before importing venice_sdk modules that cache config paths.
+os.environ.setdefault("XDG_CONFIG_HOME", tempfile.mkdtemp(prefix="venice-tests-xdg-"))
+
+from venice_sdk.config import Config, try_load_config
 from venice_sdk.client import HTTPClient
 from venice_sdk.models import Model, ModelCapabilities
+
+
+def _is_truthy_env(value: Optional[str]) -> bool:
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+_LIVE_ENV_CHECK: Optional[Tuple[bool, str]] = None
+
+
+def _live_environment_ok() -> Tuple[bool, str]:
+    """
+    Determine if live tests should run, with a stable reason when they shouldn't.
+    """
+    global _LIVE_ENV_CHECK
+    if _LIVE_ENV_CHECK is not None:
+        return _LIVE_ENV_CHECK
+
+    if not _is_truthy_env(os.getenv("VENICE_LIVE_TESTS")):
+        _LIVE_ENV_CHECK = (
+            False,
+            "Live tests are disabled by default. Set VENICE_LIVE_TESTS=1 to enable.",
+        )
+        return _LIVE_ENV_CHECK
+
+    cfg = try_load_config()
+    if cfg is None:
+        _LIVE_ENV_CHECK = (
+            False,
+            "Live tests require VENICE_API_KEY (or a configured .env).",
+        )
+        return _LIVE_ENV_CHECK
+
+    host = urlparse(cfg.base_url).hostname
+    if not host:
+        _LIVE_ENV_CHECK = (
+            False,
+            f"Live tests: could not parse host from base_url={cfg.base_url!r}",
+        )
+        return _LIVE_ENV_CHECK
+
+    if host.endswith("example.com") or host == "api.example.com":
+        _LIVE_ENV_CHECK = (
+            False,
+            f"Live tests: base_url host {host!r} looks like a placeholder; set VENICE_BASE_URL.",
+        )
+        return _LIVE_ENV_CHECK
+
+    try:
+        socket.getaddrinfo(host, None)
+    except OSError as e:
+        _LIVE_ENV_CHECK = (
+            False,
+            f"Live tests: base_url host {host!r} is not resolvable from this environment: {e}",
+        )
+        return _LIVE_ENV_CHECK
+
+    _LIVE_ENV_CHECK = (True, "")
+    return _LIVE_ENV_CHECK
+
+
+def pytest_ignore_collect(path, config):  # type: ignore[no-untyped-def]
+    # Avoid importing live test modules (and their extra deps) unless explicitly enabled.
+    if "tests/live" in str(path):
+        ok, _reason = _live_environment_ok()
+        return not ok
+    return False
+
+
+def pytest_runtest_setup(item):  # type: ignore[no-untyped-def]
+    if "live" in item.keywords:
+        ok, reason = _live_environment_ok()
+        if not ok:
+            pytest.skip(reason)
 
 
 @pytest.fixture

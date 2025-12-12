@@ -5,13 +5,17 @@ from pathlib import Path
 from typing import Optional, Dict, Tuple
 from dotenv import load_dotenv
 
-
 def get_global_config_path() -> Path:
     """Get the path to the global configuration directory."""
     if os.name == 'nt':  # Windows
-        config_dir = Path(os.getenv('APPDATA', '')) / 'venice'
+        config_dir = Path(os.getenv("APPDATA", "")) / "venice"
     else:  # Unix-like
-        config_dir = Path.home() / '.config' / 'venice'
+        # Respect XDG base directory spec when available.
+        xdg_config_home = os.getenv("XDG_CONFIG_HOME")
+        if xdg_config_home:
+            config_dir = Path(xdg_config_home) / "venice"
+        else:
+            config_dir = Path.home() / '.config' / 'venice'
     
     config_dir.mkdir(parents=True, exist_ok=True)
     return config_dir / '.env'
@@ -100,14 +104,15 @@ def get_api_key() -> Optional[str]:
         api_key = os.environ.get('VENICE_API_KEY')
         if api_key:
             return api_key
-    
-    # Finally try global .env file
-    global_env_path = get_global_config_path()
-    if global_env_path.exists():
-        load_dotenv(global_env_path)
-        api_key = os.environ.get('VENICE_API_KEY')
-        if api_key:
-            return api_key
+
+    # Finally try global .env file (opt-in to avoid surprising "works on my machine")
+    if os.environ.get("VENICE_USE_GLOBAL_CONFIG") in {"1", "true", "TRUE", "yes", "YES"}:
+        global_env_path = get_global_config_path()
+        if global_env_path.exists():
+            load_dotenv(global_env_path)
+            api_key = os.environ.get('VENICE_API_KEY')
+            if api_key:
+                return api_key
     
     return None
 
@@ -126,14 +131,15 @@ def get_base_url() -> Optional[str]:
         base_url = os.environ.get('VENICE_BASE_URL')
         if base_url:
             return base_url
-    
-    # Finally try global .env file
-    global_env_path = get_global_config_path()
-    if global_env_path.exists():
-        load_dotenv(global_env_path)
-        base_url = os.environ.get('VENICE_BASE_URL')
-        if base_url:
-            return base_url
+
+    # Finally try global .env file (opt-in)
+    if os.environ.get("VENICE_USE_GLOBAL_CONFIG") in {"1", "true", "TRUE", "yes", "YES"}:
+        global_env_path = get_global_config_path()
+        if global_env_path.exists():
+            load_dotenv(global_env_path)
+            base_url = os.environ.get('VENICE_BASE_URL')
+            if base_url:
+                return base_url
     
     return None
 

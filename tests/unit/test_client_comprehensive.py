@@ -27,6 +27,12 @@ class TestHTTPClientComprehensive:
             mock_config = MagicMock(spec=Config)
             mock_config.api_key = "default_key"
             mock_config.base_url = "https://api.venice.ai/api/v1"
+            mock_config.timeout = 30
+            mock_config.max_retries = 3
+            mock_config.retry_status_codes = [429, 500, 502, 503, 504]
+            mock_config.retry_backoff_factor = 0.5
+            mock_config.pool_connections = 10
+            mock_config.pool_maxsize = 20
             mock_load_config.return_value = mock_config
             
             client = HTTPClient()

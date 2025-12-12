@@ -11,7 +11,7 @@ import psutil
 from pathlib import Path
 from typing import Dict, List, Any
 from venice_sdk.venice_client import VeniceClient
-from venice_sdk.config import Config
+from venice_sdk.config import Config, load_config
 
 
 class LiveTestRunner:
@@ -23,7 +23,7 @@ class LiveTestRunner:
         if not self.api_key:
             raise ValueError("API key must be provided or set in VENICE_API_KEY environment variable")
         
-        self.config = Config(api_key=self.api_key)
+        self.config = load_config(api_key=self.api_key)
         self.client = VeniceClient(self.config)
         self.test_results = {}
         self.performance_metrics = {}

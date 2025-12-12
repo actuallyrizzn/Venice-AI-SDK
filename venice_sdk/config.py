@@ -7,6 +7,9 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 from dotenv import load_dotenv
 
+_CACHED_XDG_CONFIG_HOME = os.getenv("XDG_CONFIG_HOME")
+_CACHED_APPDATA = os.getenv("APPDATA")
+
 
 class Config:
     """Configuration class for the Venice SDK."""
@@ -91,9 +94,14 @@ class Config:
 def _get_global_config_path() -> Path:
     """Get the path to the global configuration directory."""
     if os.name == 'nt':  # Windows
-        config_dir = Path(os.getenv('APPDATA', '')) / 'venice'
+        config_dir = Path(_CACHED_APPDATA or os.getenv("APPDATA", "")) / "venice"
     else:  # Unix-like
-        config_dir = Path.home() / '.config' / 'venice'
+        # Respect XDG base directory spec when available.
+        xdg_config_home = _CACHED_XDG_CONFIG_HOME or os.getenv("XDG_CONFIG_HOME")
+        if xdg_config_home:
+            config_dir = Path(xdg_config_home) / "venice"
+        else:
+            config_dir = Path.home() / ".config" / "venice"
     
     return config_dir / '.env'
 
@@ -121,13 +129,14 @@ def load_config(api_key: Optional[str] = None) -> Config:
     if local_env_path.exists():
         load_dotenv(local_env_path)
     
-    # Load environment variables from global .env file if it exists
-    global_env_path = _get_global_config_path()
-    if global_env_path.exists():
-        load_dotenv(global_env_path, override=False)  # Don't override existing env vars
-    
-    # Get API key from parameter or environment
+    # Get API key from parameter or environment first.
+    # If absent, fall back to global .env for credential discovery only.
     api_key = api_key or os.getenv("VENICE_API_KEY")
+    if not api_key:
+        global_env_path = _get_global_config_path()
+        if global_env_path.exists():
+            load_dotenv(global_env_path, override=False)  # Don't override existing env vars
+        api_key = os.getenv("VENICE_API_KEY")
     if not api_key:
         raise ValueError("API key must be provided")
     
@@ -178,3 +187,19 @@ def load_config(api_key: Optional[str] = None) -> Config:
         retry_backoff_factor=retry_backoff_factor,
         retry_status_codes=retry_status_codes,
     )
+
+
+def try_load_config(api_key: Optional[str] = None) -> Optional[Config]:
+    """
+    Best-effort config loader.
+
+    Returns None if no API key is available, but re-raises other ValueErrors
+    (e.g. malformed numeric environment variables).
+    """
+    try:
+        return load_config(api_key=api_key)
+    except ValueError as e:
+        # Only swallow the "missing API key" case.
+        if "API key must be provided" in str(e):
+            return None
+        raise

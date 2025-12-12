@@ -6,7 +6,7 @@ Provides helper functions to get available models and other dynamic test data.
 import os
 from typing import List, Dict, Any, Optional
 from venice_sdk.client import HTTPClient
-from venice_sdk.config import Config
+from venice_sdk.config import load_config
 
 
 class LiveTestUtils:
@@ -23,7 +23,7 @@ class LiveTestUtils:
         if not api_key:
             raise ValueError("VENICE_API_KEY environment variable not set")
         
-        config = Config(api_key=api_key)
+        config = load_config(api_key=api_key)
         return HTTPClient(config)
     
     @classmethod

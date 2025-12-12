@@ -112,93 +112,69 @@ class TestCliComprehensive:
     def test_auth_command_with_new_env_file(self, tmp_path):
         """Test auth command creating new .env file."""
         runner = CliRunner()
-        
-        with patch('venice_sdk.cli.Path') as mock_path:
-            mock_env_path = MagicMock()
-            mock_env_path.exists.return_value = False
-            mock_env_path.touch.return_value = None
-            mock_path.return_value = mock_env_path
-            
-            with patch('builtins.open', mock_open()) as mock_file:
-                result = runner.invoke(auth, ['test-api-key'])
-                
-                assert result.exit_code == 0
-                assert "API key has been set successfully!" in result.output
-                mock_env_path.touch.assert_called_once()
-                mock_file.assert_called_once_with(mock_env_path, 'w', encoding='utf-8')
-                mock_file().write.assert_called_once_with('\nVENICE_API_KEY=test-api-key\n')
+        with runner.isolated_filesystem(temp_dir=tmp_path):
+            result = runner.invoke(cli, ["auth", "test-api-key"])
+
+            assert result.exit_code == 0
+            assert "API key has been set successfully!" in result.output
+
+            env_path = Path(".env")
+            assert env_path.exists()
+            content = env_path.read_text(encoding="utf-8")
+            assert "VENICE_API_KEY=test-api-key" in content
 
     def test_auth_command_with_existing_env_file(self, tmp_path):
         """Test auth command with existing .env file."""
         runner = CliRunner()
-        
-        with patch('venice_sdk.cli.Path') as mock_path:
-            mock_env_path = MagicMock()
-            mock_env_path.exists.return_value = True
-            mock_path.return_value = mock_env_path
-            
-            with patch('builtins.open', mock_open()) as mock_file:
-                result = runner.invoke(auth, ['test-api-key'])
-                
-                assert result.exit_code == 0
-                assert "API key has been set successfully!" in result.output
-                mock_env_path.touch.assert_not_called()
-                # Should be called twice: once for reading, once for writing
-                assert mock_file.call_count == 2
-                mock_file().write.assert_called_once_with('\nVENICE_API_KEY=test-api-key\n')
+        with runner.isolated_filesystem(temp_dir=tmp_path):
+            Path(".env").write_text("VENICE_BASE_URL=https://example.test\n", encoding="utf-8")
+
+            result = runner.invoke(cli, ["auth", "test-api-key"])
+
+            assert result.exit_code == 0
+            assert "API key has been set successfully!" in result.output
+
+            content = Path(".env").read_text(encoding="utf-8")
+            assert "VENICE_API_KEY=test-api-key" in content
+            assert "VENICE_BASE_URL=https://example.test" in content
 
     def test_auth_command_with_special_characters(self, tmp_path):
         """Test auth command with special characters in API key."""
         runner = CliRunner()
         special_key = 'sk-1234567890abcdef!@#$%^&*()'
-        
-        with patch('venice_sdk.cli.Path') as mock_path:
-            mock_env_path = MagicMock()
-            mock_env_path.exists.return_value = False
-            mock_env_path.touch.return_value = None
-            mock_path.return_value = mock_env_path
-            
-            with patch('builtins.open', mock_open()) as mock_file:
-                result = runner.invoke(auth, [special_key])
-                
-                assert result.exit_code == 0
-                assert "API key has been set successfully!" in result.output
-                mock_file().write.assert_called_once_with(f'\nVENICE_API_KEY={special_key}\n')
+        with runner.isolated_filesystem(temp_dir=tmp_path):
+            result = runner.invoke(cli, ["auth", special_key])
+
+            assert result.exit_code == 0
+            assert "API key has been set successfully!" in result.output
+
+            content = Path(".env").read_text(encoding="utf-8")
+            assert f"VENICE_API_KEY={special_key}" in content
 
     def test_auth_command_with_whitespace_key(self, tmp_path):
         """Test auth command with whitespace in API key."""
         runner = CliRunner()
         whitespace_key = '  test-key  '
-        
-        with patch('venice_sdk.cli.Path') as mock_path:
-            mock_env_path = MagicMock()
-            mock_env_path.exists.return_value = False
-            mock_env_path.touch.return_value = None
-            mock_path.return_value = mock_env_path
-            
-            with patch('builtins.open', mock_open()) as mock_file:
-                result = runner.invoke(auth, [whitespace_key])
-                
-                assert result.exit_code == 0
-                assert "API key has been set successfully!" in result.output
-                mock_file().write.assert_called_once_with(f'\nVENICE_API_KEY={whitespace_key}\n')
+        with runner.isolated_filesystem(temp_dir=tmp_path):
+            result = runner.invoke(cli, ["auth", whitespace_key])
+
+            assert result.exit_code == 0
+            assert "API key has been set successfully!" in result.output
+
+            content = Path(".env").read_text(encoding="utf-8")
+            assert f"VENICE_API_KEY={whitespace_key}" in content
 
     def test_auth_command_with_empty_key(self, tmp_path):
         """Test auth command with empty API key."""
         runner = CliRunner()
-        
-        with patch('venice_sdk.cli.Path') as mock_path:
-            mock_env_path = MagicMock()
-            mock_env_path.exists.return_value = False
-            mock_env_path.touch.return_value = None
-            mock_path.return_value = mock_env_path
-            
-            with patch('builtins.open', mock_open()) as mock_file:
-                result = runner.invoke(auth, [''])
-                
-                assert result.exit_code == 0
-                assert "API key has been set successfully!" in result.output
-                mock_file().write.assert_called_once_with('\nVENICE_API_KEY=\n')
+        with runner.isolated_filesystem(temp_dir=tmp_path):
+            result = runner.invoke(cli, ["auth", ""])
+
+            assert result.exit_code == 0
+            assert "API key has been set successfully!" in result.output
+
+            content = Path(".env").read_text(encoding="utf-8")
+            assert "VENICE_API_KEY=" in content
 
     def test_status_command_with_api_key(self):
         """Test status command when API key is present."""
@@ -340,43 +316,34 @@ class TestCliComprehensive:
                 assert "Permission denied" in str(result.exception)
 
     def test_auth_command_touch_error(self, tmp_path):
-        """Test auth command when touch fails."""
+        """Deprecated behavior: file creation uses mkdir+open, not Path.touch()."""
         runner = CliRunner()
-        
-        with patch('venice_sdk.cli.Path') as mock_path:
-            mock_env_path = MagicMock()
-            mock_env_path.exists.return_value = False
-            mock_env_path.touch.side_effect = OSError("Permission denied")
-            mock_path.return_value = mock_env_path
-            
-            result = runner.invoke(auth, ['test-key'])
-            
-            assert result.exit_code != 0
-            assert "Permission denied" in str(result.exception)
+        with runner.isolated_filesystem(temp_dir=tmp_path):
+            with patch("builtins.open", side_effect=OSError("Permission denied")):
+                result = runner.invoke(cli, ["auth", "test-key"])
+                assert result.exit_code != 0
+                assert "Permission denied" in str(result.exception)
 
     def test_cli_command_list(self):
         """Test that CLI has the expected commands."""
         assert 'auth' in cli.commands
         assert 'status' in cli.commands
-        assert len(cli.commands) == 2
+        assert 'configure' in cli.commands
+        assert 'config' in cli.commands
+        assert len(cli.commands) == 4
 
     def test_auth_command_with_long_api_key(self):
         """Test auth command with very long API key."""
         runner = CliRunner()
         long_key = 'sk-' + 'a' * 1000  # Very long key
-        
-        with patch('venice_sdk.cli.Path') as mock_path:
-            mock_env_path = MagicMock()
-            mock_env_path.exists.return_value = False
-            mock_env_path.touch.return_value = None
-            mock_path.return_value = mock_env_path
-            
-            with patch('builtins.open', mock_open()) as mock_file:
-                result = runner.invoke(auth, [long_key])
-                
-                assert result.exit_code == 0
-                assert "API key has been set successfully!" in result.output
-                mock_file().write.assert_called_once_with(f'\nVENICE_API_KEY={long_key}\n')
+        with runner.isolated_filesystem():
+            result = runner.invoke(cli, ["auth", long_key])
+
+            assert result.exit_code == 0
+            assert "API key has been set successfully!" in result.output
+
+            content = Path(".env").read_text(encoding="utf-8")
+            assert f"VENICE_API_KEY={long_key}" in content
 
     def test_status_command_with_long_api_key(self):
         """Test status command with very long API key."""

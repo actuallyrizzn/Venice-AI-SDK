@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 from venice_sdk.audio import AudioAPI
 from venice_sdk.client import HTTPClient
-from venice_sdk.config import Config
+from venice_sdk.config import Config, load_config
 from venice_sdk.errors import VeniceAPIError
 
 
@@ -25,7 +25,7 @@ class TestAudioAPILive:
         if not self.api_key:
             pytest.skip("VENICE_API_KEY environment variable not set")
         
-        self.config = Config(api_key=self.api_key)
+        self.config = load_config(api_key=self.api_key)
         self.client = HTTPClient(self.config)
         self.audio_api = AudioAPI(self.client)
 
