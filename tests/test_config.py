@@ -103,7 +103,7 @@ def test_load_config_with_custom_base_url():
 def test_load_config_from_dotenv(mock_file, mock_load_dotenv):
     """Test loading config from .env file."""
     # Mock load_dotenv to set the environment variables
-    def mock_load():
+    def mock_load(*args, **kwargs):
         os.environ["VENICE_API_KEY"] = "file_key"
         os.environ["VENICE_BASE_URL"] = "https://file.venice.ai/api/v1"
     

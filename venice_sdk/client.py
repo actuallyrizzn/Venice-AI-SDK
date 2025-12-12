@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import threading
+import time
 from typing import Any, Callable, Dict, Generator, Optional, Union
 
 import requests
@@ -99,28 +100,60 @@ class HTTPClient:
         # Add timeout if not specified
         if "timeout" not in kwargs:
             kwargs["timeout"] = self.config.timeout
-        
-        try:
-            response = self.session.request(
-                method,
-                url,
-                json=data,
-                stream=stream,
-                **kwargs,
+
+        # Manual retry loop for rate limits (429). urllib3 Retry doesn't raise on status by
+        # default, and tests also monkeypatch session.request directly.
+        max_attempts = int(self.config.max_retries) if self.config.max_retries is not None else 1
+        if max_attempts < 1:
+            max_attempts = 1
+
+        response: Response
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                response = self.session.request(
+                    method,
+                    url,
+                    json=data,
+                    stream=stream,
+                    **kwargs,
+                )
+            except requests.exceptions.RequestException as e:
+                logger.error(
+                    "HTTP %s %s raised %s",
+                    method.upper(),
+                    url,
+                    type(e).__name__,
+                    exc_info=True,
+                )
+                raise VeniceConnectionError(
+                    f"Request failed: {str(e)}",
+                    context={"method": method.upper(), "url": url},
+                    cause=e,
+                ) from e
+
+            if response.status_code != 429 or attempt >= max_attempts:
+                break
+
+            retry_after_header = (
+                response.headers.get("Retry-After") if hasattr(response, "headers") else None
             )
-        except requests.exceptions.RequestException as e:
-            logger.error(
-                "HTTP %s %s raised %s",
-                method.upper(),
-                url,
-                type(e).__name__,
-                exc_info=True,
-            )
-            raise VeniceConnectionError(
-                f"Request failed: {str(e)}",
-                context={"method": method.upper(), "url": url},
-                cause=e,
-            ) from e
+            retry_after_seconds = None
+            if retry_after_header is not None:
+                try:
+                    retry_after_seconds = int(retry_after_header)
+                except (TypeError, ValueError):
+                    retry_after_seconds = None
+
+            # Backoff fallback when Retry-After is absent/invalid.
+            if retry_after_seconds is None:
+                delay = float(self.config.retry_delay) if self.config.retry_delay is not None else 0.0
+                backoff = float(self.config.retry_backoff_factor) if self.config.retry_backoff_factor is not None else 0.0
+                retry_after_seconds = int(max(0.0, delay * (backoff ** max(0, attempt - 1)))) if delay else 0
+
+            if retry_after_seconds > 0:
+                time.sleep(retry_after_seconds)
 
         if response.status_code >= 400:
             logger.warning(
@@ -170,7 +203,7 @@ class HTTPClient:
 
                     self.metrics.record_rate_limit(
                         endpoint=endpoint,
-                        status_code=status,
+                        status_code=response.status_code,
                         retry_after=retry_after_seconds,
                         request_count=1,
                         remaining_requests=remaining_requests,

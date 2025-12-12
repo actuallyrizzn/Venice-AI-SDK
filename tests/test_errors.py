@@ -22,7 +22,8 @@ def test_venice_error():
 def test_venice_api_error():
     """Test VeniceAPIError."""
     error = VeniceAPIError("API error", status_code=400)
-    assert str(error) == "API error"
+    assert "API error" in str(error)
+    assert "HTTP 400" in str(error)
     assert error.status_code == 400
 
 

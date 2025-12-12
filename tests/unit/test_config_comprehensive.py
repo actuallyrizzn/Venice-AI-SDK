@@ -5,7 +5,7 @@ Comprehensive unit tests for the config module.
 import os
 import pytest
 from unittest.mock import patch, MagicMock
-from venice_sdk.config import Config, load_config
+from venice_sdk.config import Config, load_config, try_load_config
 
 
 class TestConfigComprehensive:
@@ -310,11 +310,11 @@ class TestLoadConfigComprehensive:
                     load_config()
 
     def test_load_config_calls_load_dotenv(self):
-        """Test that load_config calls load_dotenv."""
+        """load_dotenv is only called when an env file exists."""
         with patch('venice_sdk.config.load_dotenv') as mock_load_dotenv:
             with patch.dict(os.environ, {"VENICE_API_KEY": "test-key"}, clear=True):
                 load_config()
-                mock_load_dotenv.assert_called_once()
+                mock_load_dotenv.assert_not_called()
 
     def test_load_config_with_whitespace_values(self):
         """Test load_config with whitespace values in environment."""
@@ -393,9 +393,72 @@ class TestLoadConfigComprehensive:
                 assert config.api_key == "param-key"
 
     def test_load_config_with_dotenv_file(self):
-        """Test load_config with .env file loading."""
+        """load_dotenv is only called when an env file exists."""
         with patch('venice_sdk.config.load_dotenv') as mock_load_dotenv:
             with patch.dict(os.environ, {"VENICE_API_KEY": "test-key"}, clear=True):
                 config = load_config()
-                mock_load_dotenv.assert_called_once()
+                mock_load_dotenv.assert_not_called()
                 assert config.api_key == "test-key"
+
+    def test_load_config_parses_retry_status_codes(self):
+        """Test parsing VENICE_RETRY_STATUS_CODES env var."""
+        env_vars = {
+            "VENICE_API_KEY": "env-key",
+            "VENICE_RETRY_STATUS_CODES": "429, 500,502, 503, 504",
+        }
+        with patch.dict(os.environ, env_vars, clear=True):
+            with patch("venice_sdk.config.load_dotenv"):
+                config = load_config()
+                assert config.retry_status_codes == [429, 500, 502, 503, 504]
+
+    def test_load_config_ignores_invalid_retry_status_codes(self):
+        """Invalid status codes env var falls back to defaults."""
+        env_vars = {
+            "VENICE_API_KEY": "env-key",
+            "VENICE_RETRY_STATUS_CODES": "oops,not-an-int",
+        }
+        with patch.dict(os.environ, env_vars, clear=True):
+            with patch("venice_sdk.config.load_dotenv"):
+                config = load_config()
+                assert config.retry_status_codes == [429, 500, 502, 503, 504]
+
+    def test_load_config_parses_pool_settings_and_backoff(self):
+        """Test pool/backoff env parsing branches."""
+        env_vars = {
+            "VENICE_API_KEY": "env-key",
+            "VENICE_POOL_CONNECTIONS": "7",
+            "VENICE_POOL_MAXSIZE": "11",
+            "VENICE_RETRY_BACKOFF_FACTOR": "1.25",
+        }
+        with patch.dict(os.environ, env_vars, clear=True):
+            with patch("venice_sdk.config.load_dotenv"):
+                config = load_config()
+                assert config.pool_connections == 7
+                assert config.pool_maxsize == 11
+                assert config.retry_backoff_factor == 1.25
+
+
+class TestTryLoadConfig:
+    """Unit tests for try_load_config helper."""
+
+    def test_try_load_config_returns_none_when_missing_api_key(self):
+        with patch.dict(os.environ, {}, clear=True):
+            with patch("venice_sdk.config.load_dotenv"):
+                assert try_load_config() is None
+
+    def test_try_load_config_returns_config_when_api_key_present(self):
+        with patch.dict(os.environ, {"VENICE_API_KEY": "env-key"}, clear=True):
+            with patch("venice_sdk.config.load_dotenv"):
+                cfg = try_load_config()
+                assert cfg is not None
+                assert cfg.api_key == "env-key"
+
+    def test_try_load_config_reraises_other_value_errors(self):
+        with patch.dict(
+            os.environ,
+            {"VENICE_API_KEY": "env-key", "VENICE_TIMEOUT": "not-an-int"},
+            clear=True,
+        ):
+            with patch("venice_sdk.config.load_dotenv"):
+                with pytest.raises(ValueError):
+                    try_load_config()
