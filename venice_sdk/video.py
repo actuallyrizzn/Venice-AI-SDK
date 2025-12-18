@@ -159,8 +159,10 @@ class VideoAPI:
             Duration string in format "Xs" or None
 
         Note:
-            API currently only supports "5s" or "10s". Other values will be
-            converted but may be rejected by the API.
+            Supported duration values vary by model. Common values include:
+            - "4s", "8s", "12s" (e.g., sora-2-text-to-video)
+            - "5s", "10s" (some older models)
+            Use validate_parameters=True in queue() to validate before queueing.
         """
         if duration is None:
             return None
@@ -209,6 +211,111 @@ class VideoAPI:
         # Assume PNG format if we can't determine
         return f"data:image/png;base64,{b64_data}"
     
+    def _validate_with_quote(
+        self,
+        model: str,
+        prompt: Optional[str] = None,
+        image: Optional[Union[str, bytes, Path]] = None,
+        duration: Optional[Union[int, str]] = None,
+        resolution: Optional[str] = None,
+        audio: bool = False,
+        seed: Optional[int] = None,
+        negative_prompt: Optional[str] = None,
+        aspect_ratio: Optional[str] = None,
+        fps: Optional[int] = None,
+        motion_bucket_id: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
+        **kwargs: Any
+    ) -> bool:
+        """
+        Validate parameters using the quote API (free).
+        
+        Args:
+            Same as queue() method parameters
+            
+        Returns:
+            True if parameters are valid, False otherwise
+        """
+        try:
+            self.quote(
+                model=model,
+                prompt=prompt,
+                image=image,
+                duration=duration,
+                resolution=resolution,
+                audio=audio,
+                seed=seed,
+                negative_prompt=negative_prompt,
+                aspect_ratio=aspect_ratio,
+                fps=fps,
+                motion_bucket_id=motion_bucket_id,
+                guidance_scale=guidance_scale,
+                **kwargs
+            )
+            return True
+        except (VeniceAPIError, VideoGenerationError):
+            return False
+    
+    def get_valid_parameters(
+        self,
+        model: str,
+        prompt: Optional[str] = None,
+        image: Optional[Union[str, bytes, Path]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Discover valid duration and aspect_ratio combinations for a model.
+        
+        This method tries common parameter combinations and returns valid ones.
+        Uses the free quote API for validation.
+        
+        Args:
+            model: Video model ID
+            prompt: Text prompt (required for text-to-video)
+            image: Image file (required for image-to-video)
+            
+        Returns:
+            Dictionary with 'duration' and 'aspect_ratio' keys containing lists of valid values
+            
+        Example:
+            >>> valid = video.get_valid_parameters("sora-2-text-to-video", prompt="test")
+            >>> print(valid)
+            {'duration': ['4s', '8s', '12s'], 'aspect_ratio': ['16:9', '9:16']}
+        """
+        common_durations = ["4s", "5s", "6s", "8s", "10s", "12s"]
+        common_aspect_ratios = ["16:9", "9:16", "1:1", "4:3"]
+        
+        valid_durations = []
+        valid_aspect_ratios = []
+        
+        # Test each duration with a common aspect ratio
+        test_aspect_ratio = "16:9"
+        for duration in common_durations:
+            if self._validate_with_quote(
+                model=model,
+                prompt=prompt,
+                image=image,
+                duration=duration,
+                aspect_ratio=test_aspect_ratio,
+            ):
+                valid_durations.append(duration)
+        
+        # Test each aspect ratio with a valid duration (or first common one)
+        test_duration = valid_durations[0] if valid_durations else common_durations[0]
+        for aspect_ratio in common_aspect_ratios:
+            if self._validate_with_quote(
+                model=model,
+                prompt=prompt,
+                image=image,
+                duration=test_duration,
+                aspect_ratio=aspect_ratio,
+            ):
+                valid_aspect_ratios.append(aspect_ratio)
+        
+        return {
+            "duration": valid_durations,
+            "aspect_ratio": valid_aspect_ratios,
+        }
+    
     def queue(
         self,
         model: str,
@@ -223,6 +330,7 @@ class VideoAPI:
         fps: Optional[int] = None,
         motion_bucket_id: Optional[int] = None,
         guidance_scale: Optional[float] = None,
+        validate_parameters: bool = False,
         **kwargs: Any
     ) -> VideoJob:
         """
@@ -241,6 +349,7 @@ class VideoAPI:
             fps: Frames per second
             motion_bucket_id: Motion intensity for image-to-video (1-127)
             guidance_scale: How closely to follow the prompt
+            validate_parameters: If True, validate parameters using quote API before queueing (default: False)
             **kwargs: Additional parameters
             
         Returns:
@@ -248,10 +357,36 @@ class VideoAPI:
             
         Raises:
             VideoGenerationError: If request fails or parameters are invalid
+            
+        Note:
+            Some models require both duration and aspect_ratio. Use validate_parameters=True
+            to validate parameter combinations before queueing (uses free quote API).
         """
         # Validate that either prompt or image is provided
         if not prompt and not image:
             raise VideoGenerationError("Either 'prompt' (for text-to-video) or 'image' (for image-to-video) must be provided")
+        
+        # Optional parameter validation using quote API
+        if validate_parameters:
+            if not self._validate_with_quote(
+                model=model,
+                prompt=prompt,
+                image=image,
+                duration=duration,
+                resolution=resolution,
+                audio=audio,
+                seed=seed,
+                negative_prompt=negative_prompt,
+                aspect_ratio=aspect_ratio,
+                fps=fps,
+                motion_bucket_id=motion_bucket_id,
+                guidance_scale=guidance_scale,
+                **kwargs
+            ):
+                raise VideoGenerationError(
+                    "Invalid parameter combination for model. Use get_valid_parameters() "
+                    "to discover valid duration and aspect_ratio combinations."
+                )
         
         data: Dict[str, Any] = {
             "model": model,

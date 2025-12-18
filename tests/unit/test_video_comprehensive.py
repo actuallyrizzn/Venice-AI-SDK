@@ -578,6 +578,121 @@ class TestVideoAPIComprehensive:
         with pytest.raises(VideoGenerationError, match="Failed to queue video generation"):
             api.queue(model="kling-2.6-pro-text-to-video", prompt="Test")
 
+    def test_queue_with_parameter_validation_success(self, mock_client):
+        """Test queue with parameter validation when parameters are valid."""
+        # Mock quote response (validation succeeds)
+        mock_quote_response = MagicMock()
+        mock_quote_response.json.return_value = {
+            "estimated_cost": 0.50,
+            "currency": "USD"
+        }
+        
+        # Mock queue response
+        mock_queue_response = MagicMock()
+        mock_queue_response.json.return_value = {
+            "job_id": "job_123",
+            "status": "queued"
+        }
+        
+        # First call is quote (validation), second is queue
+        mock_client.post.side_effect = [mock_quote_response, mock_queue_response]
+        
+        api = VideoAPI(mock_client)
+        job = api.queue(
+            model="kling-2.6-pro-text-to-video",
+            prompt="Test",
+            duration=5,
+            aspect_ratio="16:9",
+            validate_parameters=True
+        )
+        
+        assert job.job_id == "job_123"
+        assert mock_client.post.call_count == 2  # Quote + Queue
+
+    def test_queue_with_parameter_validation_failure(self, mock_client):
+        """Test queue with parameter validation when parameters are invalid."""
+        # Mock quote response (validation fails with 400 error)
+        from venice_sdk.errors import VeniceAPIError
+        mock_client.post.side_effect = VeniceAPIError("Invalid parameters", status_code=400)
+        
+        api = VideoAPI(mock_client)
+        
+        with pytest.raises(VideoGenerationError, match="Invalid parameter combination"):
+            api.queue(
+                model="kling-2.6-pro-text-to-video",
+                prompt="Test",
+                duration=6,  # Invalid duration
+                aspect_ratio="16:9",
+                validate_parameters=True
+            )
+
+    def test_validate_with_quote_success(self, mock_client):
+        """Test _validate_with_quote when parameters are valid."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "estimated_cost": 0.50,
+            "currency": "USD"
+        }
+        mock_client.post.return_value = mock_response
+        
+        api = VideoAPI(mock_client)
+        result = api._validate_with_quote(
+            model="kling-2.6-pro-text-to-video",
+            prompt="Test",
+            duration=5,
+            aspect_ratio="16:9"
+        )
+        
+        assert result is True
+        mock_client.post.assert_called_once()
+
+    def test_validate_with_quote_failure(self, mock_client):
+        """Test _validate_with_quote when parameters are invalid."""
+        from venice_sdk.errors import VeniceAPIError
+        mock_client.post.side_effect = VeniceAPIError("Invalid parameters", status_code=400)
+        
+        api = VideoAPI(mock_client)
+        result = api._validate_with_quote(
+            model="kling-2.6-pro-text-to-video",
+            prompt="Test",
+            duration=6,  # Invalid
+            aspect_ratio="16:9"
+        )
+        
+        assert result is False
+
+    def test_get_valid_parameters(self, mock_client):
+        """Test get_valid_parameters discovers valid combinations."""
+        # Mock responses: some combinations valid, some invalid
+        def mock_post_side_effect(*args, **kwargs):
+            mock_response = MagicMock()
+            data = kwargs.get("data", {})
+            duration = data.get("duration")
+            aspect_ratio = data.get("aspect_ratio", "16:9")
+            
+            # Simulate: 4s, 8s, 12s are valid; others invalid
+            # 16:9, 9:16 are valid; others invalid
+            if duration in ["4s", "8s", "12s"] and aspect_ratio in ["16:9", "9:16"]:
+                mock_response.json.return_value = {"estimated_cost": 0.50, "currency": "USD"}
+            else:
+                from venice_sdk.errors import VeniceAPIError
+                raise VeniceAPIError("Invalid", status_code=400)
+            
+            return mock_response
+        
+        mock_client.post.side_effect = mock_post_side_effect
+        
+        api = VideoAPI(mock_client)
+        valid = api.get_valid_parameters(
+            model="sora-2-text-to-video",
+            prompt="Test"
+        )
+        
+        assert "duration" in valid
+        assert "aspect_ratio" in valid
+        assert isinstance(valid["duration"], list)
+        assert isinstance(valid["aspect_ratio"], list)
+
     def test_retrieve_success(self, mock_client):
         """Test successful video retrieval."""
         mock_response = MagicMock()
