@@ -121,6 +121,11 @@ class BillingError(VeniceAPIError):
     pass
 
 
+class InsufficientBalanceError(VeniceAPIError):
+    """Raised when account has insufficient balance (HTTP 402)."""
+    pass
+
+
 class APIKeyError(VeniceAPIError):
     """Raised when API key operations fail."""
     pass
@@ -225,6 +230,14 @@ def handle_api_error(
     
     if status_code == 401:
         raise UnauthorizedError(
+            error_message,
+            status_code=status_code,
+            error_code=error_code,
+            context=error_context or None,
+            cause=cause,
+        )
+    elif status_code == 402:
+        raise InsufficientBalanceError(
             error_message,
             status_code=status_code,
             error_code=error_code,
