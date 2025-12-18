@@ -47,6 +47,7 @@ class VideoJob:
     queue_position: Optional[int] = None
     video_url: Optional[str] = None
     video_id: Optional[str] = None
+    video_file_path: Optional[Union[str, Path]] = None  # Path to video file when returned directly
     progress: Optional[float] = None
     error: Optional[str] = None
     error_code: Optional[str] = None
@@ -83,10 +84,24 @@ class VideoJob:
                 f"Cannot download video: job status is '{self.status}' (expected 'completed')"
             )
         
-        if not self.video_url:
-            raise VideoGenerationError("No video URL available for download")
-        
         path = Path(path)
+        
+        # If video was returned directly as a file, copy it
+        if self.video_file_path:
+            try:
+                import shutil
+                source_path = Path(self.video_file_path)
+                if not source_path.exists():
+                    raise VideoGenerationError(f"Video file not found at {source_path}")
+                shutil.copy2(source_path, path)
+                logger.info("Video copied successfully from %s to %s", source_path, path)
+                return path
+            except (OSError, IOError) as e:
+                raise VideoGenerationError(f"Failed to copy video file: {e}") from e
+        
+        # Otherwise, download from URL
+        if not self.video_url:
+            raise VideoGenerationError("No video URL or file path available for download")
         
         try:
             response = requests.get(self.video_url, timeout=300)  # 5 minute timeout for large files
@@ -112,8 +127,16 @@ class VideoJob:
                 f"Cannot get video data: job status is '{self.status}' (expected 'completed')"
             )
         
+        # If video was returned directly as a file, read it
+        if self.video_file_path:
+            try:
+                return Path(self.video_file_path).read_bytes()
+            except (OSError, IOError) as e:
+                raise VideoGenerationError(f"Failed to read video file: {e}") from e
+        
+        # Otherwise, download from URL
         if not self.video_url:
-            raise VideoGenerationError("No video URL available")
+            raise VideoGenerationError("No video URL or file path available")
         
         try:
             response = requests.get(self.video_url, timeout=300)
@@ -173,6 +196,27 @@ class VideoAPI:
             # Convert integer to string format (e.g., 5 -> "5s")
             return f"{duration}s"
         return str(duration)
+    
+    def _save_video_file(self, video_data: bytes, job_id: str) -> Path:
+        """
+        Save binary video data to a temporary file.
+        
+        Args:
+            video_data: Binary video file data
+            job_id: Job ID for filename
+            
+        Returns:
+            Path to the saved video file
+        """
+        import tempfile
+        temp_dir = Path(tempfile.gettempdir()) / "venice_sdk_videos"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create filename with job_id
+        video_path = temp_dir / f"video_{job_id[:8]}.mp4"
+        video_path.write_bytes(video_data)
+        logger.info("Video file saved to %s (%d bytes)", video_path, len(video_data))
+        return video_path
     
     def _encode_image(self, image: Union[str, bytes, Path]) -> str:
         """
@@ -494,7 +538,53 @@ class VideoAPI:
         
         try:
             response = self.client.post(VideoEndpoints.RETRIEVE, data=data)
-            result = response.json()
+            
+            # Check if response is binary video file instead of JSON
+            content_type = response.headers.get('Content-Type', '').lower()
+            content = response.content
+            
+            # Check for binary video response
+            is_video_response = False
+            if 'video' in content_type or 'application/octet-stream' in content_type:
+                is_video_response = True
+            elif len(content) > 1000:  # Large response might be video
+                # Check for MP4 magic bytes (ftyp box)
+                if content[:4] in (b'\x00\x00\x00\x18', b'\x00\x00\x00 ', b'\x00\x00\x00\x20'):
+                    # Check for 'ftyp' at offset 4 (MP4 file signature)
+                    if len(content) > 8 and content[4:8] == b'ftyp':
+                        is_video_response = True
+            
+            if is_video_response:
+                # API returned video file directly - save it and return completed job
+                logger.info("API returned video file directly (Content-Type: %s, size: %d bytes)", 
+                           content_type or 'unknown', len(content))
+                video_path = self._save_video_file(content, job_id)
+                return VideoJob(
+                    job_id=job_id,
+                    status='completed',
+                    video_file_path=video_path,
+                    model=None,  # Model not available in binary response
+                )
+            
+            # Normal JSON response
+            try:
+                result = response.json()
+            except (ValueError, requests.exceptions.JSONDecodeError) as json_error:
+                # If JSON parsing fails, check if it might be a video file we missed
+                error_str = str(json_error)
+                if ("Expecting value" in error_str or "JSONDecodeError" in error_str) and len(content) > 1000:
+                    # Check for MP4 magic bytes as fallback
+                    if content[:4] in (b'\x00\x00\x00\x18', b'\x00\x00\x00 ', b'\x00\x00\x00\x20'):
+                        if len(content) > 8 and content[4:8] == b'ftyp':
+                            logger.info("Detected binary video response (MP4 magic bytes, fallback detection)")
+                            video_path = self._save_video_file(content, job_id)
+                            return VideoJob(
+                                job_id=job_id,
+                                status='completed',
+                                video_file_path=video_path,
+                                model=None,
+                            )
+                raise VideoGenerationError(f"Failed to parse response as JSON: {json_error}") from json_error
             
             # Build metadata if present
             metadata = None

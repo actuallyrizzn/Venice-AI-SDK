@@ -178,11 +178,11 @@ class TestVideoJobComprehensive:
         with pytest.raises(VideoGenerationError, match="Cannot download video: job status is 'processing'"):
             job.download("video.mp4")
 
-    def test_download_no_video_url(self):
-        """Test download when no video URL is available."""
-        job = VideoJob(job_id="job_123", status="completed", video_url=None)
+    def test_download_no_video_url_or_file_path(self):
+        """Test download when neither video URL nor file path is available."""
+        job = VideoJob(job_id="job_123", status="completed", video_url=None, video_file_path=None)
         
-        with pytest.raises(VideoGenerationError, match="No video URL available for download"):
+        with pytest.raises(VideoGenerationError, match="No video URL or file path available for download"):
             job.download("video.mp4")
 
     def test_download_request_exception(self):
@@ -226,11 +226,11 @@ class TestVideoJobComprehensive:
         with pytest.raises(VideoGenerationError, match="Cannot get video data: job status is 'processing'"):
             job.get_video_data()
 
-    def test_get_video_data_no_url(self):
-        """Test get_video_data when no URL is available."""
-        job = VideoJob(job_id="job_123", status="completed", video_url=None)
+    def test_get_video_data_no_url_or_file_path(self):
+        """Test get_video_data when neither URL nor file path is available."""
+        job = VideoJob(job_id="job_123", status="completed", video_url=None, video_file_path=None)
         
-        with pytest.raises(VideoGenerationError, match="No video URL available"):
+        with pytest.raises(VideoGenerationError, match="No video URL or file path available"):
             job.get_video_data()
 
     def test_get_video_data_request_exception(self):
@@ -761,6 +761,92 @@ class TestVideoAPIComprehensive:
         
         with pytest.raises(VideoGenerationError, match="Failed to retrieve video job"):
             api.retrieve("job_123")
+
+    def test_retrieve_binary_video_response(self, mock_client, tmp_path):
+        """Test retrieve when API returns binary video file instead of JSON."""
+        # Mock binary video response (MP4 file)
+        mock_response = MagicMock()
+        mock_response.headers = {'Content-Type': 'video/mp4'}
+        # MP4 file signature: ftyp box
+        mp4_data = b'\x00\x00\x00\x20ftypisom\x00\x00\x02\x00' + b'x' * 1000
+        mock_response.content = mp4_data
+        mock_client.post.return_value = mock_response
+        
+        api = VideoAPI(mock_client)
+        job = api.retrieve("job_123")
+        
+        assert job.job_id == "job_123"
+        assert job.status == "completed"
+        assert job.video_file_path is not None
+        assert Path(job.video_file_path).exists()
+        assert Path(job.video_file_path).read_bytes() == mp4_data
+
+    def test_retrieve_binary_video_response_octet_stream(self, mock_client):
+        """Test retrieve when API returns binary with application/octet-stream content type."""
+        mock_response = MagicMock()
+        mock_response.headers = {'Content-Type': 'application/octet-stream'}
+        mp4_data = b'\x00\x00\x00\x20ftypisom\x00\x00\x02\x00' + b'x' * 1000
+        mock_response.content = mp4_data
+        mock_client.post.return_value = mock_response
+        
+        api = VideoAPI(mock_client)
+        job = api.retrieve("job_123")
+        
+        assert job.status == "completed"
+        assert job.video_file_path is not None
+
+    def test_retrieve_binary_video_fallback_detection(self, mock_client):
+        """Test retrieve fallback detection when Content-Type is missing but content is MP4."""
+        mock_response = MagicMock()
+        mock_response.headers = {'Content-Type': 'application/json'}  # Wrong content type
+        # MP4 file signature
+        mp4_data = b'\x00\x00\x00\x20ftypisom\x00\x00\x02\x00' + b'x' * 2000
+        mock_response.content = mp4_data
+        # Make json() raise JSONDecodeError
+        import json
+        mock_response.json.side_effect = json.JSONDecodeError("Expecting value", "", 0)
+        mock_client.post.return_value = mock_response
+        
+        api = VideoAPI(mock_client)
+        job = api.retrieve("job_123")
+        
+        assert job.status == "completed"
+        assert job.video_file_path is not None
+
+    def test_video_job_download_from_file_path(self, tmp_path):
+        """Test VideoJob.download() when video_file_path is set."""
+        # Create a test video file
+        video_file = tmp_path / "test_video.mp4"
+        video_data = b"fake video data"
+        video_file.write_bytes(video_data)
+        
+        job = VideoJob(
+            job_id="job_123",
+            status="completed",
+            video_file_path=video_file
+        )
+        
+        output_path = tmp_path / "output.mp4"
+        result = job.download(output_path)
+        
+        assert result == output_path
+        assert output_path.exists()
+        assert output_path.read_bytes() == video_data
+
+    def test_video_job_get_video_data_from_file_path(self, tmp_path):
+        """Test VideoJob.get_video_data() when video_file_path is set."""
+        video_file = tmp_path / "test_video.mp4"
+        video_data = b"fake video data"
+        video_file.write_bytes(video_data)
+        
+        job = VideoJob(
+            job_id="job_123",
+            status="completed",
+            video_file_path=video_file
+        )
+        
+        data = job.get_video_data()
+        assert data == video_data
 
     @patch('venice_sdk.video.time.sleep')
     def test_wait_for_completion_success(self, mock_sleep, mock_client):
