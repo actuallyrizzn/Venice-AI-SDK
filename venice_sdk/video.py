@@ -359,8 +359,11 @@ class VideoAPI:
             VideoGenerationError: If request fails or parameters are invalid
             
         Note:
-            Some models require both duration and aspect_ratio. Use validate_parameters=True
-            to validate parameter combinations before queueing (uses free quote API).
+            Some models require both `duration` and `aspect_ratio` parameters. While the
+            `quote()` method accepts these as optional, the `queue()` endpoint requires both
+            for certain models. Use `validate_parameters=True` to validate parameter combinations
+            before queueing (uses free quote API), or `get_valid_parameters()` to discover
+            valid combinations for a model.
         """
         # Validate that either prompt or image is provided
         if not prompt and not image:
@@ -608,12 +611,12 @@ class VideoAPI:
             model: Video model ID
             prompt: Text description of the video (required for text-to-video)
             image: Image file path, URL, or bytes (required for image-to-video)
-            duration: Video duration in seconds
+            duration: Video duration in seconds (optional for quote, but may be required for queue)
             resolution: Video resolution
             audio: Whether to include audio
             seed: Random seed
             negative_prompt: Text describing what should not appear
-            aspect_ratio: Desired aspect ratio
+            aspect_ratio: Desired aspect ratio (optional for quote, but may be required for queue)
             fps: Frames per second
             motion_bucket_id: Motion intensity for image-to-video
             guidance_scale: How closely to follow the prompt
@@ -624,6 +627,11 @@ class VideoAPI:
             
         Raises:
             VideoGenerationError: If request fails or parameters are invalid
+            
+        Note:
+            The quote API accepts optional parameters, but the queue API may require both
+            `duration` and `aspect_ratio` for certain models. Use `validate_parameters=True`
+            in `queue()` or `get_valid_parameters()` to discover required parameters for a model.
         """
         # Validate that either prompt or image is provided
         if not prompt and not image:
