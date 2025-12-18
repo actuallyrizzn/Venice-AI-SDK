@@ -309,8 +309,11 @@ class VideoAPI:
                     file_size=meta_data.get("file_size"),
                 )
             
+            # Handle both job_id and queue_id for backward compatibility
+            job_id_value = result.get("job_id") or result.get("queue_id", "")
+            
             job = VideoJob(
-                job_id=result.get("job_id", ""),
+                job_id=job_id_value,
                 status=result.get("status", "queued"),
                 created_at=result.get("created_at"),
                 estimated_completion_time=result.get("estimated_completion_time"),
@@ -346,7 +349,8 @@ class VideoAPI:
         if not job_id:
             raise VideoGenerationError("job_id is required")
         
-        data = {"job_id": job_id}
+        # API expects queue_id in the request, but we keep job_id as parameter name for backward compatibility
+        data = {"queue_id": job_id}
         
         logger.debug("Retrieving video job: job_id=%s", job_id)
         
