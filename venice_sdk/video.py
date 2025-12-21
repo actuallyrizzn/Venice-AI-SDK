@@ -764,8 +764,11 @@ class VideoAPI:
             response = self.client.post(VideoEndpoints.QUOTE, data=data)
             result = response.json()
             
+            # API returns "quote" field, but we also support "estimated_cost" for backward compatibility
+            estimated_cost = result.get("quote") or result.get("estimated_cost", 0.0)
+            
             quote = VideoQuote(
-                estimated_cost=result.get("estimated_cost", 0.0),
+                estimated_cost=estimated_cost,
                 currency=result.get("currency", "USD"),
                 estimated_duration=result.get("estimated_duration"),
                 pricing_breakdown=result.get("pricing_breakdown"),

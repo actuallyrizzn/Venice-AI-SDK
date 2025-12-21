@@ -1028,6 +1028,44 @@ class TestVideoAPIComprehensive:
         with pytest.raises(VideoGenerationError, match="Failed to get video quote"):
             api.quote(model="kling-2.6-pro-text-to-video", prompt="Test")
 
+    def test_quote_with_quote_field(self, mock_client):
+        """Test quote when API returns 'quote' field (actual API response format)."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "quote": 2.64,
+            "currency": "USD"
+        }
+        mock_client.post.return_value = mock_response
+        
+        api = VideoAPI(mock_client)
+        quote = api.quote(
+            model="sora-2-pro-text-to-video",
+            prompt="a cat riding a drone over Tokyo",
+            duration="8s",
+            aspect_ratio="16:9"
+        )
+        
+        assert quote.estimated_cost == 2.64
+        assert quote.currency == "USD"
+
+    def test_quote_prefers_quote_over_estimated_cost(self, mock_client):
+        """Test that 'quote' field takes precedence over 'estimated_cost'."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "quote": 2.64,
+            "estimated_cost": 1.00,  # Should be ignored
+            "currency": "USD"
+        }
+        mock_client.post.return_value = mock_response
+        
+        api = VideoAPI(mock_client)
+        quote = api.quote(
+            model="sora-2-pro-text-to-video",
+            prompt="test prompt"
+        )
+        
+        assert quote.estimated_cost == 2.64  # Should use "quote", not "estimated_cost"
+
     @patch('venice_sdk.video.VideoAPI.wait_for_completion')
     @patch('venice_sdk.video.VideoAPI.queue')
     def test_complete_success(self, mock_queue, mock_wait, mock_client):
