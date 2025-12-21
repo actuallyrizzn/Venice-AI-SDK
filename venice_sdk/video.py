@@ -47,10 +47,11 @@ class VideoJob:
     queue_position: Optional[int] = None
     video_url: Optional[str] = None
     video_id: Optional[str] = None
+    video_file_path: Optional[Union[str, Path]] = None  # Path to video file when returned directly
     progress: Optional[float] = None
     error: Optional[str] = None
     error_code: Optional[str] = None
-    model: Optional[str] = None
+    model: Optional[str] = None  # Store model for retrieve() calls
     metadata: Optional[VideoMetadata] = None
     
     def is_completed(self) -> bool:
@@ -83,10 +84,24 @@ class VideoJob:
                 f"Cannot download video: job status is '{self.status}' (expected 'completed')"
             )
         
-        if not self.video_url:
-            raise VideoGenerationError("No video URL available for download")
-        
         path = Path(path)
+        
+        # If video was returned directly as a file, copy it
+        if self.video_file_path:
+            try:
+                import shutil
+                source_path = Path(self.video_file_path)
+                if not source_path.exists():
+                    raise VideoGenerationError(f"Video file not found at {source_path}")
+                shutil.copy2(source_path, path)
+                logger.info("Video copied successfully from %s to %s", source_path, path)
+                return path
+            except (OSError, IOError) as e:
+                raise VideoGenerationError(f"Failed to copy video file: {e}") from e
+        
+        # Otherwise, download from URL
+        if not self.video_url:
+            raise VideoGenerationError("No video URL or file path available for download")
         
         try:
             response = requests.get(self.video_url, timeout=300)  # 5 minute timeout for large files
@@ -112,8 +127,16 @@ class VideoJob:
                 f"Cannot get video data: job status is '{self.status}' (expected 'completed')"
             )
         
+        # If video was returned directly as a file, read it
+        if self.video_file_path:
+            try:
+                return Path(self.video_file_path).read_bytes()
+            except (OSError, IOError) as e:
+                raise VideoGenerationError(f"Failed to read video file: {e}") from e
+        
+        # Otherwise, download from URL
         if not self.video_url:
-            raise VideoGenerationError("No video URL available")
+            raise VideoGenerationError("No video URL or file path available")
         
         try:
             response = requests.get(self.video_url, timeout=300)
@@ -159,8 +182,10 @@ class VideoAPI:
             Duration string in format "Xs" or None
 
         Note:
-            API currently only supports "5s" or "10s". Other values will be
-            converted but may be rejected by the API.
+            Supported duration values vary by model. Common values include:
+            - "4s", "8s", "12s" (e.g., sora-2-text-to-video)
+            - "5s", "10s" (some older models)
+            Use validate_parameters=True in queue() to validate before queueing.
         """
         if duration is None:
             return None
@@ -171,6 +196,27 @@ class VideoAPI:
             # Convert integer to string format (e.g., 5 -> "5s")
             return f"{duration}s"
         return str(duration)
+    
+    def _save_video_file(self, video_data: bytes, job_id: str) -> Path:
+        """
+        Save binary video data to a temporary file.
+        
+        Args:
+            video_data: Binary video file data
+            job_id: Job ID for filename
+            
+        Returns:
+            Path to the saved video file
+        """
+        import tempfile
+        temp_dir = Path(tempfile.gettempdir()) / "venice_sdk_videos"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create filename with job_id
+        video_path = temp_dir / f"video_{job_id[:8]}.mp4"
+        video_path.write_bytes(video_data)
+        logger.info("Video file saved to %s (%d bytes)", video_path, len(video_data))
+        return video_path
     
     def _encode_image(self, image: Union[str, bytes, Path]) -> str:
         """
@@ -209,6 +255,111 @@ class VideoAPI:
         # Assume PNG format if we can't determine
         return f"data:image/png;base64,{b64_data}"
     
+    def _validate_with_quote(
+        self,
+        model: str,
+        prompt: Optional[str] = None,
+        image: Optional[Union[str, bytes, Path]] = None,
+        duration: Optional[Union[int, str]] = None,
+        resolution: Optional[str] = None,
+        audio: bool = False,
+        seed: Optional[int] = None,
+        negative_prompt: Optional[str] = None,
+        aspect_ratio: Optional[str] = None,
+        fps: Optional[int] = None,
+        motion_bucket_id: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
+        **kwargs: Any
+    ) -> bool:
+        """
+        Validate parameters using the quote API (free).
+        
+        Args:
+            Same as queue() method parameters
+            
+        Returns:
+            True if parameters are valid, False otherwise
+        """
+        try:
+            self.quote(
+                model=model,
+                prompt=prompt,
+                image=image,
+                duration=duration,
+                resolution=resolution,
+                audio=audio,
+                seed=seed,
+                negative_prompt=negative_prompt,
+                aspect_ratio=aspect_ratio,
+                fps=fps,
+                motion_bucket_id=motion_bucket_id,
+                guidance_scale=guidance_scale,
+                **kwargs
+            )
+            return True
+        except (VeniceAPIError, VideoGenerationError):
+            return False
+    
+    def get_valid_parameters(
+        self,
+        model: str,
+        prompt: Optional[str] = None,
+        image: Optional[Union[str, bytes, Path]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Discover valid duration and aspect_ratio combinations for a model.
+        
+        This method tries common parameter combinations and returns valid ones.
+        Uses the free quote API for validation.
+        
+        Args:
+            model: Video model ID
+            prompt: Text prompt (required for text-to-video)
+            image: Image file (required for image-to-video)
+            
+        Returns:
+            Dictionary with 'duration' and 'aspect_ratio' keys containing lists of valid values
+            
+        Example:
+            >>> valid = video.get_valid_parameters("sora-2-text-to-video", prompt="test")
+            >>> print(valid)
+            {'duration': ['4s', '8s', '12s'], 'aspect_ratio': ['16:9', '9:16']}
+        """
+        common_durations = ["4s", "5s", "6s", "8s", "10s", "12s"]
+        common_aspect_ratios = ["16:9", "9:16", "1:1", "4:3"]
+        
+        valid_durations = []
+        valid_aspect_ratios = []
+        
+        # Test each duration with a common aspect ratio
+        test_aspect_ratio = "16:9"
+        for duration in common_durations:
+            if self._validate_with_quote(
+                model=model,
+                prompt=prompt,
+                image=image,
+                duration=duration,
+                aspect_ratio=test_aspect_ratio,
+            ):
+                valid_durations.append(duration)
+        
+        # Test each aspect ratio with a valid duration (or first common one)
+        test_duration = valid_durations[0] if valid_durations else common_durations[0]
+        for aspect_ratio in common_aspect_ratios:
+            if self._validate_with_quote(
+                model=model,
+                prompt=prompt,
+                image=image,
+                duration=test_duration,
+                aspect_ratio=aspect_ratio,
+            ):
+                valid_aspect_ratios.append(aspect_ratio)
+        
+        return {
+            "duration": valid_durations,
+            "aspect_ratio": valid_aspect_ratios,
+        }
+    
     def queue(
         self,
         model: str,
@@ -223,6 +374,7 @@ class VideoAPI:
         fps: Optional[int] = None,
         motion_bucket_id: Optional[int] = None,
         guidance_scale: Optional[float] = None,
+        validate_parameters: bool = False,
         **kwargs: Any
     ) -> VideoJob:
         """
@@ -241,6 +393,7 @@ class VideoAPI:
             fps: Frames per second
             motion_bucket_id: Motion intensity for image-to-video (1-127)
             guidance_scale: How closely to follow the prompt
+            validate_parameters: If True, validate parameters using quote API before queueing (default: False)
             **kwargs: Additional parameters
             
         Returns:
@@ -248,10 +401,39 @@ class VideoAPI:
             
         Raises:
             VideoGenerationError: If request fails or parameters are invalid
+            
+        Note:
+            Some models require both `duration` and `aspect_ratio` parameters. While the
+            `quote()` method accepts these as optional, the `queue()` endpoint requires both
+            for certain models. Use `validate_parameters=True` to validate parameter combinations
+            before queueing (uses free quote API), or `get_valid_parameters()` to discover
+            valid combinations for a model.
         """
         # Validate that either prompt or image is provided
         if not prompt and not image:
             raise VideoGenerationError("Either 'prompt' (for text-to-video) or 'image' (for image-to-video) must be provided")
+        
+        # Optional parameter validation using quote API
+        if validate_parameters:
+            if not self._validate_with_quote(
+                model=model,
+                prompt=prompt,
+                image=image,
+                duration=duration,
+                resolution=resolution,
+                audio=audio,
+                seed=seed,
+                negative_prompt=negative_prompt,
+                aspect_ratio=aspect_ratio,
+                fps=fps,
+                motion_bucket_id=motion_bucket_id,
+                guidance_scale=guidance_scale,
+                **kwargs
+            ):
+                raise VideoGenerationError(
+                    "Invalid parameter combination for model. Use get_valid_parameters() "
+                    "to discover valid duration and aspect_ratio combinations."
+                )
         
         data: Dict[str, Any] = {
             "model": model,
@@ -294,7 +476,11 @@ class VideoAPI:
         )
         
         try:
-            response = self.client.post(VideoEndpoints.QUEUE, data=data)
+            # Use extended timeout for queue operations (video generation can take time to queue)
+            # Default is 30s, but queue operations may need 60-120s in high load scenarios
+            # Use 120s timeout to prevent premature timeouts that could cause retries and duplicate charges
+            # CRITICAL: Extended timeout prevents timeout->retry->duplicate charge scenarios
+            response = self.client.post(VideoEndpoints.QUEUE, data=data, timeout=120)
             result = response.json()
             
             # Build metadata if present
@@ -309,8 +495,11 @@ class VideoAPI:
                     file_size=meta_data.get("file_size"),
                 )
             
+            # Handle both job_id and queue_id for backward compatibility
+            job_id_value = result.get("job_id") or result.get("queue_id", "")
+            
             job = VideoJob(
-                job_id=result.get("job_id", ""),
+                job_id=job_id_value,
                 status=result.get("status", "queued"),
                 created_at=result.get("created_at"),
                 estimated_completion_time=result.get("estimated_completion_time"),
@@ -330,12 +519,14 @@ class VideoAPI:
         except Exception as e:
             raise VideoGenerationError(f"Failed to queue video generation: {e}") from e
     
-    def retrieve(self, job_id: str) -> VideoJob:
+    def retrieve(self, job_id: str, model: Optional[str] = None) -> VideoJob:
         """
         Retrieve the status and result of a video generation job.
         
         Args:
             job_id: The job ID from the queue response
+            model: The model ID used for the job (required by API). If not provided,
+                   will attempt to retrieve from the job if available.
             
         Returns:
             VideoJob with current status and results if completed
@@ -346,13 +537,70 @@ class VideoAPI:
         if not job_id:
             raise VideoGenerationError("job_id is required")
         
-        data = {"job_id": job_id}
+        # API requires both queue_id and model
+        data = {"queue_id": job_id}
+        if model:
+            data["model"] = model
         
-        logger.debug("Retrieving video job: job_id=%s", job_id)
+        logger.debug("Retrieving video job: job_id=%s, model=%s", job_id, model)
         
         try:
+            # If model not provided but we have it from a previous job, try to use it
+            # But API requires it, so we must have it
+            if not model:
+                raise VideoGenerationError(
+                    "Model parameter is required for retrieve(). "
+                    "Pass the model parameter or use wait_for_completion() which handles this automatically."
+                )
+            
             response = self.client.post(VideoEndpoints.RETRIEVE, data=data)
-            result = response.json()
+            
+            # Check if response is binary video file instead of JSON
+            content_type = response.headers.get('Content-Type', '').lower()
+            content = response.content
+            
+            # Check for binary video response
+            is_video_response = False
+            if 'video' in content_type or 'application/octet-stream' in content_type:
+                is_video_response = True
+            elif len(content) > 1000:  # Large response might be video
+                # Check for MP4 magic bytes (ftyp box)
+                if content[:4] in (b'\x00\x00\x00\x18', b'\x00\x00\x00 ', b'\x00\x00\x00\x20'):
+                    # Check for 'ftyp' at offset 4 (MP4 file signature)
+                    if len(content) > 8 and content[4:8] == b'ftyp':
+                        is_video_response = True
+            
+            if is_video_response:
+                # API returned video file directly - save it and return completed job
+                logger.info("API returned video file directly (Content-Type: %s, size: %d bytes)", 
+                           content_type or 'unknown', len(content))
+                video_path = self._save_video_file(content, job_id)
+                return VideoJob(
+                    job_id=job_id,
+                    status='completed',
+                    video_file_path=video_path,
+                    model=None,  # Model not available in binary response
+                )
+            
+            # Normal JSON response
+            try:
+                result = response.json()
+            except (ValueError, requests.exceptions.JSONDecodeError) as json_error:
+                # If JSON parsing fails, check if it might be a video file we missed
+                error_str = str(json_error)
+                if ("Expecting value" in error_str or "JSONDecodeError" in error_str) and len(content) > 1000:
+                    # Check for MP4 magic bytes as fallback
+                    if content[:4] in (b'\x00\x00\x00\x18', b'\x00\x00\x00 ', b'\x00\x00\x00\x20'):
+                        if len(content) > 8 and content[4:8] == b'ftyp':
+                            logger.info("Detected binary video response (MP4 magic bytes, fallback detection)")
+                            video_path = self._save_video_file(content, job_id)
+                            return VideoJob(
+                                job_id=job_id,
+                                status='completed',
+                                video_file_path=video_path,
+                                model=None,
+                            )
+                raise VideoGenerationError(f"Failed to parse response as JSON: {json_error}") from json_error
             
             # Build metadata if present
             metadata = None
@@ -395,7 +643,8 @@ class VideoAPI:
         job_id: str,
         poll_interval: int = 5,
         max_wait_time: Optional[int] = None,
-        callback: Optional[Callable[[VideoJob], None]] = None
+        callback: Optional[Callable[[VideoJob], None]] = None,
+        model: Optional[str] = None
     ) -> VideoJob:
         """
         Poll for job completion until it finishes or fails.
@@ -405,6 +654,7 @@ class VideoAPI:
             poll_interval: Seconds between polls (default: 5)
             max_wait_time: Maximum seconds to wait (None for no limit)
             callback: Optional callback function called with VideoJob on each poll
+            model: The model ID used for the job (required for retrieve calls)
             
         Returns:
             VideoJob when completed or failed
@@ -417,8 +667,25 @@ class VideoAPI:
         
         logger.info("Waiting for video generation to complete: job_id=%s", job_id)
         
+        # Track model for retrieve calls
+        stored_model = model
+        
         while True:
-            job = self.retrieve(job_id)
+            # Use stored model or model from job if available
+            retrieve_model = stored_model
+            if not retrieve_model:
+                # Try to get model from a previous retrieve if we have it cached
+                # For now, we require model parameter
+                if not retrieve_model:
+                    raise VideoGenerationError(
+                        "Model parameter is required for wait_for_completion(). "
+                        "Pass the model used when queueing the job."
+                    )
+            
+            job = self.retrieve(job_id, model=retrieve_model)
+            # Update stored model from job response if available
+            if job.model and not stored_model:
+                stored_model = job.model
             poll_count += 1
             
             if callback:
@@ -469,12 +736,12 @@ class VideoAPI:
             model: Video model ID
             prompt: Text description of the video (required for text-to-video)
             image: Image file path, URL, or bytes (required for image-to-video)
-            duration: Video duration in seconds
+            duration: Video duration in seconds (optional for quote, but may be required for queue)
             resolution: Video resolution
             audio: Whether to include audio
             seed: Random seed
             negative_prompt: Text describing what should not appear
-            aspect_ratio: Desired aspect ratio
+            aspect_ratio: Desired aspect ratio (optional for quote, but may be required for queue)
             fps: Frames per second
             motion_bucket_id: Motion intensity for image-to-video
             guidance_scale: How closely to follow the prompt
@@ -485,6 +752,11 @@ class VideoAPI:
             
         Raises:
             VideoGenerationError: If request fails or parameters are invalid
+            
+        Note:
+            The quote API accepts optional parameters, but the queue API may require both
+            `duration` and `aspect_ratio` for certain models. Use `validate_parameters=True`
+            in `queue()` or `get_valid_parameters()` to discover required parameters for a model.
         """
         # Validate that either prompt or image is provided
         if not prompt and not image:
@@ -527,8 +799,11 @@ class VideoAPI:
             response = self.client.post(VideoEndpoints.QUOTE, data=data)
             result = response.json()
             
+            # API returns "quote" field, but we also support "estimated_cost" for backward compatibility
+            estimated_cost = result.get("quote") or result.get("estimated_cost", 0.0)
+            
             quote = VideoQuote(
-                estimated_cost=result.get("estimated_cost", 0.0),
+                estimated_cost=estimated_cost,
                 currency=result.get("currency", "USD"),
                 estimated_duration=result.get("estimated_duration"),
                 pricing_breakdown=result.get("pricing_breakdown"),
@@ -609,6 +884,7 @@ class VideoAPI:
             **kwargs
         )
         
-        # Wait for completion
-        return self.wait_for_completion(job.job_id, max_wait_time=timeout)
+        # Wait for completion (pass model for retrieve calls)
+        # Job already has model stored, but pass it explicitly for clarity
+        return self.wait_for_completion(job.job_id, max_wait_time=timeout, model=job.model or model)
 

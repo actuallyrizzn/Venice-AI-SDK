@@ -9,6 +9,7 @@ from venice_sdk.errors import (
     VeniceConnectionError,
     RateLimitError,
     UnauthorizedError,
+    InsufficientBalanceError,
     InvalidRequestError,
     ModelNotFoundError,
     CharacterNotFoundError,
@@ -83,6 +84,18 @@ class TestUnauthorizedError:
         """Test UnauthorizedError initialization."""
         error = UnauthorizedError("Unauthorized")
         assert str(error) == "Unauthorized"
+        assert isinstance(error, VeniceAPIError)
+
+
+class TestInsufficientBalanceError:
+    """Test InsufficientBalanceError class."""
+
+    def test_insufficient_balance_error_initialization(self):
+        """Test InsufficientBalanceError initialization."""
+        error = InsufficientBalanceError("Insufficient balance", status_code=402)
+        assert "Insufficient balance" in str(error)
+        assert "HTTP 402" in str(error)
+        assert error.status_code == 402
         assert isinstance(error, VeniceAPIError)
 
 
@@ -184,6 +197,19 @@ class TestHandleAPIError:
             handle_api_error(429, {"error": {"message": "Rate limited"}})
         assert "Rate limited" in str(exc_info.value)
         assert exc_info.value.retry_after is None
+
+    def test_handle_api_error_402(self):
+        """Test handling 402 error (insufficient balance)."""
+        with pytest.raises(InsufficientBalanceError) as exc_info:
+            handle_api_error(402, {"error": {"message": "Insufficient balance"}})
+        assert "Insufficient balance" in str(exc_info.value)
+        assert exc_info.value.status_code == 402
+
+    def test_handle_api_error_402_with_string_error(self):
+        """Test handling 402 error with string error."""
+        with pytest.raises(InsufficientBalanceError) as exc_info:
+            handle_api_error(402, {"error": "Insufficient balance"})
+        assert "Insufficient balance" in str(exc_info.value)
 
     def test_handle_api_error_404_character_not_found(self):
         """Test handling 404 error with CHARACTER_NOT_FOUND code."""

@@ -315,8 +315,8 @@ class TestAPIIntegration:
             assert job.job_id == "video_job_123"
             assert job.status == "queued"
             
-            # 3. Retrieve video job status
-            retrieved_job = self.client.video.retrieve(job.job_id)
+            # 3. Retrieve video job status (model is required)
+            retrieved_job = self.client.video.retrieve(job.job_id, model=text_to_video_model["id"])
             assert retrieved_job.status == "completed"
             assert retrieved_job.video_url == "https://example.com/video.mp4"
 
