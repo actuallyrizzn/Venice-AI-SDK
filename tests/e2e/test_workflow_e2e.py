@@ -373,7 +373,8 @@ class TestWorkflowE2E:
             mock_retrieve_processing.json.return_value = {
                 "job_id": "video_job_123",
                 "status": "processing",
-                "progress": 50.0
+                "progress": 50.0,
+                "model": "kling-2.6-pro-text-to-video"
             }
             
             # Mock video retrieve (completed)
@@ -384,7 +385,8 @@ class TestWorkflowE2E:
                 "status": "completed",
                 "video_url": "https://example.com/video.mp4",
                 "progress": 100.0,
-                "completed_at": "2024-01-01T00:00:10Z"
+                "completed_at": "2024-01-01T00:00:10Z",
+                "model": "kling-2.6-pro-text-to-video"
             }
             
             # Mock video download
@@ -456,7 +458,8 @@ class TestWorkflowE2E:
                 completed_job = client.video.wait_for_completion(
                     job.job_id,
                     poll_interval=1,
-                    max_wait_time=300
+                    max_wait_time=300,
+                    model=selected_model
                 )
             
             assert completed_job.status == "completed"
@@ -509,7 +512,8 @@ class TestWorkflowE2E:
             mock_video_retrieve.json.return_value = {
                 "job_id": "video_job_456",
                 "status": "completed",
-                "video_url": "https://example.com/video.mp4"
+                "video_url": "https://example.com/video.mp4",
+                "model": "kling-2.6-pro-image-to-video"
             }
             
             # Mock video download
@@ -565,7 +569,8 @@ class TestWorkflowE2E:
             with patch('venice_sdk.video.time.sleep'):
                 completed_job = client.video.wait_for_completion(
                     job.job_id,
-                    poll_interval=1
+                    poll_interval=1,
+                    model="kling-2.6-pro-image-to-video"
                 )
             
             assert completed_job.status == "completed"

@@ -707,7 +707,7 @@ class TestVideoAPIComprehensive:
         mock_client.post.return_value = mock_response
         
         api = VideoAPI(mock_client)
-        job = api.retrieve("job_123")
+        job = api.retrieve("job_123", model="kling-2.6-pro-text-to-video")
         
         assert job.job_id == "job_123"
         assert job.status == "completed"
@@ -715,7 +715,7 @@ class TestVideoAPIComprehensive:
         assert job.progress == 100.0
         mock_client.post.assert_called_once_with(
             VideoEndpoints.RETRIEVE,
-            data={"queue_id": "job_123"}
+            data={"queue_id": "job_123", "model": "kling-2.6-pro-text-to-video"}
         )
 
     def test_retrieve_with_metadata(self, mock_client):
@@ -732,7 +732,7 @@ class TestVideoAPIComprehensive:
         mock_client.post.return_value = mock_response
         
         api = VideoAPI(mock_client)
-        job = api.retrieve("job_123")
+        job = api.retrieve("job_123", model="kling-2.6-pro-text-to-video")
         
         assert job.metadata is not None
         assert job.metadata.duration == 5.0
@@ -751,7 +751,7 @@ class TestVideoAPIComprehensive:
         api = VideoAPI(mock_client)
         
         with pytest.raises(VeniceAPIError):
-            api.retrieve("job_123")
+            api.retrieve("job_123", model="kling-2.6-pro-text-to-video")
 
     def test_retrieve_generic_exception(self, mock_client):
         """Test retrieve when generic exception occurs."""
@@ -760,7 +760,7 @@ class TestVideoAPIComprehensive:
         api = VideoAPI(mock_client)
         
         with pytest.raises(VideoGenerationError, match="Failed to retrieve video job"):
-            api.retrieve("job_123")
+            api.retrieve("job_123", model="kling-2.6-pro-text-to-video")
 
     def test_retrieve_binary_video_response(self, mock_client, tmp_path):
         """Test retrieve when API returns binary video file instead of JSON."""
@@ -773,7 +773,7 @@ class TestVideoAPIComprehensive:
         mock_client.post.return_value = mock_response
         
         api = VideoAPI(mock_client)
-        job = api.retrieve("job_123")
+        job = api.retrieve("job_123", model="kling-2.6-pro-text-to-video")
         
         assert job.job_id == "job_123"
         assert job.status == "completed"
@@ -790,7 +790,7 @@ class TestVideoAPIComprehensive:
         mock_client.post.return_value = mock_response
         
         api = VideoAPI(mock_client)
-        job = api.retrieve("job_123")
+        job = api.retrieve("job_123", model="kling-2.6-pro-text-to-video")
         
         assert job.status == "completed"
         assert job.video_file_path is not None
@@ -808,7 +808,7 @@ class TestVideoAPIComprehensive:
         mock_client.post.return_value = mock_response
         
         api = VideoAPI(mock_client)
-        job = api.retrieve("job_123")
+        job = api.retrieve("job_123", model="kling-2.6-pro-text-to-video")
         
         assert job.status == "completed"
         assert job.video_file_path is not None
@@ -853,17 +853,21 @@ class TestVideoAPIComprehensive:
         """Test waiting for completion successfully."""
         # First call: processing, second call: completed
         mock_responses = [
-            MagicMock(json=lambda: {"job_id": "job_123", "status": "processing", "progress": 50.0}),
-            MagicMock(json=lambda: {"job_id": "job_123", "status": "completed", "video_url": "https://example.com/video.mp4"})
+            MagicMock(json=lambda: {"job_id": "job_123", "status": "processing", "progress": 50.0, "model": "kling-2.6-pro-text-to-video"}),
+            MagicMock(json=lambda: {"job_id": "job_123", "status": "completed", "video_url": "https://example.com/video.mp4", "model": "kling-2.6-pro-text-to-video"})
         ]
         mock_client.post.side_effect = mock_responses
         
         api = VideoAPI(mock_client)
-        job = api.wait_for_completion("job_123", poll_interval=1)
+        job = api.wait_for_completion("job_123", poll_interval=1, model="kling-2.6-pro-text-to-video")
         
         assert job.status == "completed"
         assert job.video_url == "https://example.com/video.mp4"
         assert mock_client.post.call_count == 2
+        # Verify model is sent in retrieve calls
+        retrieve_calls = [call for call in mock_client.post.call_args_list if call[0][0] == VideoEndpoints.RETRIEVE]
+        for call in retrieve_calls:
+            assert call[1]["data"]["model"] == "kling-2.6-pro-text-to-video"
         mock_sleep.assert_called_once_with(1)
 
     @patch('venice_sdk.video.time.sleep')
@@ -875,13 +879,13 @@ class TestVideoAPIComprehensive:
             callback_calls.append(job.status)
         
         mock_responses = [
-            MagicMock(json=lambda: {"job_id": "job_123", "status": "processing"}),
-            MagicMock(json=lambda: {"job_id": "job_123", "status": "completed"})
+            MagicMock(json=lambda: {"job_id": "job_123", "status": "processing", "model": "kling-2.6-pro-text-to-video"}),
+            MagicMock(json=lambda: {"job_id": "job_123", "status": "completed", "model": "kling-2.6-pro-text-to-video"})
         ]
         mock_client.post.side_effect = mock_responses
         
         api = VideoAPI(mock_client)
-        job = api.wait_for_completion("job_123", poll_interval=1, callback=callback)
+        job = api.wait_for_completion("job_123", poll_interval=1, callback=callback, model="kling-2.6-pro-text-to-video")
         
         assert len(callback_calls) == 2
         assert callback_calls[0] == "processing"
@@ -894,14 +898,14 @@ class TestVideoAPIComprehensive:
             raise ValueError("Callback error")
         
         mock_responses = [
-            MagicMock(json=lambda: {"job_id": "job_123", "status": "processing"}),
-            MagicMock(json=lambda: {"job_id": "job_123", "status": "completed"})
+            MagicMock(json=lambda: {"job_id": "job_123", "status": "processing", "model": "kling-2.6-pro-text-to-video"}),
+            MagicMock(json=lambda: {"job_id": "job_123", "status": "completed", "model": "kling-2.6-pro-text-to-video"})
         ]
         mock_client.post.side_effect = mock_responses
         
         api = VideoAPI(mock_client)
         # Should not raise, just log warning
-        job = api.wait_for_completion("job_123", poll_interval=1, callback=callback)
+        job = api.wait_for_completion("job_123", poll_interval=1, callback=callback, model="kling-2.6-pro-text-to-video")
         assert job.status == "completed"
 
     @patch('venice_sdk.video.time.sleep')
@@ -910,13 +914,13 @@ class TestVideoAPIComprehensive:
         """Test wait_for_completion with timeout."""
         mock_time.side_effect = [0, 600]  # Start at 0, check at 600 seconds
         mock_response = MagicMock()
-        mock_response.json.return_value = {"job_id": "job_123", "status": "processing"}
+        mock_response.json.return_value = {"job_id": "job_123", "status": "processing", "model": "kling-2.6-pro-text-to-video"}
         mock_client.post.return_value = mock_response
         
         api = VideoAPI(mock_client)
         
         with pytest.raises(VideoGenerationError, match="Timeout waiting for video generation"):
-            api.wait_for_completion("job_123", poll_interval=1, max_wait_time=500)
+            api.wait_for_completion("job_123", poll_interval=1, max_wait_time=500, model="kling-2.6-pro-text-to-video")
 
     @patch('venice_sdk.video.time.sleep')
     def test_wait_for_completion_failed(self, mock_sleep, mock_client):
@@ -925,26 +929,27 @@ class TestVideoAPIComprehensive:
         mock_response.json.return_value = {
             "job_id": "job_123",
             "status": "failed",
-            "error": "Generation failed"
+            "error": "Generation failed",
+            "model": "kling-2.6-pro-text-to-video"
         }
         mock_client.post.return_value = mock_response
         
         api = VideoAPI(mock_client)
         
         with pytest.raises(VideoGenerationError, match="Video generation failed: Generation failed"):
-            api.wait_for_completion("job_123", poll_interval=1)
+            api.wait_for_completion("job_123", poll_interval=1, model="kling-2.6-pro-text-to-video")
 
     @patch('venice_sdk.video.time.sleep')
     def test_wait_for_completion_failed_no_error_message(self, mock_sleep, mock_client):
         """Test wait_for_completion when job fails without error message."""
         mock_response = MagicMock()
-        mock_response.json.return_value = {"job_id": "job_123", "status": "failed"}
+        mock_response.json.return_value = {"job_id": "job_123", "status": "failed", "model": "kling-2.6-pro-text-to-video"}
         mock_client.post.return_value = mock_response
         
         api = VideoAPI(mock_client)
         
         with pytest.raises(VideoGenerationError, match="Video generation failed: Unknown error"):
-            api.wait_for_completion("job_123", poll_interval=1)
+            api.wait_for_completion("job_123", poll_interval=1, model="kling-2.6-pro-text-to-video")
 
     def test_quote_text_to_video_success(self, mock_client):
         """Test successful text-to-video quote."""
@@ -1090,7 +1095,7 @@ class TestVideoAPIComprehensive:
         
         assert result.status == "completed"
         mock_queue.assert_called_once()
-        mock_wait.assert_called_once_with("job_123", max_wait_time=900)
+        mock_wait.assert_called_once_with("job_123", max_wait_time=900, model="kling-2.6-pro-text-to-video")
 
     @patch('venice_sdk.video.VideoAPI.wait_for_completion')
     @patch('venice_sdk.video.VideoAPI.queue')
@@ -1149,13 +1154,13 @@ class TestVideoAPIComprehensive:
     def test_wait_for_completion_no_timeout(self, mock_sleep, mock_client):
         """Test wait_for_completion without timeout."""
         mock_responses = [
-            MagicMock(json=lambda: {"job_id": "job_123", "status": "processing"}),
-            MagicMock(json=lambda: {"job_id": "job_123", "status": "completed"})
+            MagicMock(json=lambda: {"job_id": "job_123", "status": "processing", "model": "kling-2.6-pro-text-to-video"}),
+            MagicMock(json=lambda: {"job_id": "job_123", "status": "completed", "model": "kling-2.6-pro-text-to-video"})
         ]
         mock_client.post.side_effect = mock_responses
         
         api = VideoAPI(mock_client)
-        job = api.wait_for_completion("job_123", poll_interval=1, max_wait_time=None)
+        job = api.wait_for_completion("job_123", poll_interval=1, max_wait_time=None, model="kling-2.6-pro-text-to-video")
         
         assert job.status == "completed"
 
@@ -1196,7 +1201,7 @@ class TestVideoAPIComprehensive:
         mock_client.post.return_value = mock_response
         
         api = VideoAPI(mock_client)
-        job = api.retrieve("job_123")
+        job = api.retrieve("job_123", model="kling-2.6-pro-text-to-video")
         
         assert job.metadata is not None
         assert job.metadata.fps == 30
@@ -1212,7 +1217,7 @@ class TestVideoAPIComprehensive:
         mock_client.post.return_value = mock_response
         
         api = VideoAPI(mock_client)
-        job = api.retrieve("job_123")
+        job = api.retrieve("job_123", model="kling-2.6-pro-text-to-video")
         
         assert job.metadata is None
 
@@ -1250,8 +1255,8 @@ class TestVideoAPIComprehensive:
             )
             
             assert result.status == "completed"
-            # Should use default timeout of 900
-            mock_wait.assert_called_once_with("job_123", max_wait_time=900)
+            # Should use default timeout of 900 and pass model
+            mock_wait.assert_called_once_with("job_123", max_wait_time=900, model="kling-2.6-pro-text-to-video")
 
     def test_download_data_uri(self, tmp_path):
         """Test download from data URI (should not happen but test edge case)."""
@@ -1294,7 +1299,7 @@ class TestVideoAPIComprehensive:
         mock_client.post.return_value = mock_response
         
         api = VideoAPI(mock_client)
-        job = api.wait_for_completion("job_123", poll_interval=1)
+        job = api.wait_for_completion("job_123", poll_interval=1, model="kling-2.6-pro-text-to-video")
         
         assert job.status == "completed"
         assert mock_client.post.call_count == 1  # Should only call once
@@ -1303,15 +1308,15 @@ class TestVideoAPIComprehensive:
         """Test wait_for_completion with multiple polling cycles."""
         with patch('venice_sdk.video.time.sleep') as mock_sleep:
             mock_responses = [
-                MagicMock(json=lambda: {"job_id": "job_123", "status": "queued"}),
-                MagicMock(json=lambda: {"job_id": "job_123", "status": "processing", "progress": 25.0}),
-                MagicMock(json=lambda: {"job_id": "job_123", "status": "processing", "progress": 75.0}),
-                MagicMock(json=lambda: {"job_id": "job_123", "status": "completed", "video_url": "https://example.com/video.mp4"})
+                MagicMock(json=lambda: {"job_id": "job_123", "status": "queued", "model": "kling-2.6-pro-text-to-video"}),
+                MagicMock(json=lambda: {"job_id": "job_123", "status": "processing", "progress": 25.0, "model": "kling-2.6-pro-text-to-video"}),
+                MagicMock(json=lambda: {"job_id": "job_123", "status": "processing", "progress": 75.0, "model": "kling-2.6-pro-text-to-video"}),
+                MagicMock(json=lambda: {"job_id": "job_123", "status": "completed", "video_url": "https://example.com/video.mp4", "model": "kling-2.6-pro-text-to-video"})
             ]
             mock_client.post.side_effect = mock_responses
             
             api = VideoAPI(mock_client)
-            job = api.wait_for_completion("job_123", poll_interval=1)
+            job = api.wait_for_completion("job_123", poll_interval=1, model="kling-2.6-pro-text-to-video")
             
             assert job.status == "completed"
             assert mock_client.post.call_count == 4

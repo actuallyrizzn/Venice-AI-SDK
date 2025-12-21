@@ -51,7 +51,7 @@ class VideoJob:
     progress: Optional[float] = None
     error: Optional[str] = None
     error_code: Optional[str] = None
-    model: Optional[str] = None
+    model: Optional[str] = None  # Store model for retrieve() calls
     metadata: Optional[VideoMetadata] = None
     
     def is_completed(self) -> bool:
@@ -476,7 +476,11 @@ class VideoAPI:
         )
         
         try:
-            response = self.client.post(VideoEndpoints.QUEUE, data=data)
+            # Use extended timeout for queue operations (video generation can take time to queue)
+            # Default is 30s, but queue operations may need 60-120s in high load scenarios
+            # Use 120s timeout to prevent premature timeouts that could cause retries and duplicate charges
+            # CRITICAL: Extended timeout prevents timeout->retry->duplicate charge scenarios
+            response = self.client.post(VideoEndpoints.QUEUE, data=data, timeout=120)
             result = response.json()
             
             # Build metadata if present
@@ -515,12 +519,14 @@ class VideoAPI:
         except Exception as e:
             raise VideoGenerationError(f"Failed to queue video generation: {e}") from e
     
-    def retrieve(self, job_id: str) -> VideoJob:
+    def retrieve(self, job_id: str, model: Optional[str] = None) -> VideoJob:
         """
         Retrieve the status and result of a video generation job.
         
         Args:
             job_id: The job ID from the queue response
+            model: The model ID used for the job (required by API). If not provided,
+                   will attempt to retrieve from the job if available.
             
         Returns:
             VideoJob with current status and results if completed
@@ -531,12 +537,22 @@ class VideoAPI:
         if not job_id:
             raise VideoGenerationError("job_id is required")
         
-        # API expects queue_id in the request, but we keep job_id as parameter name for backward compatibility
+        # API requires both queue_id and model
         data = {"queue_id": job_id}
+        if model:
+            data["model"] = model
         
-        logger.debug("Retrieving video job: job_id=%s", job_id)
+        logger.debug("Retrieving video job: job_id=%s, model=%s", job_id, model)
         
         try:
+            # If model not provided but we have it from a previous job, try to use it
+            # But API requires it, so we must have it
+            if not model:
+                raise VideoGenerationError(
+                    "Model parameter is required for retrieve(). "
+                    "Pass the model parameter or use wait_for_completion() which handles this automatically."
+                )
+            
             response = self.client.post(VideoEndpoints.RETRIEVE, data=data)
             
             # Check if response is binary video file instead of JSON
@@ -627,7 +643,8 @@ class VideoAPI:
         job_id: str,
         poll_interval: int = 5,
         max_wait_time: Optional[int] = None,
-        callback: Optional[Callable[[VideoJob], None]] = None
+        callback: Optional[Callable[[VideoJob], None]] = None,
+        model: Optional[str] = None
     ) -> VideoJob:
         """
         Poll for job completion until it finishes or fails.
@@ -637,6 +654,7 @@ class VideoAPI:
             poll_interval: Seconds between polls (default: 5)
             max_wait_time: Maximum seconds to wait (None for no limit)
             callback: Optional callback function called with VideoJob on each poll
+            model: The model ID used for the job (required for retrieve calls)
             
         Returns:
             VideoJob when completed or failed
@@ -649,8 +667,25 @@ class VideoAPI:
         
         logger.info("Waiting for video generation to complete: job_id=%s", job_id)
         
+        # Track model for retrieve calls
+        stored_model = model
+        
         while True:
-            job = self.retrieve(job_id)
+            # Use stored model or model from job if available
+            retrieve_model = stored_model
+            if not retrieve_model:
+                # Try to get model from a previous retrieve if we have it cached
+                # For now, we require model parameter
+                if not retrieve_model:
+                    raise VideoGenerationError(
+                        "Model parameter is required for wait_for_completion(). "
+                        "Pass the model used when queueing the job."
+                    )
+            
+            job = self.retrieve(job_id, model=retrieve_model)
+            # Update stored model from job response if available
+            if job.model and not stored_model:
+                stored_model = job.model
             poll_count += 1
             
             if callback:
@@ -849,6 +884,7 @@ class VideoAPI:
             **kwargs
         )
         
-        # Wait for completion
-        return self.wait_for_completion(job.job_id, max_wait_time=timeout)
+        # Wait for completion (pass model for retrieve calls)
+        # Job already has model stored, but pass it explicitly for clarity
+        return self.wait_for_completion(job.job_id, max_wait_time=timeout, model=job.model or model)
 
