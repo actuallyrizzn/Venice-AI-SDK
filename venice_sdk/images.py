@@ -338,8 +338,8 @@ class ImageEditAPI:
         logger.debug("Image edit request (prompt=%s)", prompt)
         response = self.client.post(ImageEndpoints.EDIT, data=data)
         
-        # Check if response is binary image data
-        content_type = response.headers.get('Content-Type', '')
+        # Check if response is binary image data (case-insensitive check)
+        content_type = response.headers.get('Content-Type', '').lower()
         if 'image/' in content_type:
             # Binary image response - convert to base64
             image_data = response.content

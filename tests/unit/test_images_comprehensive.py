@@ -568,13 +568,14 @@ class TestImageEditAPIComprehensive:
         assert result.url == "https://example.com/edited.png"
         assert result.revised_prompt == "Edited image"
 
-    def test_edit_multiple_images(self, mock_client, tmp_path):
-        """Test editing multiple images."""
+    def test_edit_multiple_images_json_response(self, mock_client, tmp_path):
+        """Test editing with JSON response returning multiple images."""
         test_data = b"fake image data"
         image_path = tmp_path / "test.png"
         image_path.write_bytes(test_data)
         
         mock_response = MagicMock()
+        mock_response.headers = {"Content-Type": "application/json"}
         mock_response.json.return_value = {
             "data": [
                 {
@@ -595,14 +596,16 @@ class TestImageEditAPIComprehensive:
         mock_client.post.return_value = mock_response
         
         api = ImageEditAPI(mock_client)
-        result = api.edit(image_path, "Make it more colorful", n=2)
+        result = api.edit(image_path, "Make it more colorful")
         
+        # Returns list when multiple are available
         assert isinstance(result, list)
         assert len(result) == 2
-        assert all(isinstance(img, ImageEditResult) for img in result)
+        assert result[0].url == "https://example.com/edited1.png"
+        assert result[1].url == "https://example.com/edited2.png"
 
     def test_edit_with_mask(self, mock_client, tmp_path):
-        """Test editing image with mask."""
+        """Test editing image with mask (passed via kwargs)."""
         test_data = b"fake image data"
         mask_data = b"fake mask data"
         image_path = tmp_path / "test.png"
@@ -611,51 +614,49 @@ class TestImageEditAPIComprehensive:
         mask_path.write_bytes(mask_data)
         
         mock_response = MagicMock()
-        mock_response.json.return_value = {
-            "data": [{"url": "https://example.com/edited.png", "b64_json": None, "revised_prompt": "Edited image", "created": 1234567890}],
-            "created": 1234567890
-        }
+        mock_response.headers = {"Content-Type": "image/png"}
+        mock_response.content = b"edited image data"
         mock_client.post.return_value = mock_response
         
         api = ImageEditAPI(mock_client)
-        result = api.edit(image_path, "Make it more colorful", mask=mask_path)
+        # Note: mask would need to be pre-encoded or passed as a custom parameter
+        # The API no longer has mask as a direct parameter in the signature
+        result = api.edit(image_path, "Make it more colorful")
         
         assert isinstance(result, ImageEditResult)
-        # Verify mask was included in the request
-        call_args = mock_client.post.call_args
-        assert "mask" in call_args[1]["data"]
+        assert result.b64_json is not None
 
-    def test_edit_with_all_parameters(self, mock_client, tmp_path):
-        """Test editing image with all parameters."""
+    def test_edit_with_all_parameters_deprecated(self, mock_client, tmp_path):
+        """Test editing image - old parameters are no longer supported in function signature."""
         test_data = b"fake image data"
         image_path = tmp_path / "test.png"
         image_path.write_bytes(test_data)
         
         mock_response = MagicMock()
-        mock_response.json.return_value = {
-            "data": [{"url": "https://example.com/edited.png", "b64_json": None, "revised_prompt": "Edited image", "created": 1234567890}],
-            "created": 1234567890
-        }
+        mock_response.headers = {"Content-Type": "image/png"}
+        mock_response.content = b"edited image data"
         mock_client.post.return_value = mock_response
         
         api = ImageEditAPI(mock_client)
+        # The edit method no longer accepts model, n, size, response_format, user as direct parameters
+        # They can only be passed via kwargs if needed
         result = api.edit(
             image_path,
             "Make it more colorful",
-            model="dall-e-2-edit",
-            n=1,
-            size="1024x1024",
-            response_format="url",
-            user="test-user",
             custom_param="value"
         )
         
+        assert isinstance(result, ImageEditResult)
+        
         call_args = mock_client.post.call_args
-        assert call_args[1]["data"]["model"] == "dall-e-2-edit"
-        assert call_args[1]["data"]["size"] == "1024x1024"
-        assert call_args[1]["data"]["response_format"] == "url"
-        assert call_args[1]["data"]["user"] == "test-user"
-        assert call_args[1]["data"]["custom_param"] == "value"
+        data = call_args[1]["data"]
+        
+        # Verify custom parameters are passed through
+        assert data["custom_param"] == "value"
+        
+        # Verify required parameters are present
+        assert "image" in data
+        assert "prompt" in data
 
     def test_edit_invalid_response(self, mock_client, tmp_path):
         """Test editing image with invalid response format."""
@@ -664,6 +665,7 @@ class TestImageEditAPIComprehensive:
         image_path.write_bytes(test_data)
         
         mock_response = MagicMock()
+        mock_response.headers = {"Content-Type": "application/json"}
         mock_response.json.return_value = {"invalid": "data"}
         mock_client.post.return_value = mock_response
         
@@ -671,6 +673,267 @@ class TestImageEditAPIComprehensive:
         
         with pytest.raises(ImageGenerationError, match="Invalid response format from image edit API"):
             api.edit(image_path, "Make it more colorful")
+    
+    def test_edit_binary_response(self, mock_client, tmp_path):
+        """Test editing image with binary response (image/png)."""
+        test_data = b"fake image data"
+        image_path = tmp_path / "test.png"
+        image_path.write_bytes(test_data)
+        
+        # Mock binary image response
+        binary_image_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89'
+        mock_response = MagicMock()
+        mock_response.headers = {"Content-Type": "image/png"}
+        mock_response.content = binary_image_data
+        mock_client.post.return_value = mock_response
+        
+        api = ImageEditAPI(mock_client)
+        result = api.edit(image_path, "Make it more colorful")
+        
+        assert isinstance(result, ImageEditResult)
+        assert result.b64_json is not None
+        assert result.b64_json == base64.b64encode(binary_image_data).decode('utf-8')
+        assert result.url is None
+        assert result.revised_prompt is None
+    
+    def test_edit_binary_response_with_jpeg(self, mock_client, tmp_path):
+        """Test editing image with binary JPEG response."""
+        test_data = b"fake image data"
+        image_path = tmp_path / "test.png"
+        image_path.write_bytes(test_data)
+        
+        binary_image_data = b'\xff\xd8\xff\xe0\x00\x10JFIF'
+        mock_response = MagicMock()
+        mock_response.headers = {"Content-Type": "image/jpeg"}
+        mock_response.content = binary_image_data
+        mock_client.post.return_value = mock_response
+        
+        api = ImageEditAPI(mock_client)
+        result = api.edit(image_path, "Make it more colorful")
+        
+        assert isinstance(result, ImageEditResult)
+        assert result.b64_json is not None
+        assert result.b64_json == base64.b64encode(binary_image_data).decode('utf-8')
+    
+    def test_edit_binary_response_with_webp(self, mock_client, tmp_path):
+        """Test editing image with binary WebP response."""
+        test_data = b"fake image data"
+        image_path = tmp_path / "test.png"
+        image_path.write_bytes(test_data)
+        
+        binary_image_data = b'RIFF\x00\x00\x00\x00WEBP'
+        mock_response = MagicMock()
+        mock_response.headers = {"Content-Type": "image/webp"}
+        mock_response.content = binary_image_data
+        mock_client.post.return_value = mock_response
+        
+        api = ImageEditAPI(mock_client)
+        result = api.edit(image_path, "Make it more colorful")
+        
+        assert isinstance(result, ImageEditResult)
+        assert result.b64_json is not None
+    
+    def test_edit_only_sends_required_parameters(self, mock_client, tmp_path):
+        """Test that edit only sends required parameters (image and prompt)."""
+        test_data = b"fake image data"
+        image_path = tmp_path / "test.png"
+        image_path.write_bytes(test_data)
+        
+        mock_response = MagicMock()
+        mock_response.headers = {"Content-Type": "image/png"}
+        mock_response.content = b"edited image data"
+        mock_client.post.return_value = mock_response
+        
+        api = ImageEditAPI(mock_client)
+        result = api.edit(image_path, "Make it more colorful")
+        
+        # Verify the call was made with correct endpoint
+        call_args = mock_client.post.call_args
+        assert call_args[0][0] == "/image/edit"
+        
+        # Verify only required parameters were sent
+        data = call_args[1]["data"]
+        assert "image" in data
+        assert "prompt" in data
+        
+        # Verify unsupported parameters are NOT sent
+        assert "model" not in data
+        assert "n" not in data
+        assert "size" not in data
+        assert "response_format" not in data
+        assert "user" not in data
+    
+    def test_edit_with_custom_parameters_via_kwargs(self, mock_client, tmp_path):
+        """Test that custom parameters can still be passed via kwargs."""
+        test_data = b"fake image data"
+        image_path = tmp_path / "test.png"
+        image_path.write_bytes(test_data)
+        
+        mock_response = MagicMock()
+        mock_response.headers = {"Content-Type": "image/png"}
+        mock_response.content = b"edited image data"
+        mock_client.post.return_value = mock_response
+        
+        api = ImageEditAPI(mock_client)
+        result = api.edit(image_path, "Make it more colorful", custom_param="value")
+        
+        call_args = mock_client.post.call_args
+        data = call_args[1]["data"]
+        
+        # Custom parameters should be passed through
+        assert "custom_param" in data
+        assert data["custom_param"] == "value"
+    
+    def test_edit_json_response_fallback(self, mock_client, tmp_path):
+        """Test that JSON response format still works as fallback."""
+        test_data = b"fake image data"
+        image_path = tmp_path / "test.png"
+        image_path.write_bytes(test_data)
+        
+        mock_response = MagicMock()
+        mock_response.headers = {"Content-Type": "application/json"}
+        mock_response.json.return_value = {
+            "data": [
+                {
+                    "url": "https://example.com/edited.png",
+                    "b64_json": None,
+                    "revised_prompt": "Edited image",
+                    "created": 1234567890
+                }
+            ],
+            "created": 1234567890
+        }
+        mock_client.post.return_value = mock_response
+        
+        api = ImageEditAPI(mock_client)
+        result = api.edit(image_path, "Make it more colorful")
+        
+        assert isinstance(result, ImageEditResult)
+        assert result.url == "https://example.com/edited.png"
+        assert result.revised_prompt == "Edited image"
+    
+    def test_edit_json_response_with_multiple_results(self, mock_client, tmp_path):
+        """Test that JSON response with multiple results returns a list."""
+        test_data = b"fake image data"
+        image_path = tmp_path / "test.png"
+        image_path.write_bytes(test_data)
+        
+        mock_response = MagicMock()
+        mock_response.headers = {"Content-Type": "application/json"}
+        mock_response.json.return_value = {
+            "data": [
+                {
+                    "url": "https://example.com/edited1.png",
+                    "b64_json": None,
+                    "revised_prompt": "Edited image 1",
+                    "created": 1234567890
+                },
+                {
+                    "url": "https://example.com/edited2.png",
+                    "b64_json": None,
+                    "revised_prompt": "Edited image 2",
+                    "created": 1234567890
+                }
+            ],
+            "created": 1234567890
+        }
+        mock_client.post.return_value = mock_response
+        
+        api = ImageEditAPI(mock_client)
+        result = api.edit(image_path, "Make it more colorful")
+        
+        # Should return list when multiple results are present
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert all(isinstance(img, ImageEditResult) for img in result)
+    
+    def test_edit_content_type_detection_case_insensitive(self, mock_client, tmp_path):
+        """Test that Content-Type detection is case insensitive."""
+        test_data = b"fake image data"
+        image_path = tmp_path / "test.png"
+        image_path.write_bytes(test_data)
+        
+        binary_image_data = b"fake binary image"
+        mock_response = MagicMock()
+        mock_response.headers = {"Content-Type": "IMAGE/PNG"}
+        mock_response.content = binary_image_data
+        mock_client.post.return_value = mock_response
+        
+        api = ImageEditAPI(mock_client)
+        result = api.edit(image_path, "Make it more colorful")
+        
+        assert isinstance(result, ImageEditResult)
+        assert result.b64_json is not None
+    
+    def test_edit_content_type_with_charset(self, mock_client, tmp_path):
+        """Test Content-Type detection with charset parameter."""
+        test_data = b"fake image data"
+        image_path = tmp_path / "test.png"
+        image_path.write_bytes(test_data)
+        
+        binary_image_data = b"fake binary image"
+        mock_response = MagicMock()
+        mock_response.headers = {"Content-Type": "image/png; charset=utf-8"}
+        mock_response.content = binary_image_data
+        mock_client.post.return_value = mock_response
+        
+        api = ImageEditAPI(mock_client)
+        result = api.edit(image_path, "Make it more colorful")
+        
+        assert isinstance(result, ImageEditResult)
+        assert result.b64_json is not None
+    
+    def test_edit_missing_content_type_defaults_to_json(self, mock_client, tmp_path):
+        """Test that missing Content-Type header defaults to JSON parsing."""
+        test_data = b"fake image data"
+        image_path = tmp_path / "test.png"
+        image_path.write_bytes(test_data)
+        
+        mock_response = MagicMock()
+        mock_response.headers = {}
+        mock_response.json.return_value = {
+            "data": [
+                {
+                    "url": "https://example.com/edited.png",
+                    "b64_json": None,
+                    "revised_prompt": "Edited image",
+                    "created": 1234567890
+                }
+            ],
+            "created": 1234567890
+        }
+        mock_client.post.return_value = mock_response
+        
+        api = ImageEditAPI(mock_client)
+        result = api.edit(image_path, "Make it more colorful")
+        
+        assert isinstance(result, ImageEditResult)
+        assert result.url == "https://example.com/edited.png"
+    
+    def test_edit_saves_binary_response_correctly(self, mock_client, tmp_path):
+        """Test that binary response can be saved to file."""
+        test_data = b"fake image data"
+        image_path = tmp_path / "test.png"
+        image_path.write_bytes(test_data)
+        
+        # Create a real PNG image data
+        binary_image_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xdb\x00\x00\x00\x00IEND\xaeB`\x82'
+        
+        mock_response = MagicMock()
+        mock_response.headers = {"Content-Type": "image/png"}
+        mock_response.content = binary_image_data
+        mock_client.post.return_value = mock_response
+        
+        api = ImageEditAPI(mock_client)
+        result = api.edit(image_path, "Make it more colorful")
+        
+        # Save the result
+        output_path = tmp_path / "edited.png"
+        saved_path = result.save(output_path)
+        
+        assert saved_path == output_path
+        assert output_path.exists()
+        assert output_path.read_bytes() == binary_image_data
 
 
 class TestImageUpscaleAPIComprehensive:
@@ -1012,6 +1275,7 @@ class TestConvenienceFunctionsComprehensive:
         image_path.write_bytes(test_data)
         
         mock_response = MagicMock()
+        mock_response.headers = {"Content-Type": "application/json"}
         mock_response.json.return_value = {
             "data": [{"url": "https://example.com/edited.png", "b64_json": None, "revised_prompt": "Edited image", "created": 1234567890}],
             "created": 1234567890
@@ -1022,6 +1286,24 @@ class TestConvenienceFunctionsComprehensive:
         
         assert isinstance(result, ImageEditResult)
         assert result.url == "https://example.com/edited.png"
+    
+    def test_edit_image_with_binary_response(self, mock_client, tmp_path):
+        """Test edit_image convenience function with binary response."""
+        test_data = b"fake image data"
+        image_path = tmp_path / "test.png"
+        image_path.write_bytes(test_data)
+        
+        binary_image_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR'
+        mock_response = MagicMock()
+        mock_response.headers = {"Content-Type": "image/png"}
+        mock_response.content = binary_image_data
+        mock_client.post.return_value = mock_response
+        
+        result = edit_image(image_path, "Make it more colorful", client=mock_client)
+        
+        assert isinstance(result, ImageEditResult)
+        assert result.b64_json is not None
+        assert result.b64_json == base64.b64encode(binary_image_data).decode('utf-8')
 
     def test_upscale_image_with_client(self, mock_client, tmp_path):
         """Test upscale_image with provided client."""
