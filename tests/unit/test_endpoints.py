@@ -20,20 +20,24 @@ class TestImageEndpoints:
     def test_image_endpoints_constants(self):
         """Test that all image endpoint constants are defined correctly."""
         assert ImageEndpoints.GENERATIONS == "/images/generations"
-        assert ImageEndpoints.EDIT == "/images/edit"
+        assert ImageEndpoints.EDIT == "/image/edit"
         assert ImageEndpoints.UPSCALE == "/images/upscale"
         assert ImageEndpoints.STYLES == "/images/styles"
     
-    def test_image_endpoints_consistency(self):
-        """Test that all image endpoints use consistent /images/ prefix."""
-        endpoints = [
+    def test_edit_endpoint_is_singular(self):
+        """Test that the edit endpoint uses singular /image/ path as per API spec."""
+        assert ImageEndpoints.EDIT == "/image/edit"
+        assert ImageEndpoints.EDIT.startswith("/image/")
+    
+    def test_other_image_endpoints_use_plural(self):
+        """Test that other image endpoints use plural /images/ prefix."""
+        plural_endpoints = [
             ImageEndpoints.GENERATIONS,
-            ImageEndpoints.EDIT,
             ImageEndpoints.UPSCALE,
             ImageEndpoints.STYLES
         ]
         
-        for endpoint in endpoints:
+        for endpoint in plural_endpoints:
             assert endpoint.startswith("/images/"), f"Endpoint {endpoint} should start with /images/"
 
 

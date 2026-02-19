@@ -316,70 +316,54 @@ class ImageEditAPI:
         self,
         image: Union[str, bytes, Path],
         prompt: str,
-        model: str = "dall-e-2-edit",
-        mask: Optional[Union[str, bytes, Path]] = None,
-        n: int = 1,
-        size: Optional[str] = None,
-        response_format: str = "url",
-        user: Optional[str] = None,
         **kwargs: Any
-    ) -> Union[ImageEditResult, List[ImageEditResult]]:
+    ) -> ImageEditResult:
         """
         Edit an existing image using text prompts.
         
         Args:
             image: Image to edit (URL, file path, or bytes)
             prompt: Text description of desired edits
-            model: Model to use for editing
-            mask: Optional mask image for selective editing
-            n: Number of edited images to generate
-            size: Output image dimensions
-            response_format: Response format ("url" or "b64_json")
-            user: User identifier for tracking
             **kwargs: Additional parameters
             
         Returns:
-            Single ImageEditResult or list of ImageEditResults
+            ImageEditResult with the edited image
         """
         data = {
-            "model": model,
             "image": self._encode_image(image),
             "prompt": prompt,
-            "n": n,
-            "response_format": response_format,
             **kwargs
         }
         
-        if mask:
-            data["mask"] = self._encode_image(mask)
-        if size:
-            data["size"] = size
-        if user:
-            data["user"] = user
-        
-        logger.debug(
-            "Image edit request (model=%s, mask=%s, response_format=%s)",
-            model,
-            mask is not None,
-            response_format,
-        )
+        logger.debug("Image edit request (prompt=%s)", prompt)
         response = self.client.post(ImageEndpoints.EDIT, data=data)
-        result = response.json()
         
-        if "data" not in result:
-            raise ImageGenerationError("Invalid response format from image edit API")
-        
-        images = []
-        for item in result["data"]:
-            images.append(ImageEditResult(
-                url=item.get("url"),
-                b64_json=item.get("b64_json"),
-                revised_prompt=item.get("revised_prompt"),
-                created=result.get("created")
-            ))
-        
-        logger.debug("Image edit produced %s image(s)", len(images))
-        return images[0] if len(images) == 1 else images
+        # Check if response is binary image data (case-insensitive check)
+        content_type = response.headers.get('Content-Type', '').lower()
+        if 'image/' in content_type:
+            # Binary image response - convert to base64
+            image_data = response.content
+            b64_data = base64.b64encode(image_data).decode('utf-8')
+            logger.debug("Image edit completed, received binary image")
+            return ImageEditResult(b64_json=b64_data)
+        else:
+            # JSON response
+            result = response.json()
+            
+            if "data" not in result:
+                raise ImageGenerationError("Invalid response format from image edit API")
+            
+            images = []
+            for item in result["data"]:
+                images.append(ImageEditResult(
+                    url=item.get("url"),
+                    b64_json=item.get("b64_json"),
+                    revised_prompt=item.get("revised_prompt"),
+                    created=result.get("created")
+                ))
+            
+            logger.debug("Image edit produced %s image(s)", len(images))
+            return images[0] if len(images) == 1 else images
 
 
 class ImageUpscaleAPI:

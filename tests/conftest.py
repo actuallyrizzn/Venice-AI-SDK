@@ -81,9 +81,9 @@ def _live_environment_ok() -> Tuple[bool, str]:
     return _LIVE_ENV_CHECK
 
 
-def pytest_ignore_collect(path, config):  # type: ignore[no-untyped-def]
+def pytest_ignore_collect(collection_path, config):  # type: ignore[no-untyped-def]
     # Avoid importing live test modules (and their extra deps) unless explicitly enabled.
-    if "tests/live" in str(path):
+    if "tests/live" in str(collection_path):
         ok, _reason = _live_environment_ok()
         return not ok
     return False

@@ -10,7 +10,7 @@ class ImageEndpoints:
     """Image-related API endpoints."""
     
     GENERATIONS = "/images/generations"
-    EDIT = "/images/edit"
+    EDIT = "/image/edit"
     UPSCALE = "/images/upscale"
     STYLES = "/images/styles"
 
