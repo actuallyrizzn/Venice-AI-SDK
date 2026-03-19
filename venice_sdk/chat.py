@@ -76,6 +76,7 @@ class ChatAPI:
         stream: bool = False,
         tools: Optional[List[JSONDict]] = None,
         venice_parameters: Optional[JSONDict] = None,
+        prompt_cache_key: Optional[str] = None,
         # Additional parameters from Swagger spec
         frequency_penalty: Optional[float] = None,
         logprobs: Optional[bool] = None,
@@ -102,7 +103,11 @@ class ChatAPI:
             temperature: Sampling temperature (0-1)
             stream: Whether to stream the response
             tools: Optional list of tools for function calling
-            venice_parameters: Optional Venice-specific parameters (e.g., include_venice_system_prompt)
+            venice_parameters: Optional Venice-specific parameters. Supported keys include:
+                character_slug, include_venice_system_prompt, enable_web_search ("off"|"on"|"auto"),
+                strip_thinking_response, disable_thinking, enable_web_scraping, enable_x_search,
+                enable_web_citations, include_search_results_in_stream,
+                return_search_results_as_documents.
             frequency_penalty: Number between -2.0 and 2.0. Positive values penalize new tokens based on frequency
             logprobs: Whether to include log probabilities in the response
             top_logprobs: Number of highest probability tokens to return for each token position
@@ -117,6 +122,7 @@ class ChatAPI:
             stop: Up to 4 sequences where the API will stop generating
             stop_token_ids: Array of token IDs where the API will stop generating
             stream_options: Options for streaming (e.g., include_usage)
+            prompt_cache_key: Optional routing hint for prompt caching (improves cache hit rates)
             **kwargs: Additional optional parameters to pass through
 
         Returns:
@@ -180,6 +186,7 @@ class ChatAPI:
         optional_params = {
             "tools": tools,
             "venice_parameters": venice_parameters,
+            "prompt_cache_key": prompt_cache_key,
             "frequency_penalty": frequency_penalty,
             "logprobs": logprobs,
             "top_logprobs": top_logprobs,

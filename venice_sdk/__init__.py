@@ -54,11 +54,15 @@ from .images import (
     generate_image,
     edit_image,
     upscale_image,
+    multi_edit_image,
+    remove_background,
 )
 from .audio import (
     Voice,
     AudioResult,
     AudioAPI,
+    MusicJob,
+    MusicAPI,
     AudioBatchProcessor,
     text_to_speech,
     text_to_speech_file,
@@ -112,13 +116,14 @@ from .embeddings import (
     calculate_similarity,
     generate_embeddings,
 )
+from .tee import TEEAPI
 from .logging_config import setup_logging
 
 _root_logger = logging.getLogger("venice_sdk")
 if not any(isinstance(handler, logging.NullHandler) for handler in _root_logger.handlers):
     _root_logger.addHandler(logging.NullHandler())
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 __all__ = [
     # Core client
@@ -173,11 +178,15 @@ __all__ = [
     "generate_image",
     "edit_image",
     "upscale_image",
+    "multi_edit_image",
+    "remove_background",
     
     # Audio
     "Voice",
     "AudioResult",
     "AudioAPI",
+    "MusicJob",
+    "MusicAPI",
     "AudioBatchProcessor",
     "text_to_speech",
     "text_to_speech_file",
@@ -230,6 +239,9 @@ __all__ = [
     "generate_embedding",
     "calculate_similarity",
     "generate_embeddings",
+
+    # TEE
+    "TEEAPI",
 
     # Logging
     "setup_logging",

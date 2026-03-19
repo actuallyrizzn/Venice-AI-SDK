@@ -11,6 +11,8 @@ class ImageEndpoints:
     
     GENERATIONS = "/images/generations"
     EDIT = "/image/edit"
+    MULTI_EDIT = "/image/multi-edit"
+    BACKGROUND_REMOVE = "/image/background-remove"
     UPSCALE = "/images/upscale"
     STYLES = "/images/styles"
 
@@ -36,6 +38,10 @@ class AudioEndpoints:
     """Audio-related API endpoints."""
     
     SPEECH = "/audio/speech"
+    QUEUE = "/audio/queue"
+    RETRIEVE = "/audio/retrieve"
+    QUOTE = "/audio/quote"
+    COMPLETE = "/audio/complete"
 
 
 class CharactersEndpoints:
@@ -64,3 +70,10 @@ class VideoEndpoints:
     RETRIEVE = "/video/retrieve"
     QUOTE = "/video/quote"
     COMPLETE = "/video/complete"
+
+
+class TEEEndpoints:
+    """TEE (Trusted Execution Environment) API endpoints."""
+    
+    ATTESTATION = "/tee/attestation"
+    SIGNATURE = "/tee/signature"

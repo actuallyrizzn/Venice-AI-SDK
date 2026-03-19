@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import io
 import logging
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union, Generator
 
 from .client import HTTPClient
 from .errors import VeniceAPIError, AudioGenerationError
+from .endpoints import AudioEndpoints
 from ._http import ensure_http_client
 
 try:
@@ -305,6 +307,185 @@ class AudioAPI:
             "ogg": 44100
         }
         return sample_rates.get(format.lower())
+
+
+@dataclass
+class MusicJob:
+    """Result of queuing a music/audio generation job."""
+    queue_id: str
+    model: str
+    status: str
+
+
+class MusicAPI:
+    """
+    Music and long-form audio generation API (async queue/retrieve/quote/complete).
+
+    Use for music and sound effects generation. For text-to-speech, use AudioAPI.speech instead.
+    """
+
+    def __init__(self, client: HTTPClient):
+        self.client = client
+
+    def queue(
+        self,
+        model: str,
+        prompt: str,
+        lyrics_prompt: Optional[str] = None,
+        duration_seconds: Optional[Union[int, str]] = None,
+        force_instrumental: Optional[bool] = None,
+        voice: Optional[str] = None,
+        language_code: Optional[str] = None,
+        speed: Optional[float] = None,
+        **kwargs: Any
+    ) -> MusicJob:
+        """
+        Queue a music/audio generation job. Poll with retrieve() until complete.
+
+        Args:
+            model: Model ID (e.g. elevenlabs-music). Use /models?type=music for list.
+            prompt: Text description of the audio to generate.
+            lyrics_prompt: Optional lyrics for lyric-capable models.
+            duration_seconds: Optional duration hint in seconds.
+            force_instrumental: Optional; only when model supports it.
+            voice: Optional voice for voice-enabled models.
+            language_code: Optional ISO 639-1 language code.
+            speed: Optional speed multiplier (0.25–4). Model-specific.
+            **kwargs: Additional parameters.
+
+        Returns:
+            MusicJob with queue_id, model, status (e.g. QUEUED).
+        """
+        data: Dict[str, Any] = {"model": model, "prompt": prompt, **kwargs}
+        if lyrics_prompt is not None:
+            data["lyrics_prompt"] = lyrics_prompt
+        if duration_seconds is not None:
+            data["duration_seconds"] = duration_seconds
+        if force_instrumental is not None:
+            data["force_instrumental"] = force_instrumental
+        if voice is not None:
+            data["voice"] = voice
+        if language_code is not None:
+            data["language_code"] = language_code
+        if speed is not None:
+            data["speed"] = speed
+        response = self.client.post(AudioEndpoints.QUEUE, data=data)
+        result = response.json()
+        return MusicJob(
+            queue_id=result["queue_id"],
+            model=result.get("model", model),
+            status=result.get("status", "QUEUED"),
+        )
+
+    def retrieve(
+        self,
+        model: str,
+        queue_id: str,
+        delete_media_on_completion: bool = False,
+    ) -> Union[Dict[str, Any], AudioResult]:
+        """
+        Get status or result of a music generation job. When complete, returns audio as AudioResult.
+
+        Args:
+            model: Model ID used when queuing.
+            queue_id: Job ID from queue().
+            delete_media_on_completion: If True, media is deleted after retrieval.
+
+        Returns:
+            If still processing: dict with status, average_execution_time, execution_duration.
+            If complete: AudioResult with audio data.
+        """
+        data = {
+            "model": model,
+            "queue_id": queue_id,
+            "delete_media_on_completion": delete_media_on_completion,
+        }
+        response = self.client.post(AudioEndpoints.RETRIEVE, data=data)
+        content_type = (response.headers.get("Content-Type") or "").lower()
+        if "audio/" in content_type:
+            fmt = "mp3"
+            if "wav" in content_type:
+                fmt = "wav"
+            elif "flac" in content_type:
+                fmt = "flac"
+            return AudioResult(audio_data=response.content, format=fmt)
+        result = response.json()
+        if response.status_code >= 400:
+            raise AudioGenerationError(result.get("error", "Retrieve failed"))
+        return result
+
+    def quote(
+        self,
+        model: str,
+        prompt: str,
+        lyrics_prompt: Optional[str] = None,
+        duration_seconds: Optional[Union[int, str]] = None,
+        **kwargs: Any
+    ) -> Dict[str, Any]:
+        """
+        Get a cost estimate for a music generation request (no job is created).
+
+        Args:
+            model: Model ID.
+            prompt: Prompt describing the audio.
+            lyrics_prompt: Optional lyrics.
+            duration_seconds: Optional duration hint.
+            **kwargs: Additional parameters.
+
+        Returns:
+            Dict with estimated cost and pricing details.
+        """
+        data: Dict[str, Any] = {"model": model, "prompt": prompt, **kwargs}
+        if lyrics_prompt is not None:
+            data["lyrics_prompt"] = lyrics_prompt
+        if duration_seconds is not None:
+            data["duration_seconds"] = duration_seconds
+        response = self.client.post(AudioEndpoints.QUOTE, data=data)
+        return response.json()
+
+    def complete(
+        self,
+        model: str,
+        prompt: str,
+        lyrics_prompt: Optional[str] = None,
+        duration_seconds: Optional[Union[int, str]] = None,
+        timeout: Optional[int] = None,
+        **kwargs: Any
+    ) -> AudioResult:
+        """
+        Synchronous music generation: queues the job and waits for the result.
+
+        Args:
+            model: Model ID.
+            prompt: Prompt describing the audio.
+            lyrics_prompt: Optional lyrics.
+            duration_seconds: Optional duration hint.
+            timeout: Max seconds to wait (default from client config).
+            **kwargs: Additional parameters for queue.
+
+        Returns:
+            AudioResult when generation completes.
+        """
+        job = self.queue(
+            model=model,
+            prompt=prompt,
+            lyrics_prompt=lyrics_prompt,
+            duration_seconds=duration_seconds,
+            **kwargs,
+        )
+        wait = 5
+        deadline = (time.time() + timeout) if timeout else None
+        if deadline is None:
+            deadline = time.time() + (self.client.config.timeout or 300)
+        while True:
+            result = self.retrieve(model=model, queue_id=job.queue_id)
+            if isinstance(result, AudioResult):
+                return result
+            if isinstance(result, dict) and result.get("status") not in ("QUEUED", "PROCESSING"):
+                raise AudioGenerationError(f"Job ended with status: {result.get('status', 'unknown')}")
+            if time.time() > deadline:
+                raise AudioGenerationError("Music generation timed out")
+            time.sleep(wait)
 
 
 class AudioBatchProcessor:

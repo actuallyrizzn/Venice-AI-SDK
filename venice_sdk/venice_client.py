@@ -14,8 +14,9 @@ from .config import Config, load_config
 from .chat import ChatAPI
 from .models import ModelsAPI
 from .images import ImageAPI, ImageEditAPI, ImageUpscaleAPI, ImageStylesAPI
-from .audio import AudioAPI
+from .audio import AudioAPI, MusicAPI
 from .video import VideoAPI
+from .tee import TEEAPI
 from .characters import CharactersAPI
 from .account import APIKeysAPI, BillingAPI, AccountManager
 from .models_advanced import ModelsTraitsAPI, ModelsCompatibilityAPI
@@ -58,8 +59,9 @@ class VeniceClient:
         self.image_upscale = ImageUpscaleAPI(self._http_client)
         self.image_styles = ImageStylesAPI(self._http_client)
         
-        # Audio services
+        # Audio services (TTS + music generation)
         self.audio = AudioAPI(self._http_client)
+        self.music = MusicAPI(self._http_client)
         
         # Video generation
         self.video = VideoAPI(self._http_client)
@@ -77,6 +79,9 @@ class VeniceClient:
         
         # Embeddings
         self.embeddings = EmbeddingsAPI(self._http_client)
+        
+        # TEE attestation and signature verification
+        self.tee = TEEAPI(self._http_client)
     
     @property
     def http_client(self) -> HTTPClient:

@@ -7,11 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-19
+
+### Added
+- **Image multi-edit**: `ImageEditAPI.multi_edit()` and `multi_edit_image()` for editing with 1–3 layered images (base + masks/overlays) via `/image/multi-edit`.
+- **Image background remove**: `ImageEditAPI.remove_background()` and `remove_background()` for AI background removal via `/image/background-remove`.
+- **Music generation API**: `MusicAPI` with `queue()`, `retrieve()`, `quote()`, and `complete()` for async music/sound-effect generation (`/audio/queue`, `/audio/retrieve`, `/audio/quote`, `/audio/complete`). Exposed as `client.music`.
+- **TEE API**: `TEEAPI` with `attestation()` and `signature()` for Trusted Execution Environment verification. Exposed as `client.tee`.
+- **Chat**: Optional `prompt_cache_key` parameter for prompt caching, and expanded docstring for `venice_parameters` (e.g. `enable_web_search`, `enable_web_scraping`, `enable_x_search`, `strip_thinking_response`, `disable_thinking`, `enable_web_citations`, etc.).
+
+### Changed
+- Endpoints: added `ImageEndpoints.MULTI_EDIT`, `BACKGROUND_REMOVE`; `AudioEndpoints.QUEUE`, `RETRIEVE`, `QUOTE`, `COMPLETE`; `TEEEndpoints.ATTESTATION`, `SIGNATURE`.
+
+## [0.2.1] - 2025-01-22
+
 ### Changed
 - Added explicit upper bounds to all runtime, developer, documentation, and publishing dependencies to prevent breaking changes from surprise major upgrades.
 - Documented the new dependency version policy in `docs/installation.md` so contributors understand how we validate new ranges.
-
-## [0.2.1] - 2025-01-22
 
 ### Added
 - **Token Counting Encoder Override**: Added optional `encoder` and `model` parameters to `count_tokens()` function for flexible token counting

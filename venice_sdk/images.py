@@ -365,6 +365,98 @@ class ImageEditAPI:
             logger.debug("Image edit produced %s image(s)", len(images))
             return images[0] if len(images) == 1 else images
 
+    def multi_edit(
+        self,
+        images: List[Union[str, bytes, Path]],
+        prompt: str,
+        model_id: str = "qwen-edit",
+        **kwargs: Any
+    ) -> ImageEditResult:
+        """
+        Edit or modify an image using up to three layered inputs (base image plus masks/overlays).
+
+        The first image is the base image; the remaining images are used as edit layers/masks.
+        Each image can be a URL, file path, or bytes. Returns PNG with transparent background
+        where applicable.
+
+        Args:
+            images: List of 1–3 images (URL, path, or bytes). First = base, rest = layers/masks.
+            prompt: Text directions for the edit (e.g. "remove the tree", "change the sky to sunrise").
+            model_id: Model to use (e.g. qwen-edit, flux-2-max-edit, gpt-image-1-5-edit).
+            **kwargs: Additional parameters.
+
+        Returns:
+            ImageEditResult with the edited image (PNG).
+        """
+        if not 1 <= len(images) <= 3:
+            raise ValueError("images must contain 1 to 3 images")
+        if not prompt or not prompt.strip():
+            raise ValueError("prompt cannot be empty")
+        encoded: List[str] = []
+        for i, img in enumerate(images):
+            if isinstance(img, str) and (img.startswith("http://") or img.startswith("https://")):
+                encoded.append(img)
+            else:
+                encoded.append(self._encode_image(img))
+        data: Dict[str, Any] = {
+            "prompt": prompt,
+            "images": encoded,
+            "modelId": model_id,
+            **kwargs,
+        }
+        logger.debug("Image multi-edit request (model_id=%s, num_images=%s)", model_id, len(images))
+        response = self.client.post(ImageEndpoints.MULTI_EDIT, data=data)
+        content_type = response.headers.get("Content-Type", "").lower()
+        if "image/" in content_type:
+            b64_data = base64.b64encode(response.content).decode("utf-8")
+            return ImageEditResult(b64_json=b64_data)
+        try:
+            err = response.json()
+            raise ImageGenerationError(err.get("error", "Multi-edit failed"))
+        except Exception:
+            raise ImageGenerationError("Multi-edit failed with non-image response")
+
+    def remove_background(
+        self,
+        image: Optional[Union[str, bytes, Path]] = None,
+        image_url: Optional[str] = None,
+        **kwargs: Any
+    ) -> ImageEditResult:
+        """
+        Remove the background from an image. Returns a PNG with transparent background.
+
+        Provide either image (file path, bytes, or base64 string) or image_url, not both.
+
+        Args:
+            image: Image as file path, bytes, or data-URL/base64 string.
+            image_url: Public URL of the image (http/https).
+            **kwargs: Additional parameters.
+
+        Returns:
+            ImageEditResult with the PNG (transparent background).
+        """
+        if image is None and not image_url:
+            raise ValueError("Provide either image or image_url")
+        if image is not None and image_url:
+            raise ValueError("Provide only one of image or image_url")
+        data: Dict[str, Any] = {}
+        if image_url:
+            data["image_url"] = image_url
+        else:
+            data["image"] = self._encode_image(image)
+        data.update(kwargs)
+        logger.debug("Image background-remove request")
+        response = self.client.post(ImageEndpoints.BACKGROUND_REMOVE, data=data)
+        content_type = response.headers.get("Content-Type", "").lower()
+        if "image/" in content_type:
+            b64_data = base64.b64encode(response.content).decode("utf-8")
+            return ImageEditResult(b64_json=b64_data)
+        try:
+            err = response.json()
+            raise ImageGenerationError(err.get("error", "Background remove failed"))
+        except Exception:
+            raise ImageGenerationError("Background remove failed with non-image response")
+
 
 class ImageUpscaleAPI:
     """Image upscaling API client."""
@@ -563,3 +655,27 @@ def upscale_image(
     http_client = ensure_http_client(client)
     api = ImageUpscaleAPI(http_client)
     return api.upscale(image, **kwargs)
+
+
+def multi_edit_image(
+    images: List[Union[str, bytes, Path]],
+    prompt: str,
+    client: Optional[HTTPClient] = None,
+    **kwargs: Any
+) -> ImageEditResult:
+    """Convenience function to multi-edit an image (1–3 layers)."""
+    http_client = ensure_http_client(client)
+    api = ImageEditAPI(http_client)
+    return api.multi_edit(images, prompt, **kwargs)
+
+
+def remove_background(
+    image: Optional[Union[str, bytes, Path]] = None,
+    image_url: Optional[str] = None,
+    client: Optional[HTTPClient] = None,
+    **kwargs: Any
+) -> ImageEditResult:
+    """Convenience function to remove the background from an image."""
+    http_client = ensure_http_client(client)
+    api = ImageEditAPI(http_client)
+    return api.remove_background(image=image, image_url=image_url, **kwargs)
