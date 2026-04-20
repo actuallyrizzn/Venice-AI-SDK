@@ -27,14 +27,48 @@ import requests
 BASE = os.environ.get("VENICE_API_BASE", "https://api.venice.ai/api/v1").rstrip("/")
 
 
+def _infer_key_from_venice_key_md(path: str) -> str:
+    """Parse `VENICE_IMAGE_ANALYSIS_API_KEY=...` from athena-venice-usage/venice_key.md."""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("VENICE_IMAGE_ANALYSIS_API_KEY="):
+                    return line.split("=", 1)[1].strip().strip('"').strip("'")
+    except OSError:
+        pass
+    return ""
+
+
+def _default_workspace_venice_key_md() -> str:
+    """projects/athena-venice-usage/venice_key.md relative to this script."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    return os.path.normpath(
+        os.path.join(here, "..", "..", "athena-venice-usage", "venice_key.md")
+    )
+
+
 def _load_key() -> str:
-    key = (os.environ.get("VENICE_API_KEY") or "").strip()
-    if key:
-        return key
+    env = (os.environ.get("VENICE_API_KEY") or "").strip()
+    file_key = ""
+    auto = _default_workspace_venice_key_md()
+    if os.path.isfile(auto):
+        file_key = _infer_key_from_venice_key_md(auto)
+    # Short values in .env are often placeholders; prefer workspace inference key.
+    if file_key and len(env) < 24:
+        return file_key
+    if env:
+        return env
     path = (os.environ.get("VENICE_API_KEY_FILE") or "").strip()
     if path and os.path.isfile(path):
-        with open(path, "r", encoding="utf-8") as f:
-            return f.read().strip()
+        raw = open(path, "r", encoding="utf-8").read().strip()
+        if "VENICE_IMAGE_ANALYSIS_API_KEY=" in raw or "VENICE_API_KEY=" in raw:
+            k = _infer_key_from_venice_key_md(path)
+            if k:
+                return k
+        return raw
+    if file_key:
+        return file_key
     return ""
 
 
@@ -101,7 +135,7 @@ def chat_once(
     session: requests.Session,
     model: str,
     messages: List[Dict[str, str]],
-    max_tokens: int = 256,
+    max_tokens: int = 512,
     temperature: float = 0.1,
 ) -> Tuple[int, Dict[str, Any], float]:
     url = f"{BASE}/chat/completions"
@@ -227,14 +261,12 @@ def main() -> int:
 
     key = _load_key()
     if not key:
-        print("Missing VENICE_API_KEY (or VENICE_API_KEY_FILE).", file=sys.stderr)
-        return 2
-    if len(key) < 24:
         print(
-            "VENICE_API_KEY looks too short for a live Venice token; "
-            "expect failures. Replace with a dashboard key, then re-run.",
+            "Missing VENICE_API_KEY. Set env, or VENICE_API_KEY_FILE, or place "
+            "projects/athena-venice-usage/venice_key.md with VENICE_IMAGE_ANALYSIS_API_KEY.",
             file=sys.stderr,
         )
+        return 2
 
     session = requests.Session()
     session.headers.update(
@@ -318,7 +350,7 @@ def main() -> int:
                 {"role": "system", "content": enrich_sys},
                 {"role": "user", "content": enrich_user},
             ],
-            max_tokens=384,
+            max_tokens=1024,
         )
         content = ""
         if status == 200 and isinstance(data, dict):
