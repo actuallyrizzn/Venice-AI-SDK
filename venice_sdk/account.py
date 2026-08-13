@@ -144,7 +144,7 @@ class APIKeysAPI:
             if "not found" in str(e).lower():
                 return None
             raise
-        except APIKeyError:
+        except APIKeyError:  # pragma: no cover - APIKeyError subclasses VeniceAPIError
             return None
     
     def create(self, name: str, permissions: Optional[List[str]] = None, expires_in_days: Optional[int] = None) -> APIKey:

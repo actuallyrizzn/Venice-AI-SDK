@@ -690,8 +690,51 @@ class TestVideoAPIComprehensive:
         
         assert "duration" in valid
         assert "aspect_ratio" in valid
+        assert "combinations" in valid
         assert isinstance(valid["duration"], list)
         assert isinstance(valid["aspect_ratio"], list)
+        assert isinstance(valid["combinations"], list)
+        assert {"duration": "4s", "aspect_ratio": "16:9"} in valid["combinations"]
+        assert {"duration": "8s", "aspect_ratio": "9:16"} in valid["combinations"]
+        # Independent axes still populated from the full grid
+        assert set(valid["duration"]) == {"4s", "8s", "12s"}
+        assert set(valid["aspect_ratio"]) == {"16:9", "9:16"}
+
+    def test_cleanup_posts_video_complete(self, mock_client):
+        """cleanup() hits POST /video/complete with queue_id + model."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"success": True}
+        mock_client.post.return_value = mock_response
+
+        api = VideoAPI(mock_client)
+        out = api.cleanup(queue_id="q1", model="m1")
+        assert out["success"] is True
+        mock_client.post.assert_called_once_with(
+            VideoEndpoints.COMPLETE,
+            data={"queue_id": "q1", "model": "m1"},
+        )
+
+    def test_cleanup_requires_ids(self, mock_client):
+        api = VideoAPI(mock_client)
+        with pytest.raises(VideoGenerationError):
+            api.cleanup(queue_id="", model="m")
+        with pytest.raises(VideoGenerationError):
+            api.cleanup(queue_id="q", model="")
+
+    def test_cleanup_error_paths(self, mock_client):
+        api = VideoAPI(mock_client)
+        mock_client.post.side_effect = VeniceAPIError("denied", status_code=403)
+        with pytest.raises(VeniceAPIError):
+            api.cleanup(queue_id="q1", model="m1")
+
+        mock_client.post.side_effect = RuntimeError("boom")
+        with pytest.raises(VideoGenerationError, match="Failed to complete video job"):
+            api.cleanup(queue_id="q1", model="m1")
+
+        mock_client.post.side_effect = None
+        resp = MagicMock(spec=[])  # no json attr
+        mock_client.post.return_value = resp
+        assert api.cleanup(queue_id="q1", model="m1") == {}
 
     def test_retrieve_success(self, mock_client):
         """Test successful video retrieval."""
@@ -705,10 +748,10 @@ class TestVideoAPIComprehensive:
             "completed_at": "2024-01-01T00:00:10Z"
         }
         mock_client.post.return_value = mock_response
-        
+
         api = VideoAPI(mock_client)
         job = api.retrieve("job_123", model="kling-2.6-pro-text-to-video")
-        
+
         assert job.job_id == "job_123"
         assert job.status == "completed"
         assert job.video_url == "https://example.com/video.mp4"

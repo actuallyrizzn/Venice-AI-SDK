@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Clarified that `VideoAPI.complete()` is the sync queue+wait helper (music-parity). Venice job cleanup is `VideoAPI.cleanup()` → `POST /video/complete` (#66).
+
+### Changed
+- `VideoAPI.get_valid_parameters()` now probes the full duration × aspect_ratio grid and returns `combinations` with every valid pair (#65).
+
+### Tests
+- Unit + integration coverage of `venice_sdk` brought to 100%.
+
 ## [0.3.1] - 2026-08-13
 
 ### Fixed

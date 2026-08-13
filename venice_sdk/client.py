@@ -259,7 +259,7 @@ class HTTPClient:
                 extra_context=error_context_extra,
                 cause=parse_error,
             )
-            return response
+            return response  # pragma: no cover - handle_api_error always raises
 
         logger.debug(
             "HTTP %s %s succeeded with status %s (stream=%s)",

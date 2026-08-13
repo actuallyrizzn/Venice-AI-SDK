@@ -307,57 +307,56 @@ class VideoAPI:
         image: Optional[Union[str, bytes, Path]] = None,
     ) -> Dict[str, Any]:
         """
-        Discover valid duration and aspect_ratio combinations for a model.
-        
-        This method tries common parameter combinations and returns valid ones.
-        Uses the free quote API for validation.
-        
+        Discover valid duration and aspect_ratio values for a model.
+
+        Probes the free quote API across common duration × aspect_ratio pairs and
+        returns:
+
+        - ``duration`` / ``aspect_ratio``: unique values that appear in at least one
+          valid pair
+        - ``combinations``: every valid ``(duration, aspect_ratio)`` pair found
+
         Args:
             model: Video model ID
             prompt: Text prompt (required for text-to-video)
             image: Image file (required for image-to-video)
-            
+
         Returns:
-            Dictionary with 'duration' and 'aspect_ratio' keys containing lists of valid values
-            
+            Dictionary with ``duration``, ``aspect_ratio``, and ``combinations`` keys
+
         Example:
             >>> valid = video.get_valid_parameters("sora-2-text-to-video", prompt="test")
-            >>> print(valid)
-            {'duration': ['4s', '8s', '12s'], 'aspect_ratio': ['16:9', '9:16']}
+            >>> print(valid["combinations"])
+            [{'duration': '4s', 'aspect_ratio': '16:9'}, ...]
         """
         common_durations = ["4s", "5s", "6s", "8s", "10s", "12s"]
         common_aspect_ratios = ["16:9", "9:16", "1:1", "4:3"]
-        
-        valid_durations = []
-        valid_aspect_ratios = []
-        
-        # Test each duration with a common aspect ratio
-        test_aspect_ratio = "16:9"
+
+        combinations: List[Dict[str, str]] = []
+        valid_durations: List[str] = []
+        valid_aspect_ratios: List[str] = []
+
         for duration in common_durations:
-            if self._validate_with_quote(
-                model=model,
-                prompt=prompt,
-                image=image,
-                duration=duration,
-                aspect_ratio=test_aspect_ratio,
-            ):
-                valid_durations.append(duration)
-        
-        # Test each aspect ratio with a valid duration (or first common one)
-        test_duration = valid_durations[0] if valid_durations else common_durations[0]
-        for aspect_ratio in common_aspect_ratios:
-            if self._validate_with_quote(
-                model=model,
-                prompt=prompt,
-                image=image,
-                duration=test_duration,
-                aspect_ratio=aspect_ratio,
-            ):
-                valid_aspect_ratios.append(aspect_ratio)
-        
+            for aspect_ratio in common_aspect_ratios:
+                if self._validate_with_quote(
+                    model=model,
+                    prompt=prompt,
+                    image=image,
+                    duration=duration,
+                    aspect_ratio=aspect_ratio,
+                ):
+                    combinations.append(
+                        {"duration": duration, "aspect_ratio": aspect_ratio}
+                    )
+                    if duration not in valid_durations:
+                        valid_durations.append(duration)
+                    if aspect_ratio not in valid_aspect_ratios:
+                        valid_aspect_ratios.append(aspect_ratio)
+
         return {
             "duration": valid_durations,
             "aspect_ratio": valid_aspect_ratios,
+            "combinations": combinations,
         }
     
     def queue(
@@ -588,8 +587,8 @@ class VideoAPI:
             except (ValueError, requests.exceptions.JSONDecodeError) as json_error:
                 # If JSON parsing fails, check if it might be a video file we missed
                 error_str = str(json_error)
-                if ("Expecting value" in error_str or "JSONDecodeError" in error_str) and len(content) > 1000:
-                    # Check for MP4 magic bytes as fallback
+                if ("Expecting value" in error_str or "JSONDecodeError" in error_str) and len(content) > 1000:  # pragma: no cover
+                    # Unreachable when earlier magic-byte detection already classified the payload.
                     if content[:4] in (b'\x00\x00\x00\x18', b'\x00\x00\x00 ', b'\x00\x00\x00\x20'):
                         if len(content) > 8 and content[4:8] == b'ftyp':
                             logger.info("Detected binary video response (MP4 magic bytes, fallback detection)")
@@ -684,7 +683,7 @@ class VideoAPI:
             
             job = self.retrieve(job_id, model=retrieve_model)
             # Update stored model from job response if available
-            if job.model and not stored_model:
+            if job.model and not stored_model:  # pragma: no cover - model required above
                 stored_model = job.model
             poll_count += 1
             
@@ -821,6 +820,44 @@ class VideoAPI:
         except Exception as e:
             raise VideoGenerationError(f"Failed to get video quote: {e}") from e
     
+    def cleanup(
+        self,
+        queue_id: str,
+        model: str,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """
+        Mark a finished video job complete on Venice (``POST /video/complete``).
+
+        This is the cleanup call that frees server-side resources for a ``queue_id``.
+        It does **not** queue a new generation. For synchronous generate-and-wait,
+        use :meth:`complete`.
+
+        Args:
+            queue_id: Queue / job ID returned by :meth:`queue`
+            model: Model ID used when the job was queued
+            **kwargs: Additional body fields if Venice adds any
+
+        Returns:
+            Parsed JSON response from the complete endpoint
+
+        Raises:
+            VideoGenerationError: If the cleanup request fails
+        """
+        if not queue_id:
+            raise VideoGenerationError("queue_id is required")
+        if not model:
+            raise VideoGenerationError("model is required")
+
+        data: Dict[str, Any] = {"queue_id": queue_id, "model": model, **kwargs}
+        try:
+            response = self.client.post(VideoEndpoints.COMPLETE, data=data)
+            return response.json() if hasattr(response, "json") else {}
+        except VeniceAPIError:
+            raise
+        except Exception as e:
+            raise VideoGenerationError(f"Failed to complete video job: {e}") from e
+
     def complete(
         self,
         model: str,
@@ -840,11 +877,11 @@ class VideoAPI:
     ) -> VideoJob:
         """
         Generate a video synchronously (queue and wait for completion).
-        
-        This method combines queue and retrieve in a single call, waiting for
-        the video to be generated before returning. For production use, consider
-        using the async queue/retrieve pattern instead.
-        
+
+        This matches the music API's ``complete()`` helper: it queues a new job and
+        waits. It does **not** call Venice's ``POST /video/complete`` cleanup endpoint —
+        use :meth:`cleanup` for that.
+
         Args:
             model: Video model ID
             prompt: Text description of the video (required for text-to-video)
@@ -860,10 +897,10 @@ class VideoAPI:
             guidance_scale: How closely to follow the prompt
             timeout: Maximum seconds to wait (default: 900 = 15 minutes)
             **kwargs: Additional parameters
-            
+
         Returns:
             VideoJob when completed
-            
+
         Raises:
             VideoGenerationError: If generation fails or timeout is reached
         """
@@ -883,7 +920,7 @@ class VideoAPI:
             guidance_scale=guidance_scale,
             **kwargs
         )
-        
+
         # Wait for completion (pass model for retrieve calls)
         # Job already has model stored, but pass it explicitly for clarity
         return self.wait_for_completion(job.job_id, max_wait_time=timeout, model=job.model or model)
