@@ -300,7 +300,82 @@ class ImageAPI:
         if "application/json" in ctype:
             return response.json()
         return response.content
-    
+
+    def get_model_constraints(self, model_id: str) -> Dict[str, Any]:
+        """
+        Read published image-generation constraints from ``GET /models`` ``model_spec``.
+
+        This is the cheap counterpart to video/music quote grinding: Venice already
+        enumerates styles via ``/image/styles``; aspect/resolution/preset allowlists
+        (when present) live on the model record. Does **not** call ``/image/generate``.
+
+        Args:
+            model_id: Image model id (e.g. from ``/models?type=image``).
+
+        Returns:
+            Dict with ``model_id``, ``type``, and any of ``aspect_ratio``, ``resolution``,
+            ``style_preset``, ``size`` lists found under common ``model_spec`` key aliases.
+            Missing keys are empty lists. Also includes ``capabilities`` when present.
+        """
+        from .models import ModelsAPI
+
+        if not model_id:
+            raise ValueError("model_id is required")
+
+        model_data = ModelsAPI(self.client).get(model_id)
+        spec = model_data.get("model_spec") or {}
+        if not isinstance(spec, dict):
+            spec = {}
+
+        def _as_list(*keys: str) -> List[Any]:
+            for key in keys:
+                value = spec.get(key)
+                if isinstance(value, list) and value:
+                    return list(value)
+                if isinstance(value, tuple) and value:
+                    return list(value)
+            # Nested under constraints / supportedParameters
+            for nest_key in ("constraints", "supportedParameters", "supported_parameters", "parameters"):
+                nested = spec.get(nest_key)
+                if not isinstance(nested, dict):
+                    continue
+                for key in keys:
+                    value = nested.get(key)
+                    if isinstance(value, list) and value:
+                        return list(value)
+            return []
+
+        return {
+            "model_id": model_id,
+            "type": model_data.get("type"),
+            "aspect_ratio": _as_list(
+                "aspectRatios",
+                "aspect_ratios",
+                "supportedAspectRatios",
+                "supported_aspect_ratios",
+                "aspect_ratio",
+            ),
+            "resolution": _as_list(
+                "resolutions",
+                "supportedResolutions",
+                "supported_resolutions",
+                "resolution",
+            ),
+            "style_preset": _as_list(
+                "stylePresets",
+                "style_presets",
+                "supportedStylePresets",
+                "style_preset",
+            ),
+            "size": _as_list(
+                "sizes",
+                "supportedSizes",
+                "supported_sizes",
+                "size",
+            ),
+            "capabilities": spec.get("capabilities") if isinstance(spec.get("capabilities"), dict) else {},
+        }
+
     def generate_batch(
         self,
         prompts: List[str],
@@ -691,6 +766,15 @@ def generate_image(
     if isinstance(result, list):
         return result[0]
     return result
+
+
+def get_image_model_constraints(
+    model_id: str,
+    client: Optional[HTTPClient] = None,
+) -> Dict[str, Any]:
+    """Convenience wrapper for :meth:`ImageAPI.get_model_constraints`."""
+    http_client = ensure_http_client(client)
+    return ImageAPI(http_client).get_model_constraints(model_id)
 
 
 def edit_image(

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `MusicAPI.get_valid_parameters()` — quote-probe duration × `force_instrumental` combinations (video #65 twin).
+- `ImageAPI.get_model_constraints()` / `get_image_model_constraints()` — read aspect/resolution/style/size allowlists from `/models` `model_spec` (no generate grind).
+
 ### Fixed
 - Clarified that `VideoAPI.complete()` is the sync queue+wait helper (music-parity). Venice job cleanup is `VideoAPI.cleanup()` → `POST /video/complete` (#66).
 

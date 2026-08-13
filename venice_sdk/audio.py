@@ -522,6 +522,81 @@ class MusicAPI:
         response = self.client.post(AudioEndpoints.QUOTE, data=data)
         return response.json()
 
+    def _validate_with_quote(
+        self,
+        model: str,
+        prompt: str,
+        lyrics_prompt: Optional[str] = None,
+        duration_seconds: Optional[Union[int, str]] = None,
+        force_instrumental: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> bool:
+        """Return True if the free quote API accepts this parameter set."""
+        try:
+            quote_kwargs = dict(kwargs)
+            if force_instrumental is not None:
+                quote_kwargs["force_instrumental"] = force_instrumental
+            self.quote(
+                model=model,
+                prompt=prompt,
+                lyrics_prompt=lyrics_prompt,
+                duration_seconds=duration_seconds,
+                **quote_kwargs,
+            )
+            return True
+        except (VeniceAPIError, AudioGenerationError):
+            return False
+
+    def get_valid_parameters(
+        self,
+        model: str,
+        prompt: str = "parameter discovery probe",
+        lyrics_prompt: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Discover valid music generation parameters for a model via ``/audio/quote``.
+
+        Probes common ``duration_seconds`` × ``force_instrumental`` pairs (same idea as
+        :meth:`venice_sdk.video.VideoAPI.get_valid_parameters`).
+
+        Returns:
+            Dict with:
+
+            - ``duration_seconds``: unique durations that appear in at least one valid pair
+            - ``force_instrumental``: unique bool values that appear in at least one valid pair
+            - ``combinations``: every valid ``{duration_seconds, force_instrumental}`` pair
+        """
+        common_durations: List[Union[int, str]] = [10, 30, 60, 90, 120, 180]
+        instrumental_options: List[Optional[bool]] = [None, False, True]
+
+        combinations: List[Dict[str, Any]] = []
+        valid_durations: List[Union[int, str]] = []
+        valid_instrumental: List[bool] = []
+
+        for duration in common_durations:
+            for force_instrumental in instrumental_options:
+                if self._validate_with_quote(
+                    model=model,
+                    prompt=prompt,
+                    lyrics_prompt=lyrics_prompt,
+                    duration_seconds=duration,
+                    force_instrumental=force_instrumental,
+                ):
+                    combo: Dict[str, Any] = {"duration_seconds": duration}
+                    if force_instrumental is not None:
+                        combo["force_instrumental"] = force_instrumental
+                    combinations.append(combo)
+                    if duration not in valid_durations:
+                        valid_durations.append(duration)
+                    if force_instrumental is not None and force_instrumental not in valid_instrumental:
+                        valid_instrumental.append(force_instrumental)
+
+        return {
+            "duration_seconds": valid_durations,
+            "force_instrumental": valid_instrumental,
+            "combinations": combinations,
+        }
+
     def complete(
         self,
         model: str,
