@@ -152,6 +152,27 @@ class CharactersAPI:
                 logger.debug("Character %s not found", slug)
                 return None
             raise
+
+    def reviews(
+        self,
+        slug: str,
+        page: Optional[int] = None,
+        page_size: Optional[int] = None,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Get reviews for a character (``GET /characters/{slug}/reviews``)."""
+        if not slug:
+            raise ValueError("slug is required")
+        params: Dict[str, Any] = dict(kwargs)
+        if page is not None:
+            params["page"] = page
+        if page_size is not None:
+            params["pageSize"] = page_size
+        response = self.client.get(
+            f"/characters/{slug}/reviews",
+            params=params or None,
+        )
+        return response.json()
     
     def search(
         self,

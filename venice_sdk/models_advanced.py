@@ -130,8 +130,11 @@ class ModelsTraitsAPI:
         if use_cache and self._traits_cache is not None and len(self._traits_cache) > 0:
             return self._traits_cache
 
-        # Use the regular models endpoint since /models/traits doesn't exist
-        response = self.client.get("/models")
+        # Per-model trait/capability detail still lives on GET /models.
+        # GET /models/traits returns trait-category → default model id (see get_trait_categories).
+        from .endpoints import ModelsEndpoints
+
+        response = self.client.get(f"/{ModelsEndpoints.MODELS.lstrip('/')}")
         result = response.json()
 
         if not isinstance(result, dict) or "data" not in result:
@@ -181,6 +184,25 @@ class ModelsTraitsAPI:
             self._traits_cache = traits
 
         return traits
+
+    def get_trait_categories(self) -> Dict[str, str]:
+        """
+        Get Venice trait-category defaults from ``GET /models/traits``.
+
+        Returns:
+            Mapping of trait category (e.g. ``default``, ``most_uncensored``,
+            ``default_vision``) to the recommended model id.
+        """
+        from .endpoints import ModelsEndpoints
+
+        response = self.client.get(ModelsEndpoints.MODELS_TRAITS)
+        result = response.json()
+        if not isinstance(result, dict) or "data" not in result:
+            raise ModelNotFoundError("Invalid response format from models traits endpoint")
+        data = result["data"]
+        if not isinstance(data, dict):
+            raise ModelNotFoundError("Models traits payload must be an object")
+        return {str(k): str(v) for k, v in data.items()}
     
     def get_model_traits(self, model_id: str, use_cache: bool = True) -> Optional[ModelTraits]:
         """

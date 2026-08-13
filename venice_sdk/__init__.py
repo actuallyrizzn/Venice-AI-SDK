@@ -117,13 +117,17 @@ from .embeddings import (
     generate_embeddings,
 )
 from .tee import TEEAPI
+from .augment import AugmentAPI
+from .responses import ResponsesAPI
+from .crypto import CryptoAPI
+from .x402 import X402API
 from .logging_config import setup_logging
 
 _root_logger = logging.getLogger("venice_sdk")
 if not any(isinstance(handler, logging.NullHandler) for handler in _root_logger.handlers):
     _root_logger.addHandler(logging.NullHandler())
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 __all__ = [
     # Core client
@@ -242,6 +246,12 @@ __all__ = [
 
     # TEE
     "TEEAPI",
+
+    # Augment / Responses / Crypto / x402
+    "AugmentAPI",
+    "ResponsesAPI",
+    "CryptoAPI",
+    "X402API",
 
     # Logging
     "setup_logging",

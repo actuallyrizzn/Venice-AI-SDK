@@ -70,11 +70,12 @@ class ChatAPI:
     
     def complete(
         self,
-        messages: List[Dict[str, str]],
+        messages: List[Dict[str, Any]],
         model: str = "llama-3.3-70b",
         temperature: float = 0.7,
         stream: bool = False,
         tools: Optional[List[JSONDict]] = None,
+        tool_choice: Optional[Any] = None,
         venice_parameters: Optional[JSONDict] = None,
         prompt_cache_key: Optional[str] = None,
         # Additional parameters from Swagger spec
@@ -82,6 +83,7 @@ class ChatAPI:
         logprobs: Optional[bool] = None,
         top_logprobs: Optional[int] = None,
         max_completion_tokens: Optional[int] = None,
+        max_tokens: Optional[int] = None,
         max_temp: Optional[float] = None,
         min_p: Optional[float] = None,
         min_temp: Optional[float] = None,
@@ -92,26 +94,38 @@ class ChatAPI:
         stop: Optional[Union[str, List[str]]] = None,
         stop_token_ids: Optional[List[int]] = None,
         stream_options: Optional[Dict[str, Any]] = None,
+        top_p: Optional[float] = None,
+        top_k: Optional[int] = None,
+        response_format: Optional[Any] = None,
+        parallel_tool_calls: Optional[bool] = None,
+        reasoning: Optional[Any] = None,
+        reasoning_effort: Optional[Any] = None,
+        fallbacks: Optional[Any] = None,
         **kwargs: Any
     ) -> Union[JSONDict, ChatStream]:
         """
         Create a chat completion.
 
         Args:
-            messages: List of messages in the conversation
+            messages: List of messages in the conversation. ``content`` may be a
+                string or a multimodal content-part array (text / image_url /
+                input_audio / video_url). Roles include ``system``, ``user``,
+                ``assistant``, and ``tool``.
             model: Model to use for completion
             temperature: Sampling temperature (0-1)
             stream: Whether to stream the response
             tools: Optional list of tools for function calling
+            tool_choice: Optional tool choice control
             venice_parameters: Optional Venice-specific parameters. Supported keys include:
                 character_slug, include_venice_system_prompt, enable_web_search ("off"|"on"|"auto"),
                 strip_thinking_response, disable_thinking, enable_web_scraping, enable_x_search,
                 enable_web_citations, include_search_results_in_stream,
-                return_search_results_as_documents.
+                return_search_results_as_documents, enable_e2ee.
             frequency_penalty: Number between -2.0 and 2.0. Positive values penalize new tokens based on frequency
             logprobs: Whether to include log probabilities in the response
             top_logprobs: Number of highest probability tokens to return for each token position
             max_completion_tokens: Upper bound for tokens that can be generated
+            max_tokens: Legacy max tokens alias
             max_temp: Maximum temperature value for dynamic temperature scaling (0-2)
             min_p: Minimum probability threshold for token selection (0-1)
             min_temp: Minimum temperature value for dynamic temperature scaling (0-2)
@@ -122,6 +136,13 @@ class ChatAPI:
             stop: Up to 4 sequences where the API will stop generating
             stop_token_ids: Array of token IDs where the API will stop generating
             stream_options: Options for streaming (e.g., include_usage)
+            top_p: Nucleus sampling
+            top_k: Top-k sampling
+            response_format: Structured output / JSON schema control
+            parallel_tool_calls: Whether to allow parallel tool calls
+            reasoning: Reasoning controls for thinking models
+            reasoning_effort: Reasoning effort hint
+            fallbacks: Optional model fallbacks
             prompt_cache_key: Optional routing hint for prompt caching (improves cache hit rates)
             **kwargs: Additional optional parameters to pass through
 
@@ -163,14 +184,15 @@ class ChatAPI:
             raise ValueError("n must be >= 1")
         
         # Validate message format
+        allowed_roles = {"system", "user", "assistant", "tool"}
         for i, message in enumerate(messages):
             if not isinstance(message, dict):
                 raise ValueError(f"Message {i} must be a dictionary")
             if "role" not in message:
                 raise ValueError(f"Message {i} must have a 'role' field")
-            if "content" not in message:
-                raise ValueError(f"Message {i} must have a 'content' field")
-            if message["role"] not in ["system", "user", "assistant"]:
+            if "content" not in message and "tool_calls" not in message:
+                raise ValueError(f"Message {i} must have a 'content' or 'tool_calls' field")
+            if message["role"] not in allowed_roles:
                 raise ValueError(f"Message {i} has invalid role: {message['role']}")
 
         data = {
@@ -185,12 +207,14 @@ class ChatAPI:
         # Add optional parameters if provided
         optional_params = {
             "tools": tools,
+            "tool_choice": tool_choice,
             "venice_parameters": venice_parameters,
             "prompt_cache_key": prompt_cache_key,
             "frequency_penalty": frequency_penalty,
             "logprobs": logprobs,
             "top_logprobs": top_logprobs,
             "max_completion_tokens": max_completion_tokens,
+            "max_tokens": max_tokens,
             "max_temp": max_temp,
             "min_p": min_p,
             "min_temp": min_temp,
@@ -199,7 +223,14 @@ class ChatAPI:
             "seed": seed,
             "stop": stop,
             "stop_token_ids": stop_token_ids,
-            "stream_options": stream_options
+            "stream_options": stream_options,
+            "top_p": top_p,
+            "top_k": top_k,
+            "response_format": response_format,
+            "parallel_tool_calls": parallel_tool_calls,
+            "reasoning": reasoning,
+            "reasoning_effort": reasoning_effort,
+            "fallbacks": fallbacks,
         }
         
         for key, value in optional_params.items():

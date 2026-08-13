@@ -7,7 +7,7 @@ import json
 import logging
 import threading
 import time
-from typing import Any, Callable, Dict, Generator, Optional, Union
+from typing import Any, Callable, Dict, Generator, List, Optional, Union
 
 import requests
 from requests import Response
@@ -19,6 +19,8 @@ from .errors import VeniceAPIError, VeniceConnectionError, handle_api_error
 from .metrics import RateLimitMetrics
 
 logger = logging.getLogger(__name__)
+
+JSONBody = Optional[Union[Dict[str, Any], List[Any]]]
 
 
 class HTTPClient:
@@ -66,8 +68,10 @@ class HTTPClient:
         self,
         method: str,
         endpoint: str,
-        data: Optional[Dict[str, Any]] = None,
+        data: JSONBody = None,
         stream: bool = False,
+        files: Optional[Dict[str, Any]] = None,
+        form_data: Optional[Dict[str, Any]] = None,
         **kwargs: Any
     ) -> Response:
         """
@@ -76,8 +80,10 @@ class HTTPClient:
         Args:
             method: HTTP method (GET, POST, etc.)
             endpoint: API endpoint
-            data: Request data
+            data: JSON request body (dict or list; ignored when ``files`` is set)
             stream: Whether to stream the response
+            files: Optional multipart file mapping for ``requests``
+            form_data: Optional non-file multipart fields (used with ``files``)
             **kwargs: Additional arguments to pass to requests
             
         Returns:
@@ -88,13 +94,19 @@ class HTTPClient:
             VeniceConnectionError: If there is a connection error
         """
         url = f"{self.config.base_url}/{endpoint.lstrip('/')}"
-        payload_keys = sorted(data.keys()) if isinstance(data, dict) else None
+        if isinstance(data, dict):
+            payload_keys = sorted(data.keys())
+        elif isinstance(data, list):
+            payload_keys = [f"list[{len(data)}]"]
+        else:
+            payload_keys = None
         logger.debug(
-            "Preparing HTTP %s %s (stream=%s, payload_keys=%s)",
+            "Preparing HTTP %s %s (stream=%s, payload_keys=%s, multipart=%s)",
             method.upper(),
             url,
             stream,
             payload_keys,
+            files is not None,
         )
 
         # Add timeout if not specified
@@ -112,13 +124,32 @@ class HTTPClient:
         while True:
             attempt += 1
             try:
-                response = self.session.request(
-                    method,
-                    url,
-                    json=data,
-                    stream=stream,
-                    **kwargs,
-                )
+                if files is not None:
+                    # Drop JSON Content-Type so requests can set multipart boundary.
+                    headers = dict(kwargs.pop("headers", {}) or {})
+                    session_headers = self.session.headers
+                    saved_content_type = session_headers.pop("Content-Type", None)
+                    try:
+                        response = self.session.request(
+                            method,
+                            url,
+                            data=form_data,
+                            files=files,
+                            stream=stream,
+                            headers=headers or None,
+                            **kwargs,
+                        )
+                    finally:
+                        if saved_content_type is not None:
+                            session_headers["Content-Type"] = saved_content_type
+                else:
+                    response = self.session.request(
+                        method,
+                        url,
+                        json=data,
+                        stream=stream,
+                        **kwargs,
+                    )
             except requests.exceptions.RequestException as e:
                 logger.error(
                     "HTTP %s %s raised %s",
@@ -350,9 +381,25 @@ class HTTPClient:
         """Make a GET request."""
         return self._request("GET", endpoint, **kwargs)
     
-    def post(self, endpoint: str, data: Optional[Dict[str, Any]] = None, **kwargs: Any) -> Response:
-        """Make a POST request."""
+    def post(self, endpoint: str, data: JSONBody = None, **kwargs: Any) -> Response:
+        """Make a POST request (JSON object or array body)."""
         return self._request("POST", endpoint, data=data, **kwargs)
+
+    def post_multipart(
+        self,
+        endpoint: str,
+        files: Dict[str, Any],
+        form_data: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
+    ) -> Response:
+        """Make a multipart/form-data POST (transcriptions, voice clone, text-parser)."""
+        return self._request(
+            "POST",
+            endpoint,
+            files=files,
+            form_data=form_data,
+            **kwargs,
+        )
     
     def stream(self, endpoint: str, data: Optional[Dict[str, Any]] = None, **kwargs: Any) -> Generator[Dict[str, Any], None, None]:
         """Make a streaming request."""

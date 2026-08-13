@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-08-13
+
+### Fixed
+- Image upscale/styles paths: use live Venice routes `/image/upscale` and `/image/styles` (plural `/images/...` returned 404).
+- Billing summary: `/billing/summary` removed from Venice; `get_billing_summary()` now uses `/billing/balance` with usage fallback.
+- Documented that `GET /models/traits` exists; added `ModelsTraitsAPI.get_trait_categories()`.
+
+### Added
+- Multipart POST support on `HTTPClient.post_multipart` (transcriptions, voice clone, text-parser).
+- `POST /responses` via `client.responses` (`ResponsesAPI`).
+- `POST /audio/transcriptions` (`AudioAPI.transcribe`) and `POST /audio/voices` (`AudioAPI.clone_voice`).
+- `POST /video/transcriptions` (`VideoAPI.transcribe`).
+- Venice-native `POST /image/generate` (`ImageAPI.generate_native`).
+- Augment tools: `client.augment.search|scrape|parse_text`.
+- Billing: `get_balance`, `get_usage_analytics`, `get_usage_history`.
+- Character reviews: `CharactersAPI.reviews`.
+- Crypto RPC: `client.crypto.networks|rpc`.
+- x402: `client.x402.balance|top_up|transactions`.
+- Chat: multimodal/`tool` roles; first-class `reasoning`, `tool_choice`, `response_format`, `top_p`/`top_k`, etc.
+- Parity inventory: `docs/dev/API-PARITY-GAP-2026-08-13.md`.
+
 ## [0.3.0] - 2026-03-19
 
 ### Added

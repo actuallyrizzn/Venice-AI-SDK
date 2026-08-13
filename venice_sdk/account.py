@@ -593,26 +593,92 @@ class BillingAPI:
         """Alias for get_usage_by_model() for backward compatibility."""
         return self.get_usage_by_model()
     
+    def get_balance(self) -> Dict[str, Any]:
+        """
+        Get current account balance (``GET /billing/balance``).
+
+        Requires a billing-capable API key. Inference-only keys typically 401.
+
+        Returns:
+            Balance payload (``canConsume``, ``balances``, etc.)
+        """
+        from .endpoints import AccountEndpoints
+
+        response = self.client.get(AccountEndpoints.BILLING_BALANCE)
+        result = response.json()
+        if not isinstance(result, dict):
+            raise BillingError("Invalid response format from billing balance endpoint")
+        return result
+
+    def get_usage_analytics(
+        self,
+        lookback: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Get usage analytics (``GET /billing/usage-analytics``).
+
+        Args:
+            lookback: Optional lookback window recognized by Venice.
+            start_date: Optional ISO start date (``startDate`` query param).
+            end_date: Optional ISO end date (``endDate`` query param).
+        """
+        from .endpoints import AccountEndpoints
+
+        params: Dict[str, Any] = {}
+        if lookback is not None:
+            params["lookback"] = lookback
+        if start_date is not None:
+            params["startDate"] = start_date
+        if end_date is not None:
+            params["endDate"] = end_date
+        response = self.client.get(AccountEndpoints.BILLING_USAGE_ANALYTICS, params=params or None)
+        result = response.json()
+        if not isinstance(result, dict):
+            raise BillingError("Invalid response format from billing usage-analytics endpoint")
+        return result
+
+    def get_usage_history(
+        self,
+        currency: Optional[str] = None,
+        cursor: Optional[str] = None,
+        end_timestamp: Optional[str] = None,
+        page_size: Optional[int] = None,
+        start_timestamp: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Get paginated usage history (``GET /billing/usage-history``)."""
+        from .endpoints import AccountEndpoints
+
+        params: Dict[str, Any] = {}
+        if currency is not None:
+            params["currency"] = currency
+        if cursor is not None:
+            params["cursor"] = cursor
+        if end_timestamp is not None:
+            params["endTimestamp"] = end_timestamp
+        if page_size is not None:
+            params["pageSize"] = page_size
+        if start_timestamp is not None:
+            params["startTimestamp"] = start_timestamp
+        response = self.client.get(AccountEndpoints.BILLING_USAGE_HISTORY, params=params or None)
+        result = response.json()
+        if not isinstance(result, dict):
+            raise BillingError("Invalid response format from billing usage-history endpoint")
+        return result
+
     def get_billing_summary(self) -> Dict[str, Any]:
         """
         Get a comprehensive billing summary.
-        
-        Returns:
-            Dictionary with billing summary information
+
+        Prefer ``GET /billing/balance``. Falls back to usage-derived stub fields
+        when the balance endpoint is unavailable for this key.
         """
         try:
-            response = self.client.get("/billing/summary")
-            result = response.json()
-            
-            if "data" not in result:
-                raise BillingError("Invalid response format from billing summary endpoint")
-            
-            data = result["data"]
-            if not isinstance(data, dict):
-                raise BillingError("Billing summary payload must be an object")
-            return data
+            balance = self.get_balance()
+            return balance
         except (VeniceAPIError, VeniceConnectionError, BillingError) as err:
-            logger.info("Billing summary unavailable, falling back to usage info: %s", err)
+            logger.info("Billing balance unavailable, falling back to usage info: %s", err)
             usage_info = self.get_usage()
             return {
                 "current_balance": 0,
@@ -622,7 +688,7 @@ class BillingAPI:
                 "subscription_status": "active",
             }
         except (KeyError, TypeError, ValueError) as parse_err:
-            logger.warning("Billing summary payload invalid: %s", parse_err)
+            logger.warning("Billing balance payload invalid: %s", parse_err)
             usage_info = self.get_usage()
             return {
                 "current_balance": 0,

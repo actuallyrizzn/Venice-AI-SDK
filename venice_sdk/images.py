@@ -238,6 +238,68 @@ class ImageAPI:
         
         logger.debug("Image generation produced %s image(s)", len(images))
         return images[0] if len(images) == 1 else images
+
+    def generate_native(
+        self,
+        prompt: str,
+        model: str,
+        *,
+        negative_prompt: Optional[str] = None,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        aspect_ratio: Optional[str] = None,
+        resolution: Optional[str] = None,
+        cfg_scale: Optional[float] = None,
+        steps: Optional[int] = None,
+        seed: Optional[int] = None,
+        style_preset: Optional[str] = None,
+        format: Optional[str] = None,
+        variants: Optional[int] = None,
+        safe_mode: Optional[bool] = None,
+        return_binary: Optional[bool] = None,
+        enhance_prompt: Optional[Any] = None,
+        enable_web_search: Optional[Any] = None,
+        hide_watermark: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> Any:
+        """
+        Venice-native image generation (``POST /image/generate``).
+
+        Richer parameter surface than OpenAI-compat ``generate()`` /
+        ``/images/generations``.
+        """
+        if not prompt or not prompt.strip():
+            raise ValueError("Prompt cannot be empty")
+        if not model:
+            raise ValueError("model is required")
+        data: Dict[str, Any] = {"prompt": prompt, "model": model, **kwargs}
+        optional = {
+            "negative_prompt": negative_prompt,
+            "width": width,
+            "height": height,
+            "aspect_ratio": aspect_ratio,
+            "resolution": resolution,
+            "cfg_scale": cfg_scale,
+            "steps": steps,
+            "seed": seed,
+            "style_preset": style_preset,
+            "format": format,
+            "variants": variants,
+            "safe_mode": safe_mode,
+            "return_binary": return_binary,
+            "enhance_prompt": enhance_prompt,
+            "enable_web_search": enable_web_search,
+            "hide_watermark": hide_watermark,
+        }
+        for key, value in optional.items():
+            if value is not None:
+                data[key] = value
+        response = self.client.post(ImageEndpoints.GENERATE, data=data)
+        # Native endpoint may return binary or JSON depending on return_binary / Accept.
+        ctype = (response.headers.get("Content-Type") or "").lower()
+        if "application/json" in ctype:
+            return response.json()
+        return response.content
     
     def generate_batch(
         self,

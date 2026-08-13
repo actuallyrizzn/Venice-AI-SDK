@@ -21,6 +21,10 @@ from .characters import CharactersAPI
 from .account import APIKeysAPI, BillingAPI, AccountManager
 from .models_advanced import ModelsTraitsAPI, ModelsCompatibilityAPI
 from .embeddings import EmbeddingsAPI
+from .augment import AugmentAPI
+from .responses import ResponsesAPI
+from .crypto import CryptoAPI
+from .x402 import X402API
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +55,7 @@ class VeniceClient:
         
         # Initialize all API modules
         self.chat = ChatAPI(self._http_client)
+        self.responses = ResponsesAPI(self._http_client)
         self.models = ModelsAPI(self._http_client)
         
         # Image processing suite
@@ -79,6 +84,11 @@ class VeniceClient:
         
         # Embeddings
         self.embeddings = EmbeddingsAPI(self._http_client)
+
+        # Developer tools
+        self.augment = AugmentAPI(self._http_client)
+        self.crypto = CryptoAPI(self._http_client)
+        self.x402 = X402API(self._http_client)
         
         # TEE attestation and signature verification
         self.tee = TEEAPI(self._http_client)

@@ -888,3 +888,26 @@ class VideoAPI:
         # Job already has model stored, but pass it explicitly for clarity
         return self.wait_for_completion(job.job_id, max_wait_time=timeout, model=job.model or model)
 
+    def transcribe(
+        self,
+        url: str,
+        response_format: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """
+        Transcribe a video (``POST /video/transcriptions``).
+
+        Args:
+            url: YouTube video URL (Venice currently validates YouTube URLs).
+            response_format: Optional response format.
+        """
+        from .endpoints import VideoEndpoints
+
+        if not url or not str(url).strip():
+            raise ValueError("url must be a non-empty string")
+        data: Dict[str, Any] = {"url": url, **kwargs}
+        if response_format is not None:
+            data["response_format"] = response_format
+        response = self.client.post(VideoEndpoints.TRANSCRIPTIONS, data=data)
+        return response.json()
+

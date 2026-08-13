@@ -11,7 +11,7 @@ import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, Generator
+from typing import Any, BinaryIO, Dict, List, Optional, Union, Generator
 
 from .client import HTTPClient
 from .errors import VeniceAPIError, AudioGenerationError
@@ -258,6 +258,85 @@ class AudioAPI:
         for chunk in response.iter_content(chunk_size=chunk_size):
             if chunk:
                 yield chunk
+
+    def transcribe(
+        self,
+        file: Union[str, Path, BinaryIO, bytes],
+        model: str,
+        *,
+        response_format: Optional[str] = None,
+        timestamps: Optional[Any] = None,
+        language: Optional[str] = None,
+        filename: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Union[Dict[str, Any], str]:
+        """
+        Speech-to-text (``POST /audio/transcriptions``).
+
+        Args:
+            file: Audio path, bytes, or file object.
+            model: STT model id (e.g. whisper / parakeet family).
+            response_format: Optional format (``json``, ``text``, etc.).
+            timestamps: Optional word-level timestamps flag/value.
+            language: Optional language hint.
+        """
+        from .augment import _build_file_multipart
+        from .endpoints import AudioEndpoints
+
+        if not model:
+            raise ValueError("model is required")
+        files, form = _build_file_multipart(
+            file,
+            field_name="file",
+            filename=filename,
+            extra_fields={
+                "model": model,
+                "response_format": response_format,
+                "timestamps": timestamps,
+                "language": language,
+                **kwargs,
+            },
+        )
+        response = self.client.post_multipart(
+            AudioEndpoints.TRANSCRIPTIONS,
+            files=files,
+            form_data=form or None,
+        )
+        ctype = (response.headers.get("Content-Type") or "").lower()
+        if "application/json" in ctype:
+            return response.json()
+        return response.text
+
+    def clone_voice(
+        self,
+        file: Union[str, Path, BinaryIO, bytes],
+        model: str,
+        *,
+        filename: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """
+        Clone a voice from a reference sample (``POST /audio/voices``).
+
+        Returns voice metadata including ``id`` for later TTS use.
+        """
+        from .augment import _build_file_multipart
+        from .endpoints import AudioEndpoints
+
+        if not model:
+            raise ValueError("model is required")
+        files, form = _build_file_multipart(
+            file,
+            field_name="file",
+            filename=filename,
+            extra_fields={"model": model, **kwargs},
+        )
+        response = self.client.post_multipart(
+            AudioEndpoints.VOICES,
+            files=files,
+            form_data=form or None,
+        )
+        return response.json()
     
     def get_voices(self) -> List[Voice]:
         """
