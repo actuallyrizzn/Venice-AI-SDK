@@ -33,7 +33,9 @@ class TestAugmentAPI:
         mock_client.post.return_value.json.return_value = {"results": []}
         api = AugmentAPI(mock_client)
         out = api.search("hello", limit=3, search_provider="brave", foo=1)
-        assert out == {"results": []}
+        assert out.results == []
+        assert out.query == "hello"
+        assert out.raw == {"results": []}
         mock_client.post.assert_called_once()
         args, kwargs = mock_client.post.call_args
         assert args[0] == AugmentEndpoints.SEARCH
@@ -49,7 +51,7 @@ class TestAugmentAPI:
     def test_scrape_success(self, mock_client):
         mock_client.post.return_value.json.return_value = {"markdown": "# hi"}
         out = AugmentAPI(mock_client).scrape("https://example.com", depth=1)
-        assert out["markdown"].startswith("#")
+        assert out.markdown.startswith("#")
         assert mock_client.post.call_args.kwargs["data"]["url"] == "https://example.com"
 
     def test_scrape_empty_raises(self, mock_client):
@@ -64,7 +66,7 @@ class TestAugmentAPI:
         resp.json.return_value = {"text": "hello"}
         mock_client.post_multipart.return_value = resp
         out = AugmentAPI(mock_client).parse_text(path, response_format="json")
-        assert out["text"] == "hello"
+        assert out.text == "hello"
 
     def test_parse_text_plain(self, mock_client):
         resp = MagicMock()
@@ -72,7 +74,7 @@ class TestAugmentAPI:
         resp.text = "plain"
         mock_client.post_multipart.return_value = resp
         out = AugmentAPI(mock_client).parse_text(b"abc", filename="a.bin")
-        assert out == {"text": "plain"}
+        assert out.text == "plain"
 
     def test_build_multipart_variants(self, tmp_path):
         files, form = _build_file_multipart(
@@ -148,7 +150,8 @@ class TestResponsesAPI:
             venice_parameters={"enable_web_search": "off"},
             custom=1,
         )
-        assert out["id"] == "resp_1"
+        assert out.id == "resp_1"
+        assert out.raw["id"] == "resp_1"
         data = mock_client.post.call_args.kwargs["data"]
         assert data["custom"] == 1
         assert mock_client.post.call_args.args[0] == ChatEndpoints.RESPONSES
@@ -167,12 +170,14 @@ class TestX402API:
         mock_client.get.return_value.json.return_value = {"balance": 1}
         mock_client.post.return_value.json.return_value = {"ok": True}
         api = X402API(mock_client)
-        assert api.balance("0xabc")["balance"] == 1
+        assert api.balance("0xabc").balance == 1
         api.top_up("sig", body={"amount": 1})
         assert mock_client.post.call_args.kwargs["headers"]["PAYMENT-SIGNATURE"] == "sig"
-        api.top_up("sig")
+        result = api.top_up("sig")
+        assert result.raw.get("ok") is True
         assert mock_client.post.call_args.kwargs["data"] == {}
-        api.transactions("0xabc", params={"limit": 1})
+        txns = api.transactions("0xabc", params={"limit": 1})
+        assert txns.wallet_address == "0xabc"
         assert "0xabc" in mock_client.get.call_args.args[0]
 
     def test_validation(self, mock_client):

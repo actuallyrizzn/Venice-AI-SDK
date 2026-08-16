@@ -975,34 +975,26 @@ class TestConvenienceFunctionsComprehensive:
 
     def test_get_account_usage_without_client(self):
         """Test get_account_usage without provided client."""
-        with patch('venice_sdk.config.load_config') as mock_load_config:
-            with patch('venice_sdk.venice_client.VeniceClient') as mock_venice_client:
-                mock_config = MagicMock()
-                mock_load_config.return_value = mock_config
-                
-                mock_client = MagicMock()
-                mock_venice_client.return_value = mock_client
-                
-                mock_response = MagicMock()
-                mock_response.json.return_value = {
-                    "data": [
-                        {
-                            "timestamp": "2023-01-01T12:00:00Z",
-                            "sku": "test-model-llm-output-mtoken",
-                            "pricePerUnitUsd": 2,
-                            "units": 0.5,
-                            "amount": -1.0,
-                            "currency": "VCU",
-                            "notes": "API Inference"
-                        }
-                    ]
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "data": [
+                {
+                    "timestamp": "2023-01-01T12:00:00Z",
+                    "sku": "test-model-llm-output-mtoken",
+                    "pricePerUnitUsd": 2,
+                    "units": 0.5,
+                    "amount": -1.0,
+                    "currency": "VCU",
+                    "notes": "API Inference"
                 }
-                mock_client.get.return_value = mock_response
-                
-                usage = get_account_usage()
-                
-                assert isinstance(usage, UsageInfo)
-                assert usage.total_usage == 1000
+            ]
+        }
+        mock_client.get.return_value = mock_response
+        with patch("venice_sdk.account.ensure_http_client", return_value=mock_client):
+            usage = get_account_usage()
+        assert isinstance(usage, UsageInfo)
+        assert usage.total_usage == 1000
 
     def test_get_rate_limits_with_client(self, mock_client):
         """Test get_rate_limits with provided client."""

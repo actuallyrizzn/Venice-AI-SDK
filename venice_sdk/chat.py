@@ -2,9 +2,11 @@
 Chat API implementation for the Venice SDK.
 """
 
+from __future__ import annotations
+
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, Generator, List, Optional, Union, cast
 
 from .client import HTTPClient
@@ -13,15 +15,119 @@ from .errors import VeniceAPIError
 
 JSONDict = Dict[str, Any]
 ChatStream = Generator[str, None, None]
+MessageContent = Union[str, List[JSONDict]]
+ChatMessageInput = Union["Message", JSONDict]
 
 logger = logging.getLogger(__name__)
+
+_MULTIMODAL_PART_TYPES = {
+    "text",
+    "image_url",
+    "input_audio",
+    "video_url",
+    "input_image",
+    "input_video",
+}
 
 
 @dataclass
 class Message:
-    """A message in a chat conversation."""
+    """A message in a chat conversation.
+
+    ``content`` may be a string or a multimodal content-part list
+    (``text`` / ``image_url`` / ``input_audio`` / ``video_url``).
+    """
+
     role: str
-    content: str
+    content: Optional[MessageContent] = None
+    name: Optional[str] = None
+    tool_call_id: Optional[str] = None
+    tool_calls: Optional[List[JSONDict]] = field(default=None)
+
+    def text_content(self) -> str:
+        """Flatten string or multimodal ``text`` parts into one string."""
+        if self.content is None:
+            return ""
+        if isinstance(self.content, str):
+            return self.content
+        parts: List[str] = []
+        for part in self.content:
+            if not isinstance(part, dict):
+                continue
+            if part.get("type") == "text" and part.get("text") is not None:
+                parts.append(str(part.get("text")))
+            elif "text" in part and "type" not in part:
+                parts.append(str(part.get("text")))
+        return "".join(parts)
+
+    def to_dict(self) -> JSONDict:
+        """Serialize to a chat-completions message payload."""
+        payload: JSONDict = {"role": self.role}
+        if self.content is not None:
+            payload["content"] = self.content
+        if self.name is not None:
+            payload["name"] = self.name
+        if self.tool_call_id is not None:
+            payload["tool_call_id"] = self.tool_call_id
+        if self.tool_calls is not None:
+            payload["tool_calls"] = self.tool_calls
+        return payload
+
+    @classmethod
+    def from_dict(cls, data: JSONDict) -> "Message":
+        if not isinstance(data, dict):
+            raise ValueError("Message payload must be a dictionary")
+        return cls(
+            role=str(data.get("role") or ""),
+            content=data.get("content"),
+            name=data.get("name"),
+            tool_call_id=data.get("tool_call_id"),
+            tool_calls=data.get("tool_calls") if isinstance(data.get("tool_calls"), list) else None,
+        )
+
+
+def _coerce_message_dict(message: ChatMessageInput, index: int) -> JSONDict:
+    if isinstance(message, Message):
+        payload = message.to_dict()
+    elif isinstance(message, dict):
+        payload = dict(message)
+    else:
+        raise ValueError(f"Message {index} must be a dictionary or Message")
+    return payload
+
+
+def _validate_message_payload(payload: JSONDict, index: int) -> None:
+    allowed_roles = {"system", "user", "assistant", "tool"}
+    if "role" not in payload:
+        raise ValueError(f"Message {index} must have a 'role' field")
+    if "content" not in payload and "tool_calls" not in payload:
+        raise ValueError(f"Message {index} must have a 'content' or 'tool_calls' field")
+    if payload["role"] not in allowed_roles:
+        raise ValueError(f"Message {index} has invalid role: {payload['role']}")
+    content = payload.get("content")
+    if content is None:
+        return
+    if isinstance(content, str):
+        return
+    if not isinstance(content, list):
+        raise ValueError(
+            f"Message {index} content must be a string or a list of content parts"
+        )
+    for part_i, part in enumerate(content):
+        if not isinstance(part, dict):
+            raise ValueError(
+                f"Message {index} content part {part_i} must be an object"
+            )
+        part_type = part.get("type")
+        if not part_type:
+            raise ValueError(
+                f"Message {index} content part {part_i} must have a 'type' field"
+            )
+        if part_type not in _MULTIMODAL_PART_TYPES:
+            raise ValueError(
+                f"Message {index} content part {part_i} has unsupported type: {part_type}"
+            )
+
 
 
 @dataclass
@@ -70,7 +176,7 @@ class ChatAPI:
     
     def complete(
         self,
-        messages: List[Dict[str, Any]],
+        messages: List[ChatMessageInput],
         model: str = "llama-3.3-70b",
         temperature: float = 0.7,
         stream: bool = False,
@@ -107,10 +213,11 @@ class ChatAPI:
         Create a chat completion.
 
         Args:
-            messages: List of messages in the conversation. ``content`` may be a
-                string or a multimodal content-part array (text / image_url /
-                input_audio / video_url). Roles include ``system``, ``user``,
-                ``assistant``, and ``tool``.
+            messages: List of messages in the conversation. Each item may be a
+                dict or :class:`Message`. ``content`` may be a string or a
+                multimodal content-part array (text / image_url / input_audio /
+                video_url). Roles include ``system``, ``user``, ``assistant``,
+                and ``tool``.
             model: Model to use for completion
             temperature: Sampling temperature (0-1)
             stream: Whether to stream the response
@@ -183,20 +290,15 @@ class ChatAPI:
         if n < 1:
             raise ValueError("n must be >= 1")
         
-        # Validate message format
-        allowed_roles = {"system", "user", "assistant", "tool"}
+        # Validate and coerce message format
+        normalized: List[JSONDict] = []
         for i, message in enumerate(messages):
-            if not isinstance(message, dict):
-                raise ValueError(f"Message {i} must be a dictionary")
-            if "role" not in message:
-                raise ValueError(f"Message {i} must have a 'role' field")
-            if "content" not in message and "tool_calls" not in message:
-                raise ValueError(f"Message {i} must have a 'content' or 'tool_calls' field")
-            if message["role"] not in allowed_roles:
-                raise ValueError(f"Message {i} has invalid role: {message['role']}")
+            payload = _coerce_message_dict(message, i)
+            _validate_message_payload(payload, i)
+            normalized.append(payload)
 
         data = {
-            "messages": messages,
+            "messages": normalized,
             "model": model,
             "temperature": temperature,
             "stream": stream,
@@ -272,7 +374,7 @@ class ChatAPI:
                     index=choice["index"],
                     message=Message(
                         role=choice["message"]["role"],
-                        content=choice["message"]["content"]
+                        content=choice["message"].get("content"),
                     ),
                     finish_reason=choice["finish_reason"]
                 )
@@ -287,7 +389,7 @@ class ChatAPI:
     
     def complete_stream(
         self,
-        messages: List[Dict[str, str]],
+        messages: List[ChatMessageInput],
         model: str = "llama-3.3-70b",
         temperature: float = 0.7,
         tools: Optional[List[JSONDict]] = None,
@@ -309,7 +411,7 @@ class ChatAPI:
             Generator yielding response chunks as strings in SSE format
         """
         data = {
-            "messages": messages,
+            "messages": [_coerce_message_dict(m, i) for i, m in enumerate(messages)],
             "model": model,
             "temperature": temperature,
             "stream": True
@@ -369,7 +471,7 @@ class ChatAPI:
 
 
 def chat_complete(
-    messages: List[Dict[str, str]],
+    messages: List[ChatMessageInput],
     model: str = "llama-3.3-70b",
     temperature: float = 0.7,
     stream: bool = False,

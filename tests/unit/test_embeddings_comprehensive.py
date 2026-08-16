@@ -779,26 +779,18 @@ class TestConvenienceFunctionsComprehensive:
 
     def test_generate_embedding_without_client(self):
         """Test generate_embedding without provided client."""
-        with patch('venice_sdk.config.load_config') as mock_load_config:
-            with patch('venice_sdk.venice_client.VeniceClient') as mock_venice_client:
-                mock_config = MagicMock()
-                mock_load_config.return_value = mock_config
-                
-                mock_client = MagicMock()
-                mock_venice_client.return_value = mock_client
-                
-                mock_response = MagicMock()
-                mock_response.json.return_value = {
-                    "data": [{"embedding": [0.1, 0.2, 0.3], "index": 0, "object": "embedding"}],
-                    "model": "text-embedding-ada-002",
-                    "usage": {"prompt_tokens": 5, "total_tokens": 5},
-                    "object": "list"
-                }
-                mock_client.post.return_value = mock_response
-                
-                embedding = generate_embedding("Hello world")
-                
-                assert embedding == [0.1, 0.2, 0.3]
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "data": [{"embedding": [0.1, 0.2, 0.3], "index": 0, "object": "embedding"}],
+            "model": "text-embedding-ada-002",
+            "usage": {"prompt_tokens": 5, "total_tokens": 5},
+            "object": "list"
+        }
+        mock_client.post.return_value = mock_response
+        with patch("venice_sdk.embeddings.ensure_http_client", return_value=mock_client):
+            embedding = generate_embedding("Hello world")
+        assert embedding == [0.1, 0.2, 0.3]
 
     def test_calculate_similarity_with_client(self, mock_client):
         """Test calculate_similarity with provided client."""
@@ -818,26 +810,18 @@ class TestConvenienceFunctionsComprehensive:
 
     def test_calculate_similarity_without_client(self):
         """Test calculate_similarity without provided client."""
-        with patch('venice_sdk.config.load_config') as mock_load_config:
-            with patch('venice_sdk.venice_client.VeniceClient') as mock_venice_client:
-                mock_config = MagicMock()
-                mock_load_config.return_value = mock_config
-                
-                mock_client = MagicMock()
-                mock_venice_client.return_value = mock_client
-                
-                mock_response = MagicMock()
-                mock_response.json.return_value = {
-                    "data": [{"embedding": [0.1, 0.2], "index": 0, "object": "embedding"}],
-                    "model": "text-embedding-ada-002",
-                    "usage": {"prompt_tokens": 5, "total_tokens": 5},
-                    "object": "list"
-                }
-                mock_client.post.return_value = mock_response
-                
-                similarity = calculate_similarity("Hello", "World")
-                
-                assert similarity == 1.0
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "data": [{"embedding": [0.1, 0.2], "index": 0, "object": "embedding"}],
+            "model": "text-embedding-ada-002",
+            "usage": {"prompt_tokens": 5, "total_tokens": 5},
+            "object": "list"
+        }
+        mock_client.post.return_value = mock_response
+        with patch("venice_sdk.embeddings.ensure_http_client", return_value=mock_client):
+            similarity = calculate_similarity("Hello", "World")
+        assert similarity == 1.0
 
     def test_generate_embeddings_with_client(self, mock_client):
         """Test generate_embeddings with provided client."""
@@ -862,28 +846,20 @@ class TestConvenienceFunctionsComprehensive:
 
     def test_generate_embeddings_without_client(self):
         """Test generate_embeddings without provided client."""
-        with patch('venice_sdk.config.load_config') as mock_load_config:
-            with patch('venice_sdk.venice_client.VeniceClient') as mock_venice_client:
-                mock_config = MagicMock()
-                mock_load_config.return_value = mock_config
-                
-                mock_client = MagicMock()
-                mock_venice_client.return_value = mock_client
-                
-                mock_response = MagicMock()
-                mock_response.json.return_value = {
-                    "data": [{"embedding": [0.1, 0.2], "index": 0, "object": "embedding"}],
-                    "model": "text-embedding-ada-002",
-                    "usage": {"prompt_tokens": 5, "total_tokens": 5},
-                    "object": "list"
-                }
-                mock_client.post.return_value = mock_response
-                
-                result = generate_embeddings("Hello world")
-                
-                assert isinstance(result, EmbeddingResult)
-                assert len(result) == 1
-                assert result.get_embedding(0) == [0.1, 0.2]
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "data": [{"embedding": [0.1, 0.2], "index": 0, "object": "embedding"}],
+            "model": "text-embedding-ada-002",
+            "usage": {"prompt_tokens": 5, "total_tokens": 5},
+            "object": "list"
+        }
+        mock_client.post.return_value = mock_response
+        with patch("venice_sdk.embeddings.ensure_http_client", return_value=mock_client):
+            result = generate_embeddings("Hello world")
+        assert isinstance(result, EmbeddingResult)
+        assert len(result) == 1
+        assert result.get_embedding(0) == [0.1, 0.2]
 
     def test_generate_embeddings_with_kwargs(self, mock_client):
         """Test generate_embeddings with additional kwargs."""

@@ -661,23 +661,15 @@ class TestConvenienceFunctionsComprehensive:
 
     def test_text_to_speech_without_client(self):
         """Test text_to_speech without provided client."""
-        with patch('venice_sdk.config.load_config') as mock_load_config:
-            with patch('venice_sdk.venice_client.VeniceClient') as mock_venice_client:
-                mock_config = MagicMock()
-                mock_load_config.return_value = mock_config
-                
-                mock_client = MagicMock()
-                mock_venice_client.return_value = mock_client
-                
-                mock_response = MagicMock()
-                mock_response.status_code = 200
-                mock_response.content = b"fake audio data"
-                mock_client.post.return_value = mock_response
-                
-                result = text_to_speech("Hello world", voice="af_alloy")
-                
-                assert isinstance(result, AudioResult)
-                assert result.audio_data == b"fake audio data"
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = b"fake audio data"
+        mock_client.post.return_value = mock_response
+        with patch("venice_sdk.audio.ensure_http_client", return_value=mock_client):
+            result = text_to_speech("Hello world", voice="af_alloy")
+        assert isinstance(result, AudioResult)
+        assert result.audio_data == b"fake audio data"
 
     def test_text_to_speech_file_with_client(self, mock_client, tmp_path):
         """Test text_to_speech_file with provided client."""
@@ -695,24 +687,16 @@ class TestConvenienceFunctionsComprehensive:
 
     def test_text_to_speech_file_without_client(self, tmp_path):
         """Test text_to_speech_file without provided client."""
-        with patch('venice_sdk.config.load_config') as mock_load_config:
-            with patch('venice_sdk.venice_client.VeniceClient') as mock_venice_client:
-                mock_config = MagicMock()
-                mock_load_config.return_value = mock_config
-                
-                mock_client = MagicMock()
-                mock_venice_client.return_value = mock_client
-                
-                mock_response = MagicMock()
-                mock_response.status_code = 200
-                mock_response.content = b"fake audio data"
-                mock_client.post.return_value = mock_response
-                
-                output_path = tmp_path / "test_audio.wav"
-                result_path = text_to_speech_file("Hello world", output_path)
-                
-                assert isinstance(result_path, Path)
-                assert result_path.exists()
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = b"fake audio data"
+        mock_client.post.return_value = mock_response
+        output_path = tmp_path / "test_audio.wav"
+        with patch("venice_sdk.audio.ensure_http_client", return_value=mock_client):
+            result_path = text_to_speech_file("Hello world", output_path)
+        assert isinstance(result_path, Path)
+        assert result_path.exists()
 
     def test_text_to_speech_file_with_string_path(self, mock_client, tmp_path):
         """Test text_to_speech_file with string path."""

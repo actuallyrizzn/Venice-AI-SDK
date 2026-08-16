@@ -9,7 +9,7 @@ from __future__ import annotations
 import io
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, BinaryIO, Dict, List, Optional, Union, Generator
 
@@ -36,6 +36,41 @@ class Voice:
     language: Optional[str] = None
     gender: Optional[str] = None
     age: Optional[str] = None
+
+
+@dataclass
+class TranscriptionResult:
+    """Typed speech-to-text / video transcription payload."""
+
+    text: str
+    language: Optional[str] = None
+    duration: Optional[float] = None
+    segments: Optional[List[Any]] = None
+    words: Optional[List[Any]] = None
+    raw: Dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, data: Any) -> "TranscriptionResult":
+        if isinstance(data, str):
+            return cls(text=data, raw={"text": data})
+        if not isinstance(data, dict):
+            return cls(text=str(data) if data is not None else "", raw={})
+        text = data.get("text")
+        if text is None:
+            text = data.get("transcript") or data.get("transcription") or ""
+        duration = data.get("duration")
+        try:
+            duration_val = float(duration) if duration is not None else None
+        except (TypeError, ValueError):
+            duration_val = None
+        return cls(
+            text=str(text),
+            language=data.get("language"),
+            duration=duration_val,
+            segments=data.get("segments") if isinstance(data.get("segments"), list) else None,
+            words=data.get("words") if isinstance(data.get("words"), list) else None,
+            raw=data,
+        )
 
 
 @dataclass
@@ -269,9 +304,12 @@ class AudioAPI:
         language: Optional[str] = None,
         filename: Optional[str] = None,
         **kwargs: Any,
-    ) -> Union[Dict[str, Any], str]:
+    ) -> Union[TranscriptionResult, str]:
         """
         Speech-to-text (``POST /audio/transcriptions``).
+
+        JSON responses return :class:`TranscriptionResult`. Plain-text
+        ``response_format`` still returns a ``str``.
 
         Args:
             file: Audio path, bytes, or file object.
@@ -304,7 +342,7 @@ class AudioAPI:
         )
         ctype = (response.headers.get("Content-Type") or "").lower()
         if "application/json" in ctype:
-            return response.json()
+            return TranscriptionResult.from_dict(response.json())
         return response.text
 
     def clone_voice(

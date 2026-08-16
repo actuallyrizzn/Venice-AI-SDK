@@ -930,7 +930,7 @@ class VideoAPI:
         url: str,
         response_format: Optional[str] = None,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> "TranscriptionResult":
         """
         Transcribe a video (``POST /video/transcriptions``).
 
@@ -938,6 +938,7 @@ class VideoAPI:
             url: YouTube video URL (Venice currently validates YouTube URLs).
             response_format: Optional response format.
         """
+        from .audio import TranscriptionResult
         from .endpoints import VideoEndpoints
 
         if not url or not str(url).strip():
@@ -946,5 +947,5 @@ class VideoAPI:
         if response_format is not None:
             data["response_format"] = response_format
         response = self.client.post(VideoEndpoints.TRANSCRIPTIONS, data=data)
-        return response.json()
+        return TranscriptionResult.from_dict(response.json())
 

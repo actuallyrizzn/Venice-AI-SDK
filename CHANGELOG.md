@@ -5,20 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.2] - 2026-08-15
 
 ### Added
+- Typed payloads: `Response` / `ResponseOutputItem`, `SearchResponse` / `ScrapeResponse` / `ParsedDocument`, `TranscriptionResult`, `X402Balance` / `X402TopUpResult` / `X402Transactions`.
 - `MusicAPI.get_valid_parameters()` — quote-probe duration × `force_instrumental` combinations (video #65 twin).
 - `ImageAPI.get_model_constraints()` / `get_image_model_constraints()` — read aspect/resolution/style/size allowlists from `/models` `model_spec` (no generate grind).
+- x402 wallet flow: `build_payment_payload`, `encode_payment_signature` / `decode_payment_signature`, `X402API.top_up_with_signer()` (caller supplies the wallet signer; SDK never holds keys).
+- Chat `Message` accepts multimodal `content` lists, `Message` instances in `complete()`, plus `text_content()` / `to_dict()` / `from_dict()`.
+- Live tests for responses, augment, styles, STT, and x402 (`tests/live/test_new_routes_live.py`).
 
 ### Fixed
 - Clarified that `VideoAPI.complete()` is the sync queue+wait helper (music-parity). Venice job cleanup is `VideoAPI.cleanup()` → `POST /video/complete` (#66).
 
 ### Changed
+- `ResponsesAPI.create`, augment search/scrape/parse, JSON transcriptions, and x402 methods return typed objects (original JSON on `.raw`).
 - `VideoAPI.get_valid_parameters()` now probes the full duration × aspect_ratio grid and returns `combinations` with every valid pair (#65).
 
 ### Tests
-- Unit + integration coverage of `venice_sdk` brought to 100%.
+- Unit + integration coverage of `venice_sdk` kept at 100%.
 
 ## [0.3.1] - 2026-08-13
 

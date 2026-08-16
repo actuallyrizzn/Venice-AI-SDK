@@ -878,31 +878,23 @@ class TestConvenienceFunctionsComprehensive:
 
     def test_get_character_without_client(self):
         """Test get_character without provided client."""
-        with patch('venice_sdk.config.load_config') as mock_load_config:
-            with patch('venice_sdk.venice_client.VeniceClient') as mock_venice_client:
-                mock_config = MagicMock()
-                mock_load_config.return_value = mock_config
-                
-                mock_client = MagicMock()
-                mock_venice_client.return_value = mock_client
-                
-                mock_response = MagicMock()
-                mock_response.json.return_value = {
-                    "data": {
-                        "id": "char-123",
-                        "name": "Test Character",
-                        "slug": "test-character",
-                        "description": "A test character",
-                        "system_prompt": "You are a test character",
-                        "capabilities": {}
-                    }
-                }
-                mock_client.get.return_value = mock_response
-                
-                character = get_character("test-character")
-                
-                assert character is not None
-                assert character.slug == "test-character"
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "data": {
+                "id": "char-123",
+                "name": "Test Character",
+                "slug": "test-character",
+                "description": "A test character",
+                "system_prompt": "You are a test character",
+                "capabilities": {}
+            }
+        }
+        mock_client.get.return_value = mock_response
+        with patch("venice_sdk.characters.ensure_http_client", return_value=mock_client):
+            character = get_character("test-character")
+        assert character is not None
+        assert character.slug == "test-character"
 
     def test_list_characters_with_client(self, mock_client):
         """Test list_characters with provided client."""
@@ -951,30 +943,22 @@ class TestConvenienceFunctionsComprehensive:
 
     def test_search_characters_without_client(self):
         """Test search_characters without provided client."""
-        with patch('venice_sdk.config.load_config') as mock_load_config:
-            with patch('venice_sdk.venice_client.VeniceClient') as mock_venice_client:
-                mock_config = MagicMock()
-                mock_load_config.return_value = mock_config
-                
-                mock_client = MagicMock()
-                mock_venice_client.return_value = mock_client
-                
-                mock_response = MagicMock()
-                mock_response.json.return_value = {
-                    "data": [
-                        {
-                            "id": "char-1",
-                            "name": "Helpful Assistant",
-                            "slug": "helpful-assistant",
-                            "description": "A helpful assistant",
-                            "system_prompt": "You are a helpful assistant",
-                            "capabilities": {}
-                        }
-                    ]
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "data": [
+                {
+                    "id": "char-1",
+                    "name": "Helpful Assistant",
+                    "slug": "helpful-assistant",
+                    "description": "A helpful assistant",
+                    "system_prompt": "You are a helpful assistant",
+                    "capabilities": {}
                 }
-                mock_client.get.return_value = mock_response
-                
-                characters = search_characters("helpful")
-                
-                assert len(characters) == 1
-                assert characters[0].name == "Helpful Assistant"
+            ]
+        }
+        mock_client.get.return_value = mock_response
+        with patch("venice_sdk.characters.ensure_http_client", return_value=mock_client):
+            characters = search_characters("helpful")
+        assert len(characters) == 1
+        assert characters[0].name == "Helpful Assistant"

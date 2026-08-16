@@ -2,7 +2,7 @@
 
 Source of truth: `https://docs.venice.ai/swagger.yaml` (45 paths) + live probes with inference key.
 
-**Status:** SDK **0.3.1** brings endpoint coverage to full OpenAPI path parity (client surfaces for every swagger path). Residual work is depth (response typing, richer parsers, live integration tests), not missing routes.
+**Status:** SDK **0.3.2** keeps full OpenAPI path parity and closes the 0.3.1 depth follow-ups (typed payloads, multimodal `Message.content`, x402 wallet-signer flow, live tests for new routes).
 
 ## P0 — fixed in 0.3.1
 
@@ -40,9 +40,9 @@ Source of truth: `https://docs.venice.ai/swagger.yaml` (45 paths) + live probes 
 | `/x402/*` | `client.x402` |
 | `/tee/*` (live, not in swagger) | `client.tee` |
 
-## Follow-ups (depth, not missing paths)
+## Follow-ups (closed in 0.3.2)
 
-- Stronger typed response models for Responses / Augment / STT payloads
-- Live integration tests for new routes
-- Chat `Message` dataclass still types `content: str` (runtime accepts multimodal lists)
-- x402 top-up still needs a real payment signature from wallet flow
+- Typed response models for Responses / Augment / STT / x402 — `.raw` keeps the original JSON
+- Live tests for new routes: `tests/live/test_new_routes_live.py` (enable with `VENICE_LIVE_TESTS=1`)
+- Chat `Message.content` is `Optional[str | list[content-part]]`; `complete()` accepts `Message` objects
+- x402 top-up: `top_up_with_signer()` + `build_payment_payload()` — signature still comes from a wallet, not the SDK

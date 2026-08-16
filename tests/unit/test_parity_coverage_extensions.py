@@ -99,7 +99,7 @@ class TestAudioParityCoverage:
         resp.headers = {"Content-Type": "application/json"}
         resp.json.return_value = {"text": "hi"}
         mock_client.post_multipart.return_value = resp
-        assert api.transcribe(b"wav", model="whisper", language="en", timestamps=True)["text"] == "hi"
+        assert api.transcribe(b"wav", model="whisper", language="en", timestamps=True).text == "hi"
         resp.headers = {"Content-Type": "text/plain"}
         resp.text = "plain"
         assert api.transcribe(b"wav", model="whisper") == "plain"
@@ -311,7 +311,7 @@ class TestChatVideoCharactersTraits:
     def test_video_transcribe(self, mock_client):
         api = VideoAPI(mock_client)
         mock_client.post.return_value.json.return_value = {"text": "t"}
-        assert api.transcribe("https://youtube.com/watch?v=1", response_format="json")["text"] == "t"
+        assert api.transcribe("https://youtube.com/watch?v=1", response_format="json").text == "t"
         with pytest.raises(ValueError):
             api.transcribe(" ")
 

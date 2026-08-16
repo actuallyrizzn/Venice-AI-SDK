@@ -61,6 +61,7 @@ from .images import (
 from .audio import (
     Voice,
     AudioResult,
+    TranscriptionResult,
     AudioAPI,
     MusicJob,
     MusicAPI,
@@ -118,17 +119,32 @@ from .embeddings import (
     generate_embeddings,
 )
 from .tee import TEEAPI
-from .augment import AugmentAPI
-from .responses import ResponsesAPI
+from .augment import (
+    AugmentAPI,
+    SearchHit,
+    SearchResponse,
+    ScrapeResponse,
+    ParsedDocument,
+)
+from .responses import ResponsesAPI, Response, ResponseOutputItem
 from .crypto import CryptoAPI
-from .x402 import X402API
+from .x402 import (
+    X402API,
+    X402Balance,
+    X402TopUpResult,
+    X402Transactions,
+    PaymentSigner,
+    build_payment_payload,
+    encode_payment_signature,
+    decode_payment_signature,
+)
 from .logging_config import setup_logging
 
 _root_logger = logging.getLogger("venice_sdk")
 if not any(isinstance(handler, logging.NullHandler) for handler in _root_logger.handlers):
     _root_logger.addHandler(logging.NullHandler())
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 
 __all__ = [
     # Core client
@@ -190,6 +206,7 @@ __all__ = [
     # Audio
     "Voice",
     "AudioResult",
+    "TranscriptionResult",
     "AudioAPI",
     "MusicJob",
     "MusicAPI",
@@ -251,9 +268,22 @@ __all__ = [
 
     # Augment / Responses / Crypto / x402
     "AugmentAPI",
+    "SearchHit",
+    "SearchResponse",
+    "ScrapeResponse",
+    "ParsedDocument",
     "ResponsesAPI",
+    "Response",
+    "ResponseOutputItem",
     "CryptoAPI",
     "X402API",
+    "X402Balance",
+    "X402TopUpResult",
+    "X402Transactions",
+    "PaymentSigner",
+    "build_payment_payload",
+    "encode_payment_signature",
+    "decode_payment_signature",
 
     # Logging
     "setup_logging",
