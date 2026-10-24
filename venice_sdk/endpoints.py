@@ -83,7 +83,24 @@ class VideoEndpoints:
     RETRIEVE = "/video/retrieve"
     QUOTE = "/video/quote"
     COMPLETE = "/video/complete"
+    # Retired 2026-09: POST answers 410. Kept so callers can detect the old path.
     TRANSCRIPTIONS = "/video/transcriptions"
+
+
+class DecisionsEndpoints:
+    """Jev Decisions API (beta). ``/systemone`` is the TypeSafe alias."""
+
+    DECISIONS = "/decisions"
+    SYSTEMONE = "/systemone"
+
+
+class VoiceChangerEndpoints:
+    """Speech-to-speech voice changer (async quote/queue/retrieve/complete)."""
+
+    QUEUE = "/audio/voice-changer/queue"
+    RETRIEVE = "/audio/voice-changer/retrieve"
+    QUOTE = "/audio/voice-changer/quote"
+    COMPLETE = "/audio/voice-changer/complete"
 
 
 class AugmentEndpoints:

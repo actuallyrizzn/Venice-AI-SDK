@@ -275,6 +275,7 @@ class TestMultimodalMessages:
                         {"type": "image_url", "image_url": {"url": "https://img"}},
                         {"type": "input_audio", "input_audio": {"data": "aaa"}},
                         {"type": "video_url", "video_url": {"url": "https://v"}},
+                        {"type": "file", "file": {"filename": "notes.pdf"}},
                     ],
                 },
             ]
@@ -292,4 +293,4 @@ class TestMultimodalMessages:
         with pytest.raises(ValueError, match="type"):
             api.complete([{"role": "user", "content": [{"text": "x"}]}])
         with pytest.raises(ValueError, match="unsupported type"):
-            api.complete([{"role": "user", "content": [{"type": "file"}]}])
+            api.complete([{"role": "user", "content": [{"type": "bogus_part"}]}])

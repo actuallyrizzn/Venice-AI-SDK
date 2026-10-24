@@ -27,6 +27,7 @@ _MULTIMODAL_PART_TYPES = {
     "video_url",
     "input_image",
     "input_video",
+    "file",
 }
 
 
@@ -35,7 +36,7 @@ class Message:
     """A message in a chat conversation.
 
     ``content`` may be a string or a multimodal content-part list
-    (``text`` / ``image_url`` / ``input_audio`` / ``video_url``).
+    (``text`` / ``image_url`` / ``input_audio`` / ``video_url`` / ``file``).
     """
 
     role: str
@@ -216,7 +217,7 @@ class ChatAPI:
             messages: List of messages in the conversation. Each item may be a
                 dict or :class:`Message`. ``content`` may be a string or a
                 multimodal content-part array (text / image_url / input_audio /
-                video_url). Roles include ``system``, ``user``, ``assistant``,
+                video_url / file). Roles include ``system``, ``user``, ``assistant``,
                 and ``tool``.
             model: Model to use for completion
             temperature: Sampling temperature (0-1)

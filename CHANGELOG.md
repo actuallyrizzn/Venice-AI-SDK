@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-10-24
+
+### Added
+- Jev Decisions (beta): `client.decisions.create()` → `POST /decisions`, `client.decisions.systemone()` → `POST /systemone`. Typed `DecisionResult` / `DecisionAnswer` (noul / choice / score); original JSON on `.raw`.
+- Voice changer: `client.voice_changer` → `POST /audio/voice-changer/{quote,queue,retrieve,complete}`. File or `audio_url` (not both). `complete()` waits; `cleanup()` hits `/complete`. `get_valid_parameters()` quote-probes source durations.
+- `ModelsAPI.list(type=...)` including `decision` / `tts` / `asr` / `music` / `upscale` / `inpaint` / `all` / `code`.
+- Chat multimodal `file` content parts (PDF/DOCX/PPTX/XLSX/TXT extracted server-side).
+- `ModelCapabilities` flags from live `model_spec.capabilities`: video/audio input, reasoning, E2EE, X search, multiple images.
+
+### Fixed
+- `BillingAPI.get_usage*` no longer calls sunset `GET /billing/usage` (410 since 2026-09-16). It reads `GET /billing/usage-history` (`startTimestamp` / `endTimestamp` / `pageSize` / `cursor`).
+- `VideoAPI.transcribe()` no longer POSTs retired `/video/transcriptions`. Raises `VeniceAPIError` 410 pointing at chat `video_url` + `supportsVideoInput`.
+- `ModelsAPI.get()` looks up across `type=all` so image/video/decision ids resolve.
+
+### Tests
+- Unit + integration coverage of `venice_sdk` kept at 100%.
+
 ## [0.3.2] - 2026-08-15
 
 ### Added

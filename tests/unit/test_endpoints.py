@@ -15,6 +15,8 @@ from venice_sdk.endpoints import (
     CryptoEndpoints,
     X402Endpoints,
     TEEEndpoints,
+    DecisionsEndpoints,
+    VoiceChangerEndpoints,
 )
 
 
@@ -89,6 +91,14 @@ class TestOtherEndpoints:
 
     def test_video_endpoints(self):
         assert VideoEndpoints.TRANSCRIPTIONS == "/video/transcriptions"
+
+    def test_decisions_and_voice_changer_endpoints(self):
+        assert DecisionsEndpoints.DECISIONS == "/decisions"
+        assert DecisionsEndpoints.SYSTEMONE == "/systemone"
+        assert VoiceChangerEndpoints.QUEUE == "/audio/voice-changer/queue"
+        assert VoiceChangerEndpoints.QUOTE == "/audio/voice-changer/quote"
+        assert VoiceChangerEndpoints.RETRIEVE == "/audio/voice-changer/retrieve"
+        assert VoiceChangerEndpoints.COMPLETE == "/audio/voice-changer/complete"
 
     def test_augment_crypto_x402_tee(self):
         assert AugmentEndpoints.SEARCH == "/augment/search"

@@ -932,20 +932,23 @@ class VideoAPI:
         **kwargs: Any,
     ) -> "TranscriptionResult":
         """
-        Transcribe a video (``POST /video/transcriptions``).
+        Retired. ``POST /video/transcriptions`` answers 410.
 
-        Args:
-            url: YouTube video URL (Venice currently validates YouTube URLs).
-            response_format: Optional response format.
+        Use ``client.chat.complete`` with a ``video_url`` content part on a
+        model whose ``model_spec.capabilities.supportsVideoInput`` is true.
         """
-        from .audio import TranscriptionResult
-        from .endpoints import VideoEndpoints
-
+        del response_format, kwargs
         if not url or not str(url).strip():
             raise ValueError("url must be a non-empty string")
-        data: Dict[str, Any] = {"url": url, **kwargs}
-        if response_format is not None:
-            data["response_format"] = response_format
-        response = self.client.post(VideoEndpoints.TRANSCRIPTIONS, data=data)
-        return TranscriptionResult.from_dict(response.json())
+        raise VeniceAPIError(
+            "POST /video/transcriptions is retired (410). Use POST /chat/completions "
+            "with a video_url content part on a model where "
+            "model_spec.capabilities.supportsVideoInput is true.",
+            status_code=410,
+            error_code="ENDPOINT_RETIRED",
+            context={
+                "endpoint": VideoEndpoints.TRANSCRIPTIONS,
+                "successor": "/chat/completions",
+            },
+        )
 

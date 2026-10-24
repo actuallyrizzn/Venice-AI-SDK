@@ -138,13 +138,15 @@ from .x402 import (
     encode_payment_signature,
     decode_payment_signature,
 )
+from .decisions import DecisionsAPI, DecisionAnswer, DecisionResult
+from .voice_changer import VoiceChangerAPI, VoiceChangerJob
 from .logging_config import setup_logging
 
 _root_logger = logging.getLogger("venice_sdk")
 if not any(isinstance(handler, logging.NullHandler) for handler in _root_logger.handlers):
     _root_logger.addHandler(logging.NullHandler())
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 
 __all__ = [
     # Core client
@@ -284,6 +286,11 @@ __all__ = [
     "build_payment_payload",
     "encode_payment_signature",
     "decode_payment_signature",
+    "DecisionsAPI",
+    "DecisionAnswer",
+    "DecisionResult",
+    "VoiceChangerAPI",
+    "VoiceChangerJob",
 
     # Logging
     "setup_logging",

@@ -423,6 +423,16 @@ class APIKeysAPI:
                 return None
 
 
+def _billing_timestamp(dt: datetime) -> str:
+    """Format a datetime for ``/billing/usage-history`` (ISO 8601 UTC, Z suffix)."""
+    iso = dt.isoformat()
+    if iso.endswith("Z") or iso.endswith("z"):
+        return iso
+    if dt.tzinfo is None:
+        return iso + "Z"
+    return iso
+
+
 class BillingAPI:
     """Billing and usage API client."""
     
@@ -436,45 +446,53 @@ class BillingAPI:
         end_date: Optional[datetime] = None,
         limit: int = 200,
         page: int = 1,
-        sort_order: str = "desc"
+        sort_order: str = "desc",
+        cursor: Optional[str] = None,
     ) -> UsageInfo:
         """
         Get current account usage information.
-        
+
+        ``GET /billing/usage`` sunset on 2026-09-16 (410). This method now
+        reads ``GET /billing/usage-history`` (cursor pagination).
+
         Args:
-            currency: Filter by currency (USD, VCU, DIEM)
-            start_date: Start date for filtering records (ISO 8601)
-            end_date: End date for filtering records (ISO 8601)
-            limit: Number of items per page (0-500, default 200)
-            page: Page number for pagination (default 1)
-            sort_order: Sort order for createdAt field (asc/desc, default desc)
+            currency: Filter by currency (USD, DIEM, BUNDLED_CREDITS, EARNED_CREDITS)
+            start_date: Inclusive lower bound (mapped to ``startTimestamp``)
+            end_date: Exclusive upper bound (mapped to ``endTimestamp``)
+            limit: Page size (mapped to ``pageSize``; sent when not the old default 200)
+            page: Ignored — history does not use page numbers. Pass ``cursor``.
+            sort_order: Ignored — history walks ascending timestamp order.
+            cursor: Continuation token from a previous ``pagination["nextCursor"]``.
         
         Returns:
             UsageInfo object with usage details
         """
+        del page, sort_order  # not supported on /billing/usage-history
+        from .endpoints import AccountEndpoints
+
         params: Dict[str, Any] = {}
         
         if currency:
             params["currency"] = currency
         if start_date:
-            params["startDate"] = start_date.isoformat()
+            params["startTimestamp"] = _billing_timestamp(start_date)
         if end_date:
-            params["endDate"] = end_date.isoformat()
+            params["endTimestamp"] = _billing_timestamp(end_date)
         if limit != 200:
-            params["limit"] = limit
-        if page != 1:
-            params["page"] = page
-        if sort_order != "desc":
-            params["sortOrder"] = sort_order
+            params["pageSize"] = limit
+        if cursor:
+            params["cursor"] = cursor
         
-        response = self.client.get("/billing/usage", params=params)
+        response = self.client.get(AccountEndpoints.BILLING_USAGE_HISTORY, params=params)
         result = response.json()
         
         if "data" not in result:
             raise BillingError("Invalid response format from billing endpoint")
         
         data = result["data"]
-        pagination = result.get("pagination", {})
+        pagination = result.get("pagination") or {}
+        if not pagination and result.get("nextCursor"):
+            pagination = {"nextCursor": result.get("nextCursor")}
         
         if isinstance(data, dict):
             usage_by_model = {}

@@ -25,6 +25,8 @@ from .augment import AugmentAPI
 from .responses import ResponsesAPI
 from .crypto import CryptoAPI
 from .x402 import X402API
+from .decisions import DecisionsAPI
+from .voice_changer import VoiceChangerAPI
 
 logger = logging.getLogger(__name__)
 
@@ -64,12 +66,16 @@ class VeniceClient:
         self.image_upscale = ImageUpscaleAPI(self._http_client)
         self.image_styles = ImageStylesAPI(self._http_client)
         
-        # Audio services (TTS + music generation)
+        # Audio services (TTS + music generation + voice changer)
         self.audio = AudioAPI(self._http_client)
         self.music = MusicAPI(self._http_client)
+        self.voice_changer = VoiceChangerAPI(self._http_client)
         
         # Video generation
         self.video = VideoAPI(self._http_client)
+
+        # Jev Decisions (beta)
+        self.decisions = DecisionsAPI(self._http_client)
         
         # Character management
         self.characters = CharactersAPI(self._http_client)

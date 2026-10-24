@@ -625,20 +625,23 @@ class TestBillingAPIComprehensive:
             end_date=datetime(2024, 12, 31),
             limit=100,
             page=2,
-            sort_order="asc"
+            sort_order="asc",
+            cursor="next-token",
         )
         
-        # Verify the request was made with pagination parameters
+        # Sunset /billing/usage → /billing/usage-history cursor params
         mock_client.get.assert_called_once()
         call_args = mock_client.get.call_args
+        assert call_args[0][0] == "/billing/usage-history"
         params = call_args[1]['params']
         
         assert params['currency'] == "USD"
-        assert params['startDate'] == "2024-01-01T00:00:00"
-        assert params['endDate'] == "2024-12-31T00:00:00"
-        assert params['limit'] == 100
-        assert params['page'] == 2
-        assert params['sortOrder'] == "asc"
+        assert params['startTimestamp'] == "2024-01-01T00:00:00Z"
+        assert params['endTimestamp'] == "2024-12-31T00:00:00Z"
+        assert params['pageSize'] == 100
+        assert params['cursor'] == "next-token"
+        assert 'page' not in params
+        assert 'sortOrder' not in params
         
         assert isinstance(usage_info, UsageInfo)
         assert usage_info.pagination is not None
@@ -675,9 +678,10 @@ class TestBillingAPIComprehensive:
         
         # Should not have pagination params when using defaults
         assert 'currency' not in params
-        assert 'startDate' not in params
-        assert 'endDate' not in params
-        assert 'limit' not in params
+        assert 'startTimestamp' not in params
+        assert 'endTimestamp' not in params
+        assert 'pageSize' not in params
+        assert 'cursor' not in params
         assert 'page' not in params
         assert 'sortOrder' not in params
         

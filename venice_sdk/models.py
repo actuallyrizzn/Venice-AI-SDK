@@ -13,10 +13,16 @@ from ._http import ensure_http_client
 
 @dataclass
 class ModelCapabilities:
-    """Model capabilities."""
+    """Model capabilities from ``model_spec.capabilities``."""
     supports_function_calling: bool
     supports_web_search: bool
     available_context_tokens: int
+    supports_video_input: bool = False
+    supports_audio_input: bool = False
+    supports_reasoning: bool = False
+    supports_e2ee: bool = False
+    supports_x_search: bool = False
+    supports_multiple_images: bool = False
 
 
 @dataclass
@@ -48,9 +54,15 @@ class ModelsAPI:
         """
         self.client = client
     
-    def list(self) -> List[JSONDict]:
+    def list(self, type: Optional[str] = None) -> List[JSONDict]:
         """
         Get a list of available models.
+
+        Args:
+            type: Optional ``GET /models?type=`` filter. Live values include
+                ``text`` (Venice default when omitted), ``image``, ``video``,
+                ``music``, ``tts``, ``asr``, ``embedding``, ``upscale``,
+                ``inpaint``, ``decision``, ``all``, and ``code``.
         
         Returns:
             List of model data
@@ -58,7 +70,10 @@ class ModelsAPI:
         Raises:
             VeniceAPIError: If the request fails
         """
-        response = self.client.get("models")
+        kwargs: JSONDict = {}
+        if type is not None:
+            kwargs["params"] = {"type": type}
+        response = self.client.get("models", **kwargs)
         return cast(List[JSONDict], response.json()["data"])
     
     def get(self, model_id: str) -> JSONDict:
@@ -74,7 +89,7 @@ class ModelsAPI:
         Raises:
             VeniceAPIError: If the model is not found or request fails
         """
-        models = self.list()
+        models = self.list(type="all")
         for model in models:
             if model.get("id") == model_id:
                 return model
@@ -188,6 +203,12 @@ def _build_model_from_data(model_data: JSONDict) -> Model:
     
     supports_function_calling = _get_capability_bool(capabilities_data, "supportsFunctionCalling", model_id)
     supports_web_search = _get_capability_bool(capabilities_data, "supportsWebSearch", model_id)
+    supports_video_input = _get_capability_bool(capabilities_data, "supportsVideoInput", model_id)
+    supports_audio_input = _get_capability_bool(capabilities_data, "supportsAudioInput", model_id)
+    supports_reasoning = _get_capability_bool(capabilities_data, "supportsReasoning", model_id)
+    supports_e2ee = _get_capability_bool(capabilities_data, "supportsE2EE", model_id)
+    supports_x_search = _get_capability_bool(capabilities_data, "supportsXSearch", model_id)
+    supports_multiple_images = _get_capability_bool(capabilities_data, "supportsMultipleImages", model_id)
     available_context_tokens = _get_available_context_tokens(model_spec, model_id)
     
     description = (
@@ -206,6 +227,12 @@ def _build_model_from_data(model_data: JSONDict) -> Model:
             supports_function_calling=supports_function_calling,
             supports_web_search=supports_web_search,
             available_context_tokens=available_context_tokens,
+            supports_video_input=supports_video_input,
+            supports_audio_input=supports_audio_input,
+            supports_reasoning=supports_reasoning,
+            supports_e2ee=supports_e2ee,
+            supports_x_search=supports_x_search,
+            supports_multiple_images=supports_multiple_images,
         ),
         description=description,
         display_name=raw_name or model_id,

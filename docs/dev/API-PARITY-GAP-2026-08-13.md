@@ -1,3 +1,36 @@
+# Venice API ↔ SDK parity (updated 2026-10-24)
+
+Source of truth: `https://api.venice.ai/api/v1/swagger.yaml` (`info.version` **20261023.234127**).
+
+**Status:** SDK **0.3.3** restores full OpenAPI path parity (minus retired 410s, which are wrapped as errors / redirected) and closes the depth gaps found since 0.3.2.
+
+Prior 0.3.1/0.3.2 notes remain below.
+
+## 0.3.3 — breadth
+
+| Path | SDK |
+|------|-----|
+| `POST /decisions` | `client.decisions.create` |
+| `POST /systemone` | `client.decisions.systemone` (same payload) |
+| `POST /audio/voice-changer/{quote,queue,retrieve,complete}` | `client.voice_changer` |
+
+## 0.3.3 — retired routes (410)
+
+| Path | SDK |
+|------|-----|
+| `GET /billing/usage` (sunset 2026-09-16) | `get_usage*` → `GET /billing/usage-history` |
+| `POST /video/transcriptions` | `VideoAPI.transcribe()` raises 410; use chat `video_url` |
+
+## 0.3.3 — depth
+
+- Chat `file` content parts
+- `ModelsAPI.list(type=...)` including `decision`; `get()` uses `type=all`
+- `ModelCapabilities` video/audio input, reasoning, E2EE, X search, multiple images
+
+TEE (`/tee/*`) still omitted from swagger; live and already wrapped.
+
+---
+
 # Venice API ↔ SDK parity gap (2026-08-13)
 
 Source of truth: `https://docs.venice.ai/swagger.yaml` (45 paths) + live probes with inference key.
@@ -29,12 +62,12 @@ Source of truth: `https://docs.venice.ai/swagger.yaml` (45 paths) + live probes 
 | `/audio/voices` | `client.audio.clone_voice` |
 | `/audio/queue|retrieve|quote|complete` | `client.music` |
 | `/video/queue|retrieve|quote|complete` | `client.video` |
-| `/video/transcriptions` | `client.video.transcribe` |
+| `/video/transcriptions` | `client.video` (retired 0.3.3) |
 | `/embeddings` | `client.embeddings` |
 | `/models`, `/models/traits`, `/models/compatibility_mapping` | `client.models*` |
 | `/characters*`, `/characters/{slug}/reviews` | `client.characters` |
 | `/api_keys*` | `client.api_keys` |
-| `/billing/usage|balance|usage-analytics|usage-history` | `client.billing` |
+| `/billing/usage|balance|usage-analytics|usage-history` | `client.billing` (`usage` redirected 0.3.3) |
 | `/augment/search|scrape|text-parser` | `client.augment` |
 | `/crypto/rpc/networks`, `/crypto/rpc/{network}` | `client.crypto` |
 | `/x402/*` | `client.x402` |

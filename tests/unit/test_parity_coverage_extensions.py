@@ -16,7 +16,7 @@ from venice_sdk.characters import CharactersAPI, Character
 from venice_sdk.models_advanced import ModelsTraitsAPI, _to_temperature_range, _recommendation_score
 from venice_sdk.venice_client import VeniceClient, create_client
 from venice_sdk.config import Config
-from venice_sdk.errors import BillingError, ModelNotFoundError, AudioGenerationError, ImageGenerationError, VideoGenerationError
+from venice_sdk.errors import BillingError, ModelNotFoundError, AudioGenerationError, ImageGenerationError, VideoGenerationError, VeniceAPIError
 from venice_sdk.endpoints import AccountEndpoints, AudioEndpoints, ImageEndpoints, VideoEndpoints, ModelsEndpoints
 
 
@@ -310,8 +310,11 @@ class TestChatVideoCharactersTraits:
 
     def test_video_transcribe(self, mock_client):
         api = VideoAPI(mock_client)
-        mock_client.post.return_value.json.return_value = {"text": "t"}
-        assert api.transcribe("https://youtube.com/watch?v=1", response_format="json").text == "t"
+        with pytest.raises(VeniceAPIError) as exc:
+            api.transcribe("https://youtube.com/watch?v=1", response_format="json")
+        assert exc.value.status_code == 410
+        assert exc.value.error_code == "ENDPOINT_RETIRED"
+        mock_client.post.assert_not_called()
         with pytest.raises(ValueError):
             api.transcribe(" ")
 
@@ -355,6 +358,8 @@ class TestChatVideoCharactersTraits:
             assert hasattr(client, "crypto")
             assert hasattr(client, "responses")
             assert hasattr(client, "x402")
+            assert hasattr(client, "decisions")
+            assert hasattr(client, "voice_changer")
             assert client.get_rate_limit_metrics() is None
             assert client.get_rate_limit_events() is None
             assert client.get_endpoint_metrics("/x") is None

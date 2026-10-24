@@ -105,6 +105,25 @@ class TestNewRoutesLive:
             assert isinstance(transcript, TranscriptionResult)
             assert isinstance(transcript.text, str)
 
+    def test_models_decision_type_filter(self):
+        try:
+            rows = self.client.models.list(type="decision")
+        except VeniceAPIError as exc:
+            _skip_unavailable(exc)
+        assert isinstance(rows, list)
+
+    def test_decisions_noul_typed(self):
+        try:
+            result = self.client.decisions.create(
+                "Coverage ping. Nothing is on fire.",
+                {"is_urgent": {"type": "noul", "instructions": "Does this convey urgency?"}},
+                model="jev-latest",
+            )
+        except VeniceAPIError as exc:
+            _skip_unavailable(exc)
+        assert result.model
+        assert "is_urgent" in result.answers or result.raw
+
     def test_x402_balance_route_exists(self):
         try:
             result = self.client.x402.balance("0x0000000000000000000000000000000000000000")

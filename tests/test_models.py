@@ -185,7 +185,7 @@ def test_get_model_success(models_api, mock_client):
     model = models_api.get("llama-3.3-70b")
     assert model["id"] == "llama-3.3-70b"
     assert model["name"] == "Llama 3.3 70B"
-    mock_client.get.assert_called_once_with("models")
+    mock_client.get.assert_called_once_with("models", params={"type": "all"})
 
 
 def test_get_model_not_found(models_api, mock_client):
@@ -220,7 +220,7 @@ def test_validate_model_success(models_api, mock_client):
     mock_client.get.return_value = mock_response
 
     assert models_api.validate("llama-3.3-70b") is True
-    mock_client.get.assert_called_once_with("models")
+    mock_client.get.assert_called_once_with("models", params={"type": "all"})
 
 
 def test_validate_model_failure(models_api, mock_client):
@@ -230,7 +230,7 @@ def test_validate_model_failure(models_api, mock_client):
     mock_client.get.return_value = mock_response
 
     assert models_api.validate("non-existent-model") is False
-    mock_client.get.assert_called_once_with("models")
+    mock_client.get.assert_called_once_with("models", params={"type": "all"})
 
 
 def test_get_models_utility(mock_client):
@@ -430,7 +430,7 @@ def test_models_api_get_success(client, mock_model_response, mocker):
     
     assert model["id"] == "test-model"
     assert model["name"] == "Test Model"
-    mock_get.assert_called_once_with("models")
+    mock_get.assert_called_once_with("models", params={"type": "all"})
 
 
 def test_models_api_list_error(client, mocker):
