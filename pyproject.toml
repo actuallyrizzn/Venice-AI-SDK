@@ -53,11 +53,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/venice-ai/venice-sdk"
-Documentation = "https://github.com/venice-ai/venice-sdk#readme"
-Repository = "https://github.com/venice-ai/venice-sdk.git"
-Issues = "https://github.com/venice-ai/venice-sdk/issues"
-Changelog = "https://github.com/venice-ai/venice-sdk/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/actuallyrizzn/Venice-AI-SDK"
+Documentation = "https://github.com/actuallyrizzn/Venice-AI-SDK#readme"
+Repository = "https://github.com/actuallyrizzn/Venice-AI-SDK.git"
+Issues = "https://github.com/actuallyrizzn/Venice-AI-SDK/issues"
+Changelog = "https://github.com/actuallyrizzn/Venice-AI-SDK/blob/main/CHANGELOG.md"
 
 [project.scripts]
 venice = "venice_sdk.cli:main"
